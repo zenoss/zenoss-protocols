@@ -1,0 +1,46 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.protobufs.test;
+
+enum JsonFormatEnum {
+    JSON_FORMAT_ENUM_VAL1 = 1;
+    JSON_FORMAT_ENUM_VAL2 = 2;
+}
+
+message JsonFormatMessage1 {
+    required string str_field = 1;
+    required bool bool_field = 2;
+    required double double_field = 3;
+    required float float_field = 4;
+    required int32 int32_field = 5;
+    required int64 int64_field = 6;
+    required uint32 uint32_field = 7;
+    required uint64 uint64_field = 8;
+    required sint32 sint32_field = 9;
+    required sint64 sint64_field = 10;
+    required fixed32 fixed32_field = 11;
+    required fixed64 fixed64_field = 12;
+    required sfixed32 sfixed32_field = 13;
+    required sfixed64 sfixed64_field = 14;
+    required bytes bytes_field = 15;
+    required JsonFormatEnum enum_field = 16;
+}
+
+message JsonFormatNested {
+    required JsonFormatMessage1 message1_field = 1;
+}
+
+message JsonFormatRepeatedNested {
+    repeated JsonFormatMessage1 message1_field = 1;
+}

@@ -1,0 +1,356 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+import "messaging.proto";
+import "model.proto";
+import "states.proto";
+import "util.proto";
+
+package org.zenoss.protobufs.zep;
+
+message EventActor {
+    optional org.zenoss.protobufs.model.ModelElementType element_type_id = 1;
+    optional string element_uuid = 2;
+    optional string element_identifier = 3;
+    optional org.zenoss.protobufs.model.ModelElementType element_sub_type_id = 4;
+    optional string element_sub_uuid = 5;
+    optional string element_sub_identifier = 6;
+}
+
+message EventDetail {
+    required string name = 1;
+    repeated string value = 2;
+}
+
+// Tag events with arbitrary UUIDs. Tags are used for event rainbows and filtering.
+message EventTag {
+    required string type = 1;
+    required string uuid = 2;
+}
+
+// Notes added to an event (formerly event log).
+message EventNote {
+    optional string uuid = 1;
+    optional string user_uuid = 2;
+    optional string user_name = 3;
+    optional uint64 created_time = 4;
+    required string message = 5;
+}
+
+enum EventSeverity {
+    SEVERITY_CLEAR = 0;
+    SEVERITY_DEBUG = 1;
+    SEVERITY_INFO = 2;
+    SEVERITY_WARNING = 3;
+    SEVERITY_ERROR = 4;
+    SEVERITY_CRITICAL = 5;
+}
+
+enum SyslogPriority {
+    SYSLOG_PRIORITY_EMERG = 0;
+    SYSLOG_PRIORITY_ALERT = 1;
+    SYSLOG_PRIORITY_CRIT = 2;
+    SYSLOG_PRIORITY_ERR = 3;
+    SYSLOG_PRIORITY_WARNING = 4;
+    SYSLOG_PRIORITY_NOTICE = 5;
+    SYSLOG_PRIORITY_INFO = 6;
+    SYSLOG_PRIORITY_DEBUG = 7;
+}
+
+enum EventStatus {
+    STATUS_NEW = 1;
+    STATUS_ACKNOWLEDGED = 2;
+    STATUS_SUPPRESSED = 3;
+    STATUS_CLOSED = 4; // Closed by the user.
+    STATUS_CLEARED = 5; // Closed by a matching clear event.
+    STATUS_DROPPED = 6; // Dropped via a transform.
+    STATUS_AGED = 7; // Closed via automatic aging.
+}
+
+// Represents an event that is sent from zenhub
+message RawEvent {
+    required string uuid = 1;
+    required uint64 created_time = 2;
+    optional string fingerprint = 3;
+    optional string event_class = 4;
+    optional string event_class_key = 5;
+    optional EventActor actor = 6;
+    optional string summary = 7;
+    optional string message = 8;
+    optional EventSeverity severity = 9;
+    optional string event_key = 10;
+    optional string event_group = 11;
+    optional string agent = 12;
+    optional SyslogPriority syslog_priority = 13;
+    optional uint32 syslog_facility = 14;
+    optional uint32 nt_event_code = 15;
+    optional string monitor = 16;
+    repeated EventDetail details = 17;
+}
+
+// Represents an event that is sent to ZEP for processing.
+// This is a temporary bridge between eventd and ZEP
+message ZepRawEvent {
+    required RawEvent raw_event = 1;
+    repeated string clear_event_class = 2;
+    optional EventStatus status = 3 [default = STATUS_NEW];
+    repeated EventTag tags = 4;
+}
+
+// Represents an individual event occurrence (processed RawEvent).
+message Event {
+    optional string uuid = 1;
+    optional uint64 created_time = 2;
+    optional string fingerprint = 3;
+    optional string event_class = 4;
+    optional string event_class_key = 5;
+    optional string event_class_mapping_uuid = 6;
+    optional EventActor actor = 7;
+    optional string summary = 8;
+    optional string message = 9;
+    optional EventSeverity severity = 10 [default = SEVERITY_INFO];
+    optional string event_key = 12;
+    optional string event_group = 13;
+    optional string agent = 14;
+    optional SyslogPriority syslog_priority = 15;
+    optional uint32 syslog_facility = 16;
+    optional uint32 nt_event_code = 17;
+    optional string monitor = 18;
+    repeated EventDetail details = 19;
+    repeated EventTag tags = 20;
+}
+
+// Represents a summary of an event (based on fingerprint).
+message EventSummary {
+    optional string uuid = 1;
+    // Typically contains only the most recent occurrence.
+    repeated Event occurrence = 2;
+    optional EventStatus status = 3 [default = STATUS_NEW];
+    optional uint64 first_seen_time = 4;
+    optional uint64 status_change_time = 5;
+    optional uint64 last_seen_time = 6;
+    optional uint32 count = 7 [default = 1];
+    optional string acknowledged_by_user_uuid = 8;
+    optional string cleared_by_event_uuid = 9;
+    repeated EventNote notes = 10;
+    optional uint64 update_time = 11;
+}
+
+// Deprecated
+message NumberCondition {
+    enum Operation {
+        LT = 1;
+        GT = 2;
+        GTEQ = 3;
+        LTEQ = 4;
+        EQ = 5;
+    }
+
+    required Operation op = 1 [default = EQ];
+    required int32 value = 2;
+}
+
+message NumberRange {
+    // Inclusive
+    optional int32 from = 1;
+    optional int32 to = 2;
+}
+
+enum FilterOperator {
+    OR = 1;
+    AND = 2;
+}
+
+// An event summary must match all items in a filter that are populated
+message EventSummaryFilter {
+    repeated EventSeverity severity = 1;
+    repeated EventStatus status = 2;
+    // Use /Class/NameFoo for exact match or /Class/NameFoo/ to match that class and children
+    optional string event_class = 3;
+    optional org.zenoss.protobufs.util.TimestampRange first_seen = 4;
+    optional org.zenoss.protobufs.util.TimestampRange last_seen = 5;
+    optional org.zenoss.protobufs.util.TimestampRange status_change = 6;
+    optional NumberCondition count = 7; // Deprecated
+    repeated NumberRange count_range = 15;
+    optional string element_identifier = 8;
+    optional string element_sub_identifier = 9;
+    repeated string uuid = 10; // event summary uuid
+    optional string event_summary = 11;
+    repeated string tag_uuids = 12;
+    optional FilterOperator tag_uuids_op = 13 [default = OR];  // Deprecated
+    optional org.zenoss.protobufs.util.TimestampRange update_time = 14;
+}
+
+message EventTagFilter {
+    required FilterOperator op = 1 [default = OR];
+    repeated string tag_uuids = 2;
+}
+
+message EventDetailFilter {
+    required FilterOperator op = 1 [default = OR];
+    repeated EventDetail details = 2;
+}
+
+message EventFilter {
+    // All fields are AND-ed, all repeated values are grouped and OR-ed
+    repeated EventSeverity severity = 1;
+    repeated EventStatus status = 2;
+    // Use /Class/NameFoo for exact match or /Class/NameFoo/ to match that class and children (wildcards "*" allowed)
+    repeated string event_class = 3;
+    repeated org.zenoss.protobufs.util.TimestampRange first_seen = 4;
+    repeated org.zenoss.protobufs.util.TimestampRange last_seen = 5;
+    repeated org.zenoss.protobufs.util.TimestampRange status_change = 6;
+    repeated org.zenoss.protobufs.util.TimestampRange update_time = 7;
+    repeated NumberRange count_range = 8;
+    repeated string element_identifier = 9;
+    repeated string element_sub_identifier = 10;
+    repeated string uuid = 11; // event summary uuid
+    repeated string event_summary = 12;
+    repeated EventTagFilter tag_filter = 13;
+    repeated EventFilter details = 14;
+}
+
+message EventSort {
+    enum Field {
+        SEVERITY = 1;
+        STATUS = 2;
+        EVENT_CLASS = 3;
+        FIRST_SEEN = 4;
+        LAST_SEEN = 5;
+        STATUS_CHANGE = 6;
+        COUNT = 7;
+        ELEMENT_IDENTIFIER = 8;
+        ELEMENT_SUB_IDENTIFIER = 9;
+        EVENT_SUMMARY = 10;
+        UPDATE_TIME = 11;
+    }
+
+    enum Direction {
+        ASCENDING = 1;
+        DESCENDING = 2;
+    }
+
+    required Field field = 1;
+    required Direction direction = 2 [default = ASCENDING];
+}
+
+message EventSummaryRequest {
+    optional EventSummaryFilter filter = 1; // Deprecated
+    optional EventFilter event_filter = 6;
+    optional EventFilter exclusion_filter = 7;
+    repeated EventSort sort = 2;
+    optional uint32 limit = 3 [default = 100];
+    optional uint32 offset = 4;
+    repeated string keys = 5;
+}
+
+message EventSummaryResult {
+    repeated EventSummary events = 1;
+    optional uint32 limit = 2;
+    // Will be set to offset + limit if results remain, otherwise unset.
+    optional uint32 next_offset = 3;
+    optional uint32 total = 4;
+}
+
+// Properties which can be modified on an event summary
+message EventSummaryUpdate {
+    optional EventStatus status = 1;
+    optional string acknowledged_by_user_uuid = 2;
+}
+
+message EventSummaryUpdateRequest {
+    optional EventFilter event_filter = 1;
+    optional EventFilter exclusion_filter = 2;
+    required EventSummaryUpdate update_fields = 3;
+    // On first request, update_time is unset. On next requests, update_time from first response is sent.
+    optional uint64 update_time = 4;
+    optional uint32 limit = 5 [default = 100];
+}
+
+message EventSummaryUpdateResponse {
+    required EventSummaryUpdateRequest request = 1;
+    required uint32 remaining = 2; // Number of remaining events to update
+    required uint32 updated = 3; // The number of events updated in this batch.
+}
+
+// Event Triggers
+enum RuleType {
+    RULE_TYPE_JYTHON = 1;
+    //RULE_TYPE_JAVA = 2; // from __future__ import java
+}
+
+// The content is evaluated by a "ScriptEngine" for RuleType and checked against the event
+message Rule {
+    required int32 api_version = 1;
+    required RuleType type = 2;
+    required string source = 3;
+}
+
+message EventTriggerSubscription {
+    optional string uuid = 1;
+    // Wait this amount of time for a possible clear before sending a signal
+    optional int32 delay_seconds = 2;
+    // After first signal, wait this amount of time before sending a signal again (0 for no repeating)
+    optional int32 repeat_seconds = 3;
+    // id of subscriber
+    required string subscriber_uuid = 4;
+    // id of trigger to subscribe to
+    required string trigger_uuid = 5;
+}
+
+message EventTriggerSubscriptionSet {
+    repeated EventTriggerSubscription subscriptions = 1;
+}
+
+message EventTrigger {
+    optional string uuid = 1;
+    optional string name = 2;
+    optional bool enabled = 3 [default = true];
+
+    // If rule matches event, start responding to subscriptions
+    required Rule rule = 4;
+
+    repeated EventTriggerSubscription subscriptions = 5;
+}
+
+message EventTriggerSet {
+    repeated EventTrigger triggers = 1;
+}
+
+// A signal is sent because a Trigger rule matched an event and we
+// waited for a EventTriggerSubscription.delay_seconds amount of time before
+// sending the signal. Action is taken immediately for any signal received.
+message Signal {
+    required string uuid = 1;
+    required uint64 created_time = 2;
+    required string trigger_uuid = 3;
+    required string subscriber_uuid = 4;
+    // If this is signal clears all previous signals
+    required bool clear = 5 [default = false];
+    optional EventSummary event = 6;
+    optional string message = 7;
+}
+
+message EventTagSeverity {
+    required EventSeverity severity = 1;
+    optional uint32 count = 2;
+}
+
+message EventTagSeverities {
+    required string tag_uuid = 1;
+    repeated EventTagSeverity severities = 2;
+}
+
+message EventTagSeveritiesSet {
+    repeated EventTagSeverities severities = 1;
+}

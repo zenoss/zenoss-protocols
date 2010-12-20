@@ -1,0 +1,53 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+package org.zenoss.protobufs.rpc;
+
+message RpcRequest {
+	message RpcRequestPayload {
+		required string service_name = 1;
+		required string method_name = 2;
+		required bytes request = 3;
+	}
+	required int32 id = 1; // Unique id for the request (per connection)
+	repeated RpcRequestPayload requests = 2; // RPC request payload
+    extensions 100 to 199;
+}
+
+message RpcResponse {
+	message RpcResponsePayload {
+		// Either response or error will be set
+		optional bytes response = 1;
+		optional RpcError error = 2;
+	}
+	// Unique id for the response
+	required int32 id = 1;
+	repeated RpcResponsePayload responses = 2;
+	extensions 100 to 199;
+}
+
+message RpcError {
+	enum RpcErrorCode {
+		UNKNOWN = 0;
+		INVALID_PROTOCOL_BUFFER = 1;
+		UNKNOWN_SERVICE = 2;
+		UNKNOWN_METHOD = 3;
+		INVALID_REQUEST = 4;
+		INVALID_RESPONSE = 5;
+		SERVICE_ERROR = 6;
+	}
+	required RpcErrorCode error_code = 1;
+	optional string error_message = 2;
+	optional string exception_class = 3;
+	optional string stack_trace = 4;
+	optional int32 service_error_code = 5;
+}

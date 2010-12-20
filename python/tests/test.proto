@@ -1,0 +1,38 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.test;
+
+enum TestEnum {
+    OPTION_A = 1;
+    OPTION_B = 2;
+    OPTION_C = 3;
+}
+
+message TestNestedMessage {
+    optional TestEnum test_enum = 1;
+    optional string uuid = 2;
+}
+
+
+message TestMessage {
+    required string uuid = 1;
+    optional uint64 created_time = 2;
+    optional TestEnum test_enum = 3;
+    repeated TestNestedMessage messages = 4;
+    optional TestNestedMessage nested = 5;
+}
+
+message EmptyTestMessage {
+	repeated string unused = 1;
+}

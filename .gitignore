@@ -1,0 +1,12 @@
+.classpath
+.project
+.pydevproject
+.settings
+target
+*.iml
+*.ipr
+*.iws
+*.pyc
+*.egg-info
+python/zenoss/protocols/data
+python/zenoss/protocols/protobufs

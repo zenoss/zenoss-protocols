@@ -1,0 +1,54 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.protobufs.model;
+
+enum ModelElementType {
+    DEVICE = 1;
+    COMPONENT = 2;
+    SERVICE = 3;
+    ORGANIZER = 4;
+}
+
+message Device {
+    optional string uuid = 1;
+    optional string id = 2;
+    optional string title = 3;
+    optional uint32 priority = 4;
+    optional string ip_address = 5;
+    optional string class_name_uuid = 6;
+    optional string location_uuid = 7;
+    optional int32 production_state = 8;
+
+    repeated string group_uuids = 9;
+    repeated string system_uuids = 10;
+    repeated string service_uuids = 11;
+}
+
+message Component {
+    optional string uuid = 1;
+    optional string id = 2;
+    optional string title = 3;
+    optional Device device = 4;
+}
+
+message Organizer {
+    optional string uuid = 1;
+    optional string title = 2;
+    optional string path = 3;
+}
+
+message Service {
+    optional string uuid = 1;
+    optional string title = 2;
+}

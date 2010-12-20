@@ -1,0 +1,56 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+import "states.proto";
+import "messaging.proto";
+import "model.proto";
+package org.zenoss.protobufs.graph;
+
+message Property {
+    required string name = 1;
+    required string value = 2;
+}
+
+message Node {
+    required string uuid = 1;
+    optional org.zenoss.protobufs.model.ModelElementType element_type_id = 2;
+    repeated Property properties = 3;
+    repeated Edge edges = 4;
+    // Node types will need metadata
+    extensions 100 to 199;
+}
+
+message Edge {
+    required string impacter_uuid = 1;
+    required string impacted_uuid = 2;
+    optional string relationship_provider = 3;
+    
+    // Edge types may need metadata
+    extensions 100 to 199;
+}
+
+message GraphChangeEvent {
+
+    enum Action {
+        ADD_UPDATE_NODE =3;
+        REMOVE_NODE = 4;
+    }
+
+    required Action action = 1;
+    optional Node node = 2;
+}
+
+message GraphChangeList {
+    repeated GraphChangeEvent changes = 1;
+    optional bool reset = 2 [default = false];
+}
+    

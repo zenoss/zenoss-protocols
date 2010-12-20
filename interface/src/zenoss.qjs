@@ -1,0 +1,247 @@
+{
+    "content_types" : {
+        "$RawEvent" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$RawEvent",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.RawEvent",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.RawEvent"
+        },
+        "$ZepRawEvent" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$ZepRawEvent",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepRawEvent",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.ZepRawEvent"
+        },
+        "$EventSummary" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummary",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummary",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummary"
+        },
+        "$EventSummaryResult" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummaryResult",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryResult",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummaryResult"
+        },
+        "$ModelEventList" : {
+            "java_class" : "org.zenoss.protobufs.modelevents.Modelevents$ModelEventList",
+            "python_class" : "zenoss.protocols.protobufs.modelevents_pb2.ModelEventList",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.modelevents.ModelEventList"
+        },
+        "$StateEvent" : {
+            "java_class" : "org.zenoss.protobufs.stateevent.Stateevent$StateEvent",
+            "python_class" : "zenoss.protocols.protobufs.stateevent_pb2.StateEvent",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.stateevent.StateEvent"
+        },
+        "$GraphChangeEvent" : {
+            "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeEvent",
+            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeEvent",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.graph.GraphChangeEvent"
+        },
+        "$GraphChangeList" : {
+            "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeList",
+            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeList",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.graph.GraphChangeList"
+        },
+        "$Signal" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$Signal",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Signal",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.Signal"
+        },
+        "$EventTriggerSet" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventTriggerSet",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTriggerSet",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventTriggerSet"
+        },
+        "$EventTrigger" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventTrigger",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTrigger",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventTrigger"
+        },
+        "$EventTagSeveritiesSet" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventTagSeveritiesSet",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTagSeveritiesSet",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventTagSeveritiesSet"
+        }
+    },
+    "exchanges" : {
+        "$RawZenEvents" : {
+            "name" : "zenoss.zenevents.raw",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "New zenevents will go into this exchange for ZEP to process them.",
+            "content_types" : ["$RawEvent"],
+            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+        },
+        "$ZepZenEvents" : {
+            "name" : "zenoss.zenevents.zep",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Zenevents that have been partially transformed for ZEP go to this exchange",
+            "content_types" : ["$ZepRawEvent"],
+            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+        },
+        "$ProcessedZenEvents" : {
+            "name" : "zenoss.zenevents",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "After ZEP processes the event, the realized event will be put in the fanout exchange.",
+            "content_types" : ["$EventSummary"],
+            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+        },
+        "$ModelChangeEvents" : {
+            "name" : "zenoss.events.modelchange",
+            "type" : "direct",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "When a device, component, or service changes in Zenoss, a modelchange event is sent.",
+            "content_types" : ["$ModelEventList"],
+            "routing_key_regexp" : "zenoss\\.event\\.modelchange"
+        },
+        "$StateChangeEvents" : {
+            "name" : "zenoss.events.statechange",
+            "type" : "direct",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "After StateImp processes events, it creates state change events for zenevents that can change state.",
+            "content_types" : ["$StateEvent"],
+            "routing_key_regexp" : "zenoss\\.event\\.statechange"
+        },
+        "$ImpactChangeEvents" : {
+            "name" : "zenoss.events.impactchange",
+            "type" : "direct",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "When a device, component, or service changes the impact of a service, an impactchange event is sent.",
+            "content_types" : ["$GraphChangeList"],
+            "routing_key_regexp" : "zenoss\\.event\\.impactchange"
+        },
+        "$Signals" : {
+            "name" : "zenoss.signals",
+            "type" : "direct",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "When an event matches a trigger, a signal is created.",
+            "content_types" : ["$Signal"],
+            "routing_key_regexp" : "zenoss\\.signal"
+        }
+    },
+    "queues" : {
+        "$RawZenEvents" : {
+            "name" : "zenoss.queues.zep.rawevents",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "The queue that zeneventd pulls from, should only be used by ZEP daemons.",
+            "bindings" : [
+                {
+                    "exchange" : "$RawZenEvents",
+                    "routing_key" : "zenoss.zenevent.#"
+                }
+            ]
+        },
+        "$ZepZenEvents" : {
+            "name" : "zenoss.queues.zep.zenevents",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "The queue that ZEP pulls from, should only be used by ZEP daemons.",
+            "bindings" : [
+                {
+                    "exchange" : "$ZepZenEvents",
+                    "routing_key" : "zenoss.zenevent.#"
+                }
+            ]
+        },
+        "$ZepModelChange" : {
+            "name" : "zenoss.queues.zep.modelchange",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for ZEP to consume model change events.",
+            "bindings" : [
+                {
+                    "exchange" : "$ModelChangeEvents",
+                    "routing_key" : "zenoss.event.modelchange"
+                }
+            ]
+        },
+        "$StateZenEvents" : {
+            "name" : "zenoss.queues.state.zenevents",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for StateImp. Listens for all events so StateImp can determine if they are state change events.",
+            "bindings" : [
+                {
+                    "exchange" : "$ProcessedZenEvents",
+                    "routing_key" : "zenoss.zenevent.#"
+                }
+            ]
+        },
+        "$DsaStateChange" : {
+            "name" : "zenoss.queues.dsa.statechange",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for DSA to consume state change events.",
+            "bindings" : [
+                {
+                    "exchange" : "$StateChangeEvents",
+                    "routing_key" : "zenoss.event.statechange"
+                }
+            ]
+        },
+        "$ImpactModelChange" : {
+            "name" : "zenoss.queues.impact.modelchange",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for ImpactImp to consume model change events.",
+            "bindings" : [
+                {
+                    "exchange" : "$ModelChangeEvents",
+                    "routing_key" : "zenoss.event.modelchange"
+                }
+            ]
+        },
+        "$DsaImpactChange" : {
+            "name" : "zenoss.queues.dsa.impactchange",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for DSA to consume impact change events.",
+            "bindings" : [
+                {
+                    "exchange" : "$ImpactChangeEvents",
+                    "routing_key" : "zenoss.event.impactchange"
+                }
+            ]
+        },
+        "$Signals" : {
+            "name" : "zenoss.queues.zep.signal",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for signal messages created from events matching triggers.",
+            "bindings" : [
+                {
+                    "exchange" : "$Signals",
+                    "routing_key" : "zenoss.signal"
+                }
+            ]
+        }
+    }
+}

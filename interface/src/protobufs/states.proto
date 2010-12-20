@@ -1,0 +1,58 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.protobufs.states;
+
+message State {
+    enum StateType {
+        AVAILABILITY = 1;
+        COMPLIANCE = 2;
+        CONFIGURATION = 3;
+        //UTILIZATION = 4;
+    }
+
+    message ComplianceState {
+        enum ComplianceStateValue {
+            IN = 1;
+            OUT = 2;
+        }
+        required ComplianceStateValue state = 1;
+    }
+    
+    message ConfigurationState {
+        enum ConfigurationStateValue {
+            UNCHANGED = 1;
+            CHANGED = 2;
+        }
+        required ConfigurationStateValue state = 1;
+    }
+    
+    //message UtilizationState {
+    //}
+    
+    message AvailabilityState {
+       enum AvailabilityStateValue {
+       	    UP = 1;
+      	    DEGRADED= 2;
+       	    DOWN = 3;
+       }
+       required AvailabilityStateValue state = 1;
+    }
+
+
+    required StateType type = 1;
+    optional AvailabilityState availability = 2;
+    optional ComplianceState compliance = 3;
+    optional ConfigurationState configuration = 4;
+    //optional UtilizationState utilization = 5;
+}

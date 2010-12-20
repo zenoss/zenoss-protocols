@@ -1,0 +1,41 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//##########################################################################
+
+package org.zenoss.protobufs.util;
+
+message TimestampRange {
+    optional uint64 start_time = 1;
+    optional uint64 end_time = 2;
+}
+
+// proto describing the scheduling windows that this alert is valid
+message ScheduleWindow {
+    enum RepeatType {
+        NEVER = 0;
+        DAILY = 1;
+        EVERY_WEEKDAY = 2;
+        WEEKLY = 3;
+        MONTHLY = 4;
+        FIRST_SUNDAY = 5;
+    }
+    optional string uuid = 1;
+    optional string name = 2;
+    optional bool enabled = 3;
+    optional uint64 created_time = 4;
+    optional int32 duration_seconds = 5;
+    optional RepeatType repeat = 6;
+}
+
+message ScheduleWindowSet {
+    repeated ScheduleWindow windows = 1;
+}
+

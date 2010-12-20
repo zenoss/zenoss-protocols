@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  
+Ant build script invoked to build all *.proto files using the protoc
+compiler in a specified path.
+-->
+<project name="protoc" default="default">
+	<property name="protoc.path" value="protoc" />
+	<fail message="proto.src.dir is not defined" unless="proto.src.dir" />
+	<fail message="proto.dest.dir is not defined" unless="proto.dest.dir" />
+
+	<target name="default">
+		<property name="proto.src.dir.absolute" location="${proto.src.dir}" />
+		<property name="proto.dest.dir.absolute" location="${proto.dest.dir}" />
+		<fileset id="proto.rawfiles" dir="${proto.src.dir.absolute}">
+			<include name="*.proto" />
+		</fileset>
+		<!-- NOTE: This won't work on paths with spaces in their names -->
+		<pathconvert property="proto.files" refid="proto.rawfiles" pathsep=" " />
+		<!-- Remove any previously generated protobufs -->
+		<delete quiet="true" includeemptydirs="true">
+			<fileset dir=".">
+				<include name="${proto.dest.dir}/**/*.java" />
+			</fileset>
+		</delete>
+		<mkdir dir="${proto.dest.dir}" />
+		<echo message="Compiling protoc files in ${proto.src.dir.absolute} to ${proto.dest.dir.absolute}" />
+		<exec executable="${protoc.path}" failonerror="true">
+			<arg value="-I${proto.src.dir.absolute}" />
+			<arg value="--java_out=${proto.dest.dir.absolute}" />
+			<arg line="${proto.files}" />
+		</exec>
+	</target>
+</project>

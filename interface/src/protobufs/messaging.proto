@@ -1,0 +1,24 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 as published by
+// the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.protobufs.messaging;
+
+// Represents a message in the queue
+message AppMessage {
+    required string uuid = 1;
+    required uint64 created_time = 2;
+    required string type = 3;
+    
+    // For each type you need to define an extension field for the data
+    extensions 100 to 199;
+}

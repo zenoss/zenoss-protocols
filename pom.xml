@@ -1,0 +1,54 @@
+<project
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.zenoss</groupId>
+    <artifactId>protocols</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Zenoss Protocols</name>
+    <modules>
+        <module>java/protobufs</module>
+        <module>java/amqp-api</module>
+        <module>java/amqp-util</module>
+        <module>java/amqp-samples</module>
+    </modules>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <protoc.path>protoc</protoc.path>
+        <version.jackson>1.6.3</version.jackson>
+    </properties>
+    <scm>
+        <connection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</connection>
+        <developerConnection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</developerConnection>
+        <url>http://dev.zenoss.org/trac/browser/org.zenoss.protocols</url>
+    </scm>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
+            <plugin>
+            	<groupId>org.codehaus.mojo</groupId>
+            	<artifactId>versions-maven-plugin</artifactId>
+            	<version>1.2</version>
+            </plugin>
+        </plugins>
+    </build>
+    <distributionManagement>
+        <repository>
+            <id>releases</id>
+            <url>http://devsvcs.zenoss.loc/nexus/content/repositories/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <url>http://devsvcs.zenoss.loc/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+</project>
