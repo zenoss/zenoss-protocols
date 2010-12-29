@@ -217,8 +217,9 @@ message EventFilter {
     repeated string element_sub_identifier = 10;
     repeated string uuid = 11; // event summary uuid
     repeated string event_summary = 12;
-    repeated EventTagFilter tag_filter = 13;
-    repeated EventDetailFilter details = 14;
+    repeated string acknowledged_by_user_name = 13;
+    repeated EventTagFilter tag_filter = 14;
+    repeated EventDetailFilter details = 15;
 }
 
 message EventSort {
