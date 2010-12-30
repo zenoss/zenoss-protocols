@@ -235,6 +235,7 @@ message EventSort {
         ELEMENT_SUB_IDENTIFIER = 9;
         EVENT_SUMMARY = 10;
         UPDATE_TIME = 11;
+        ACKNOWLEDGED_BY_USER_NAME = 12;
     }
 
     enum Direction {
@@ -247,13 +248,12 @@ message EventSort {
 }
 
 message EventSummaryRequest {
-    optional EventSummaryFilter filter = 1; // Deprecated
-    optional EventFilter event_filter = 6;
-    optional EventFilter exclusion_filter = 7;
-    repeated EventSort sort = 2;
-    optional uint32 limit = 3 [default = 100];
-    optional uint32 offset = 4;
-    repeated string keys = 5;
+    optional EventFilter event_filter = 1;
+    optional EventFilter exclusion_filter = 2;
+    repeated EventSort sort = 3;
+    optional uint32 limit = 4 [default = 100];
+    optional uint32 offset = 5;
+    repeated string keys = 6;
 }
 
 message EventSummaryResult {

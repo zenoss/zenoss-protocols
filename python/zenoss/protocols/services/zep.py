@@ -145,10 +145,11 @@ class ZepServiceClient(object):
 
         return self.updateEventSummary(uuid, update)
 
-    def acknowledgeEventSummary(self, uuid, userUuid):
+    def acknowledgeEventSummary(self, uuid, userUuid, userName):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_ACKNOWLEDGED,
             acknowledged_by_user_uuid = userUuid,
+            acknowledged_by_user_name = userName
         ))
 
         return self.updateEventSummary(uuid, update)
