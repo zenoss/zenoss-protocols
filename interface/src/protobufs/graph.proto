@@ -13,6 +13,7 @@
 import "states.proto";
 import "messaging.proto";
 import "model.proto";
+import "stateevent.proto";
 package org.zenoss.protobufs.graph;
 
 message Property {
@@ -52,5 +53,6 @@ message GraphChangeEvent {
 message GraphChangeList {
     repeated GraphChangeEvent changes = 1;
     optional bool reset = 2 [default = false];
+    repeated org.zenoss.protobufs.stateevent.StateEvent state_events = 3;
 }
     
