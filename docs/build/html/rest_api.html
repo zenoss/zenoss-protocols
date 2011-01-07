@@ -50,27 +50,32 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Version:</th><td class="field-body">0.7</td>
+<tr class="field"><th class="field-name">Version:</th><td class="field-body">1.0</td>
 </tr>
-<tr class="field"><th class="field-name">Base URL:</th><td class="field-body">/zep/api/$version/</td>
+<tr class="field"><th class="field-name">Base URL:</th><td class="field-body">/zenoss-zep/api/$version/</td>
 </tr>
 </tbody>
 </table>
 <div class="section" id="events">
 <h2>Events<a class="headerlink" href="#events" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="rest-api">
+<h3>REST API<a class="headerlink" href="#rest-api" title="Permalink to this headline">¶</a></h3>
+<p>All responses from ZEP web services are returned as protobuf messages defined in zep.proto. The response will include a
+X-Protobuf-FullName header containing the name of the protobuf message. Two content types are supported,
+application/x-protobuf for binary encoded messages and application/json. The application/json encoding format is subject
+to change - API clients should only use the binary encoded protobuf messages.</p>
+</div>
 <div class="section" id="list-events">
 <h3>List Events<a class="headerlink" href="#list-events" title="Permalink to this headline">¶</a></h3>
-<p>Get a list of events matching the given filters. The event <cite>details</cite> will not be be in the response.</p>
+<p>Get a list of events matching the given filters. Only the most recent occurrence of the event is returned.</p>
 <div class="section" id="parameters">
 <h4>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h4>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">keys:</th><td class="field-body">A list of keys to populate in the request. All fields except <cite>details</cite> can be requested.
-<cite>uuid</cite> will always be provided.</td>
-</tr>
-<tr class="field"><th class="field-name">sort:</th><td class="field-body">An <cite>EventSort</cite> to sort the results by.</td>
+<tr class="field"><th class="field-name">sort:</th><td class="field-body">An <cite>EventSort</cite> to sort the results by. This is a comma-delimited value of &#8220;EventSort.Field,EventSort.Direction&#8221;.
+The direction is optional (default is ASCENDING). (ex: &#8220;SEVERITY,DESCENDING&#8221;, &#8220;SUMMARY&#8221;).</td>
 </tr>
 <tr class="field"><th class="field-name">limit:</th><td class="field-body">The maximum number of events to retrieve (default: 100).</td>
 </tr>
@@ -81,15 +86,15 @@
 </div>
 <div class="section" id="filter-options">
 <h4>Filter Options<a class="headerlink" href="#filter-options" title="Permalink to this headline">¶</a></h4>
-<p>See also <cite>org.zenoss.protobufs.zep.EventFilter</cite></p>
+<p>See also <cite>org.zenoss.protobufs.zep.EventSummaryRequest</cite></p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="9%" />
-<col width="6%" />
-<col width="85%" />
+<col width="18%" />
+<col width="8%" />
+<col width="74%" />
 </colgroup>
 <thead valign="bottom">
-<tr><th class="head">Property</th>
+<tr><th class="head">Parameter</th>
 <th class="head">Multiples</th>
 <th class="head">Values</th>
 </tr>
@@ -101,71 +106,97 @@
 </tr>
 <tr><td>status</td>
 <td>Yes</td>
-<td>NEW, ACKNOWLEDGED, SUPPRESSED</td>
+<td>NEW, ACKNOWLEDGED, SUPPRESSED, CLOSED, CLEARED, AGED</td>
 </tr>
 <tr><td>eventClass</td>
 <td>Yes</td>
 <td>Use <cite>/Class/Name</cite> for exact match or <cite>/Class/Name/</cite> to match that class and it&#8217;s children</td>
 </tr>
-<tr><td>firstSeen</td>
+<tr><td>first_seen</td>
 <td>No</td>
-<td>iso8601 <a class="footnote-reference" href="#iso8601" id="id1">[1]</a> formatted timestamp or timestamp range (ex: &#8220;2007-06-20T12:34:40Z&#8221; or &#8220;2007-06-20T00:00:00Z/2007-07-20T00:00:00Z&#8221;)</td>
+<td>ISO8601 <a class="footnote-reference" href="#iso8601" id="id1">[1]</a> timestamp or timestamp range</td>
 </tr>
-<tr><td>lastSeen</td>
+<tr><td>last_seen</td>
 <td>No</td>
-<td>iso8601 <a class="footnote-reference" href="#iso8601" id="id2">[1]</a> formatted timestamp or timestamp range (ex: &#8220;2007-06-20T12:34:40Z&#8221; or &#8220;2007-06-20T00:00:00Z/2007-07-20T00:00:00Z&#8221;)</td>
+<td>ISO8601 <a class="footnote-reference" href="#iso8601" id="id2">[1]</a> timestamp or timestamp range</td>
+</tr>
+<tr><td>status_change</td>
+<td>No</td>
+<td>ISO8601 <a class="footnote-reference" href="#iso8601" id="id3">[1]</a> timestamp or timestamp range</td>
+</tr>
+<tr><td>update_time</td>
+<td>No</td>
+<td>ISO8601 <a class="footnote-reference" href="#iso8601" id="id4">[1]</a> timestamp or timestamp range</td>
 </tr>
 <tr><td>count</td>
 <td>No</td>
-<td>Comparison condition (ex: &#8220;&lt;4&#8221;, &#8220;&gt;3&#8221;, &#8220;&gt;=2&#8221;, &#8220;3&#8221;)</td>
+<td>Comparison condition (ex: &#8220;&lt;4&#8221;, &#8220;&gt;3&#8221;, &#8220;&gt;=2&#8221;, &#8220;3&#8221;) or range (ex: &#8220;1:4&#8221;, &#8220;0:100&#8221;).</td>
 </tr>
-<tr><td>device</td>
+<tr><td>element_identifier</td>
 <td>Yes</td>
-<td>A device GUID</td>
+<td>Element identifier. <a class="footnote-reference" href="#identifier" id="id5">[2]</a></td>
 </tr>
-<tr><td>component</td>
+<tr><td>element_sub_identifier</td>
 <td>Yes</td>
-<td>A component GUID</td>
-</tr>
-<tr><td>service</td>
-<td>Yes</td>
-<td>A service GUID</td>
+<td>Sub element identifier. <a class="footnote-reference" href="#identifier" id="id6">[2]</a></td>
 </tr>
 <tr><td>uuid</td>
 <td>Yes</td>
 <td>An Event UUID</td>
 </tr>
+<tr><td>event_summary</td>
+<td>Yes</td>
+<td>Tokens to search within event summary (full text).</td>
+</tr>
+<tr><td>acknowledged_by_user</td>
+<td>Yes</td>
+<td>User names.</td>
+</tr>
+<tr><td>tag_uuids</td>
+<td>Yes</td>
+<td>UUIDs of tags stored in the event.</td>
+</tr>
+<tr><td>tag_uuids_op</td>
+<td>No</td>
+<td>AND, OR</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Arguments that allow multiple values result in an <cite>IN(sev1, sev2)</cite> query.</p>
+<p class="last">All of the above parameters can be prefixed with <cite>ex_</cite> to exclude events matching the condition. For example,
+specifying an <cite>ex_severity</cite> of <cite>INFO</cite> will exclude all events with severity INFO from the results.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameters that allow multiple values are OR-ed together (except for tag_uuids depending on the tag_uuids_op
+operator). Each parameter is AND-ed together with other parameters to build the query.</p>
 </div>
 </div>
 <div class="section" id="api">
 <h4>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h4>
 <p>Request:</p>
-<div class="highlight-python"><pre>GET /zep/api/$version/events?$parameters
+<div class="highlight-python"><pre>GET /zenoss-zep/api/$version/events?$parameters
 Accept: application/x-protobuf</pre>
 </div>
 <p>Response:</p>
 <div class="highlight-python"><pre>Content-Type: application/x-protobuf
-X-Protobuf-FullName: org.zenoss.protobufs.zep.EventSet</pre>
+X-Protobuf-FullName: org.zenoss.protobufs.zep.EventSummaryResult</pre>
 </div>
 </div>
 </div>
 <div class="section" id="event-details">
 <h3>Event Details<a class="headerlink" href="#event-details" title="Permalink to this headline">¶</a></h3>
-<p>Get an event and all its details.</p>
-<div class="section" id="id3">
-<h4>API<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>Get an event and all its details. Only the most recent occurrence of the event is returned.</p>
+<div class="section" id="id7">
+<h4>API<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h4>
 <p>Request:</p>
-<div class="highlight-python"><pre>GET /zep/api/$version/events/$eventUuid
+<div class="highlight-python"><pre>GET /zenoss-zep/api/$version/events/$eventUuid
 Accept: application/x-protobuf</pre>
 </div>
 <p>Response:</p>
 <div class="highlight-python"><pre>Content-Type: application/x-protobuf
-X-Protobuf-FullName: org.zenoss.protobufs.zep.Event</pre>
+X-Protobuf-FullName: org.zenoss.protobufs.zep.EventSummary</pre>
 </div>
 </div>
 </div>
@@ -174,105 +205,22 @@ X-Protobuf-FullName: org.zenoss.protobufs.zep.Event</pre>
 <p>To create an event, push the event into the raw events queue.</p>
 </div>
 </div>
-<div class="section" id="model">
-<h2>Model<a class="headerlink" href="#model" title="Permalink to this headline">¶</a></h2>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Not a whole lot of effort has been put into this section. It will need more thought and is not needed yet.</p>
-</div>
-<div class="section" id="get-a-list-of-elements">
-<h3>Get a List of Elements<a class="headerlink" href="#get-a-list-of-elements" title="Permalink to this headline">¶</a></h3>
-<div class="section" id="id4">
-<h4>Parameters<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field"><th class="field-name">keys:</th><td class="field-body">A list of keys to populate in the request.</td>
-</tr>
-<tr class="field"><th class="field-name">sort:</th><td class="field-body"></td>
-</tr>
-<tr class="field"><th class="field-name">results:</th><td class="field-body">The number of results to get</td>
-</tr>
-<tr class="field"><th class="field-name">offset:</th><td class="field-body">The result number to start at (for pagination)</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="section" id="id5">
-<h4>Filter Options<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
-<table border="1" class="docutils">
-<colgroup>
-<col width="38%" />
-<col width="23%" />
-<col width="38%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Property</th>
-<th class="head">Multiples</th>
-<th class="head">Values</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>guid</td>
-<td>Yes</td>
-<td>An element GUID</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Arguments that allow multiple values result in an <cite>IN(sev1, sev2)</cite> query.</p>
-</div>
-</div>
-<div class="section" id="id6">
-<h4>API<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
-<p>Request:</p>
-<div class="highlight-python"><pre>GET /zep/api/$version/model/$modelType?$parameters
-Accept: application/x-protobuf</pre>
-</div>
-<p>Response:</p>
-<div class="highlight-python"><pre>Content-Type: application/x-protobuf
-X-Protobuf-FullName: org.zenoss.protobufs.model.$ModelType</pre>
-</div>
-</div>
-</div>
-<div class="section" id="get-a-model-element">
-<h3>Get a Model Element<a class="headerlink" href="#get-a-model-element" title="Permalink to this headline">¶</a></h3>
-<p>Get a model element and the info that ZEP stores for it.</p>
-<div class="section" id="id7">
-<h4>API<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h4>
-<p>Request:</p>
-<div class="highlight-python"><pre>GET /zep/api/$version/model/$modelType/$guid
-Accept: application/x-protobuf</pre>
-</div>
-<p>Response:</p>
-<div class="highlight-python"><pre>Content-Type: application/x-protobuf
-X-Protobuf-FullName: org.zenoss.protobufs.model.$ModelType</pre>
-</div>
-</div>
-</div>
-<div class="section" id="model-types">
-<h3>Model Types<a class="headerlink" href="#model-types" title="Permalink to this headline">¶</a></h3>
-<ul class="simple">
-<li>Device</li>
-<li>Component</li>
-<li>Service <a class="footnote-reference" href="#esa" id="id8">[2]</a></li>
-</ul>
-</div>
-</div>
 <div class="section" id="footnotes">
 <h2>Footnotes<a class="headerlink" href="#footnotes" title="Permalink to this headline">¶</a></h2>
 <table class="docutils footnote" frame="void" id="iso8601" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[1]</td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id2">2</a>)</em> <a class="reference external" href="http://en.wikipedia.org/wiki/ISO_8601">A standard date and time format</a>, <a class="reference external" href="http://code.google.com/p/pyiso8601/">Python implementation</a></td></tr>
+<tr><td class="label">[1]</td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id2">2</a>, <a class="fn-backref" href="#id3">3</a>, <a class="fn-backref" href="#id4">4</a>)</em> <a class="reference external" href="http://en.wikipedia.org/wiki/ISO_8601">A standard date and time format</a>,
+<a class="reference external" href="http://code.google.com/p/pyiso8601/">Python implementation</a>. Example: &#8220;2007-06-20T12:34:40Z&#8221; or
+&#8220;2007-06-20T00:00:00Z/2007-07-20T00:00:00Z&#8221;.</td></tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="esa" rules="none">
+<table class="docutils footnote" frame="void" id="identifier" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id8">[2]</a></td><td>Only available with ESA</td></tr>
+<tr><td class="label">[2]</td><td><em>(<a class="fn-backref" href="#id5">1</a>, <a class="fn-backref" href="#id6">2</a>)</em> If the identifier query is enclosed in double quotes, a search is performed for the exact match. If
+the identifier query is less than 3 characters in length or ends with an asterisk, a begins-with query
+is performed. Otherwise, a substring query is performed.</td></tr>
 </tbody>
 </table>
 </div>
@@ -288,6 +236,7 @@ X-Protobuf-FullName: org.zenoss.protobufs.model.$ModelType</pre>
   <ul>
 <li><a class="reference internal" href="#">Zenoss Event Processing API</a><ul>
 <li><a class="reference internal" href="#events">Events</a><ul>
+<li><a class="reference internal" href="#rest-api">REST API</a></li>
 <li><a class="reference internal" href="#list-events">List Events</a><ul>
 <li><a class="reference internal" href="#parameters">Parameters</a></li>
 <li><a class="reference internal" href="#filter-options">Filter Options</a></li>
@@ -295,24 +244,10 @@ X-Protobuf-FullName: org.zenoss.protobufs.model.$ModelType</pre>
 </ul>
 </li>
 <li><a class="reference internal" href="#event-details">Event Details</a><ul>
-<li><a class="reference internal" href="#id3">API</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#create-event">Create Event</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#model">Model</a><ul>
-<li><a class="reference internal" href="#get-a-list-of-elements">Get a List of Elements</a><ul>
-<li><a class="reference internal" href="#id4">Parameters</a></li>
-<li><a class="reference internal" href="#id5">Filter Options</a></li>
-<li><a class="reference internal" href="#id6">API</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#get-a-model-element">Get a Model Element</a><ul>
 <li><a class="reference internal" href="#id7">API</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#model-types">Model Types</a></li>
+<li><a class="reference internal" href="#create-event">Create Event</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#footnotes">Footnotes</a></li>
