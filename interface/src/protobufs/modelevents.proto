@@ -27,14 +27,6 @@ message ModelEvent{
         REMOVERELATION = 6;
     }
 
-    //model type
-    enum ModelType{
-        DEVICE = 1;
-        COMPONENT = 2;
-        SERVICE = 3;
-        ORGANIZER = 4;
-    }
-
     message AddedEvent{
     }
 
@@ -73,7 +65,7 @@ message ModelEvent{
 
 
     //Model type this event pertains to
-    required ModelType model_type = 9;
+    required org.zenoss.protobufs.model.ModelElementType model_type = 9;
     //Only one of the following will have a value based on model type
     optional org.zenoss.protobufs.model.Device device = 10;
     optional org.zenoss.protobufs.model.Component component = 11;
