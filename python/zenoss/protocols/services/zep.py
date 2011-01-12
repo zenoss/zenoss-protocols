@@ -1,10 +1,14 @@
 import json
+import time
+import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
 from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum
 from datetime import datetime, timedelta, tzinfo
+
+log = logging.getLogger('zepclient')
 
 EventSeverity = ProtobufEnum(Event, 'severity')
 EventStatus = ProtobufEnum(EventSummary, 'status')
@@ -129,44 +133,77 @@ class ZepServiceClient(object):
         """
         return self.client.get('%s' % uuid)
 
-    def updateEventSummary(self, uuid, update):
+    
+    def updateEventSummaries(self, update, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
         """
-        Update an event summary by event summary uuid.
+        @param update: EventSummaryUpdate protobuf
+        @param filter: EventFilter protobuf
+        @param exclusionFilter: EventFilter protobuf
+        @param updateTime: time
+        @param limit: integer
         """
-        if not uuid:
-            raise ValueError('UUID must be provided.')
-
-        return self.client.put('%s' % uuid, body=update)
-
-    def closeEventSummary(self, uuid):
+        updateRequestDict = dict(
+            update_fields = to_dict(update),
+        )
+        
+        if event_filter:
+            updateRequestDict['event_filter'] = to_dict(event_filter)
+        if exclusionFilter:
+            log.debug('Found exclusion filter: ' + str(exclusionFilter))
+            updateRequestDict['exclusion_filter'] = to_dict(exclusionFilter)
+            
+            
+            
+        if updateTime:
+            updateRequestDict['update_time'] = updateTime
+        else:
+            # deliberately pass in None so that ZEP will use it's own updated
+            # time.
+            # updateRequestDict['update_time'] = None
+            pass
+            
+        if limit != None:
+            updateRequestDict['limit'] = limit
+        
+        log.debug('issuing update request:' + str(updateRequestDict))
+        
+        updateRequest = from_dict(EventSummaryUpdateRequest, updateRequestDict)
+        
+        status, response = self.client.put('', body=updateRequest)
+        return status, response
+    
+    def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
-            status = STATUS_CLOSED
+            status = STATUS_CLOSED,
+            acknowledged_by_user_uuid = userUuid,
+            acknowledged_by_user_name = userName,
         ))
-
-        return self.updateEventSummary(uuid, update)
-
-    def acknowledgeEventSummary(self, uuid, userUuid, userName):
+        return self.updateEventSummaries(update, event_filter=event_filter, 
+            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+    
+    def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_ACKNOWLEDGED,
             acknowledged_by_user_uuid = userUuid,
-            acknowledged_by_user_name = userName
+            acknowledged_by_user_name = userName,
         ))
-
-        return self.updateEventSummary(uuid, update)
-
-    def reopenEventSummary(self, uuid):
+        return self.updateEventSummaries(update, event_filter=event_filter, 
+            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+    
+    def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
-            status = STATUS_NEW
+            status = STATUS_NEW,
+            acknowledged_by_user_uuid = userUuid,
+            acknowledged_by_user_name = userName,
         ))
-
-        return self.updateEventSummary(uuid, update)
-
+        return self.updateEventSummaries(update, event_filter=event_filter, 
+            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+    
     def getEventSeverities(self, tagUuids):
         if not tagUuids:
             raise ValueError('At least one tag UUID must be provided.')
 
         return self.client.get('severities', params={ 'tag' : tagUuids })
-
 
     def getWorstSeverity(self, tagUuids):
         if not tagUuids:

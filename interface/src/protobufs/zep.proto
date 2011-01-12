@@ -247,6 +247,7 @@ message EventSort {
     required Direction direction = 2 [default = ASCENDING];
 }
 
+// message for requesting event summaries.
 message EventSummaryRequest {
     optional EventFilter event_filter = 1;
     optional EventFilter exclusion_filter = 2;
@@ -255,6 +256,8 @@ message EventSummaryRequest {
     optional uint32 offset = 5;
 }
 
+// message for response for EventSummaryRequest
+// TODO: Can we change this to EventSummaryResponse?
 message EventSummaryResult {
     repeated EventSummary events = 1;
     optional uint32 limit = 2;
@@ -264,6 +267,7 @@ message EventSummaryResult {
 }
 
 // Properties which can be modified on an event summary
+// This is passed with every EventSummaryUpdateRequest.
 message EventSummaryUpdate {
     optional EventStatus status = 1;
     optional string acknowledged_by_user_uuid = 2;
