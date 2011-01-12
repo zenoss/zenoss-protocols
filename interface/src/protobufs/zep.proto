@@ -308,10 +308,12 @@ message EventTriggerSubscription {
     optional int32 delay_seconds = 2;
     // After first signal, wait this amount of time before sending a signal again (0 for no repeating)
     optional int32 repeat_seconds = 3;
+    // should we send a signal on every occurence of an event or only on the first
+    optional bool send_initial_occurrence = 4 [default = true];
     // id of subscriber
-    required string subscriber_uuid = 4;
+    required string subscriber_uuid = 5;
     // id of trigger to subscribe to
-    required string trigger_uuid = 5;
+    required string trigger_uuid = 6;
 }
 
 message EventTriggerSubscriptionSet {
@@ -341,10 +343,12 @@ message Signal {
     required uint64 created_time = 2;
     required string trigger_uuid = 3;
     required string subscriber_uuid = 4;
+    // if this is the first occurence of a signal
+    required bool initial_occurrence = 5 [default = true];
     // If this is signal clears all previous signals
-    required bool clear = 5 [default = false];
-    optional EventSummary event = 6;
-    optional string message = 7;
+    required bool clear = 6 [default = false];
+    optional EventSummary event = 7;
+    optional string message = 8;
 }
 
 message EventTagSeverity {
