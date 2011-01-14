@@ -20,5 +20,5 @@ package org.zenoss.protobufs.stateevent;
 message StateEvent {
     required string element_uuid = 1;
     required org.zenoss.protobufs.states.State new_state = 2;
-    optional org.zenoss.protobufs.zep.Event source_event = 3;
+    repeated org.zenoss.protobufs.zep.Event source_event = 3;
 }
