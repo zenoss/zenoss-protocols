@@ -106,7 +106,6 @@ class RestServiceClient(object):
     def _buildRequest(self, path, method='GET', params={}, headers={}, body=None):
         if self._default_headers:
             headers = dict(self._default_headers, **headers)
-
         return RestRequest(self.uri(path, params), method=method, headers=headers, body=body)
 
     def _executeRequest(self, request):

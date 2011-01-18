@@ -157,7 +157,7 @@ message NumberCondition {
         EQ = 5;
     }
 
-    required Operation op = 1 [default = EQ];
+    optional Operation op = 1 [default = EQ];
     required int32 value = 2;
 }
 
@@ -193,12 +193,12 @@ message EventSummaryFilter {
 }
 
 message EventTagFilter {
-    required FilterOperator op = 1 [default = OR];
+    optional FilterOperator op = 1 [default = OR];
     repeated string tag_uuids = 2;
 }
 
 message EventDetailFilter {
-    required FilterOperator op = 1 [default = OR];
+    optional FilterOperator op = 1 [default = OR];
     repeated EventDetail details = 2;
 }
 
@@ -220,6 +220,7 @@ message EventFilter {
     repeated string acknowledged_by_user_name = 13;
     repeated EventTagFilter tag_filter = 14;
     repeated EventDetailFilter details = 15;
+    repeated string fingerprint = 16;
 }
 
 message EventSort {
@@ -244,7 +245,7 @@ message EventSort {
     }
 
     required Field field = 1;
-    required Direction direction = 2 [default = ASCENDING];
+    optional Direction direction = 2 [default = ASCENDING];
 }
 
 // message for requesting event summaries.
@@ -344,9 +345,9 @@ message Signal {
     required string trigger_uuid = 3;
     required string subscriber_uuid = 4;
     // if this is the first occurence of a signal
-    required bool initial_occurrence = 5 [default = true];
+    optional bool initial_occurrence = 5 [default = true];
     // If this is signal clears all previous signals
-    required bool clear = 6 [default = false];
+    optional bool clear = 6 [default = false];
     optional EventSummary event = 7;
     optional string message = 8;
 }

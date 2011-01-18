@@ -100,7 +100,12 @@ class Deserializer(object):
 
         for field in protobuf.DESCRIPTOR.fields:
             if field.name in dict:
-                self._convert(protobuf, field, dict.get(field.name))
+                try:
+                    self._convert(protobuf, field, dict.get(field.name))
+                except AttributeError:
+                    raise AttributeError(
+                            "Unable to get %s from %s %r" % (field.name,
+                                                             type(dict), dict))
 
         return protobuf
 

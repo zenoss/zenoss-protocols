@@ -3,7 +3,7 @@ import time
 import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
 from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum
 from datetime import datetime, timedelta, tzinfo
@@ -18,100 +18,50 @@ EventSortDirection = ProtobufEnum(EventSort, 'direction')
 ZERO = timedelta(0)
 HOUR = timedelta(hours=1)
 
-# A UTC class.
-class UTC(tzinfo):
-    """UTC"""
-
-    def utcoffset(self, dt):
-        return ZERO
-
-    def tzname(self, dt):
-        return "UTC"
-
-    def dst(self, dt):
-        return ZERO
-
-utc = UTC()
+def listify(ob):
+    if not isinstance(ob, (tuple, list, set)):
+        return [ob]
+    return ob
 
 class ZepServiceClient(object):
     _base_uri = '/zenoss-zep/api/1.0/events/'
     _timeFormat = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-    _opMap = {
-        NumberCondition.LT : '<',
-        NumberCondition.GT : '>',
-        NumberCondition.GTEQ : '>=',
-        NumberCondition.LTEQ : '<=',
-        NumberCondition.EQ : '=',
-        None : '=',
-    }
-
     def __init__(self, uri):
         self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
 
-    def _timeRange(self, timeRange):
-        values = []
-        if 'start_time' in timeRange:
-            date = datetime.utcfromtimestamp(timeRange['start_time'] / 1000).replace(tzinfo=utc)
-            values.append(date.strftime(self._timeFormat))
+    def getEventSummariesFromArchive(self, offset=0, limit=100, keys=None,
+                                     sort=None, filter=None,
+                                     exclusion_filter=None):
+        request = self._buildRequest(offset, limit, sort, filter,
+                                     exclusion_filter)
+        return self.client.post('archive', body=request)
 
-        if 'end_time' in timeRange:
-            date = datetime.utcfromtimestamp(timeRange['end_time'] / 1000).replace(tzinfo=utc)
-            values.append(date.strftime(self._timeFormat))
-
-        return '/'.join(values)
-
-    def getEventSummariesFromArchive(self, offset=0, limit=100, keys=None, sort=None, filter=None):
-        params = self._buildParams(offset, limit, keys, sort, filter)
-        return self.client.get('archive', params=params)
-
-    def getEventSummaries(self, offset=0, limit=100, keys=None, sort=None, filter=None):
+    def getEventSummaries(self, offset=0, limit=100, keys=None, sort=None,
+                          filter=None, exclusion_filter=None):
         """
         Return a list of event summaries, optionally matching an EventFilter.
 
         @param filter EventSummaryFilter
         @param list keys List of keys to return
         """
-        params = self._buildParams(offset, limit, keys, sort, filter)
-        return self.client.get('', params=params)
+        request = self._buildRequest(offset, limit, sort, filter,
+                                     exclusion_filter)
+        return self.client.post('', body=request)
 
-    def _buildParams(self, offset=0, limit=100, keys=None, sort=None, filter=None):
-        params = dict(
-            offset = offset,
-            limit = limit,
-            keys = keys and ','.join(keys),
-        )
-
-        if filter:
-            # Even though we require a filter protobuf we have to turn it back
-            # into a dictionary
-            filterDict = to_dict(filter)
-            if 'severity' in filterDict:
-                filterDict['severity'] = [EventSeverity.getName(i) for i in filterDict['severity']]
-
-            if 'status' in filterDict:
-                filterDict['status'] = [EventStatus.getName(i) for i in filterDict['status']]
-
-            if 'count' in filterDict:
-                filterDict['count'] = '%s%d' % (self._opMap[filterDict['count']['op']], filterDict['count']['value'])
-
-            if 'first_seen' in filterDict:
-                filterDict['first_seen'] = self._timeRange(filterDict['first_seen'])
-
-            if 'last_seen' in filterDict:
-                filterDict['last_seen'] = self._timeRange(filterDict['last_seen'])
-
-            params.update(filterDict)
-
-        if sort:
-            if not isinstance(sort, list):
-                sort = [sort]
-
-            params['sort'] = []
-            for eventSort in sort:
-                params['sort'].append(EventSortField.getName(eventSort.field) + ',' + EventSortDirection.getName(eventSort.direction))
-
-        return params
+    def _buildRequest(self, offset, limit, sort, event_filter,
+                      exclusion_filter):
+        req = EventSummaryRequest()
+        if event_filter is not None:
+            req.event_filter.MergeFrom(event_filter)
+        if exclusion_filter is not None:
+            req.exclusion_filter.MergeFrom(exclusion_filter)
+        for eventSort in filter(None, listify(sort)):
+            sort = req.sort.add()
+            sort.MergeFrom(eventSort)
+        req.offset = offset
+        req.limit = limit
+        return req
 
     def addNote(self, uuid, message, userUuid=None, userName=None):
         """
@@ -126,13 +76,11 @@ class ZepServiceClient(object):
 
         return self.client.post('%s/notes' % uuid, body=note)
 
-
     def getEventSummary(self, uuid):
         """
         Get an event summary by event summary uuid.
         """
         return self.client.get('%s' % uuid)
-
 
     def updateEventSummaries(self, update, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
         """
@@ -151,9 +99,6 @@ class ZepServiceClient(object):
         if exclusionFilter:
             log.debug('Found exclusion filter: ' + str(exclusionFilter))
             updateRequestDict['exclusion_filter'] = to_dict(exclusionFilter)
-
-
-
         if updateTime:
             updateRequestDict['update_time'] = updateTime
         else:
@@ -162,7 +107,7 @@ class ZepServiceClient(object):
             # updateRequestDict['update_time'] = None
             pass
 
-        if limit != None:
+        if limit is not None:
             updateRequestDict['limit'] = limit
 
         log.debug('issuing update request:' + str(updateRequestDict))
