@@ -344,12 +344,10 @@ message Signal {
     required uint64 created_time = 2;
     required string trigger_uuid = 3;
     required string subscriber_uuid = 4;
-    // if this is the first occurence of a signal
-    optional bool initial_occurrence = 5 [default = true];
     // If this is signal clears all previous signals
-    optional bool clear = 6 [default = false];
-    optional EventSummary event = 7;
-    optional string message = 8;
+    optional bool clear = 5 [default = false];
+    optional EventSummary event = 6;
+    optional string message = 7;
 }
 
 message EventTagSeverity {
