@@ -5,7 +5,7 @@ from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestService
 from zenoss.protocols.jsonformat import to_dict, from_dict
 from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
-from zenoss.protocols.protobufutil import ProtobufEnum
+from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import datetime, timedelta, tzinfo
 
 log = logging.getLogger('zepclient')
@@ -18,10 +18,6 @@ EventSortDirection = ProtobufEnum(EventSort, 'direction')
 ZERO = timedelta(0)
 HOUR = timedelta(hours=1)
 
-def listify(ob):
-    if not isinstance(ob, (tuple, list, set)):
-        return [ob]
-    return ob
 
 class ZepServiceClient(object):
     _base_uri = '/zenoss-zep/api/1.0/events/'
@@ -96,6 +92,9 @@ class ZepServiceClient(object):
 
         if event_filter:
             updateRequestDict['event_filter'] = to_dict(event_filter)
+            
+            log.debug('Inside zep service, the event filter has become: %s', updateRequestDict['event_filter'])
+
         if exclusionFilter:
             log.debug('Found exclusion filter: ' + str(exclusionFilter))
             updateRequestDict['exclusion_filter'] = to_dict(exclusionFilter)

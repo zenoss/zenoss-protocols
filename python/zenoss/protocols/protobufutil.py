@@ -34,3 +34,10 @@ class ProtobufEnum(object):
 
     def getPrettyName(self, number):
         return self._prettyNames[number]
+
+def listify(ob):
+    """Helper function to make dealing with repeated fields slightly more tolerable.
+    """
+    if not isinstance(ob, (tuple, list, set)):
+        return [ob]
+    return ob

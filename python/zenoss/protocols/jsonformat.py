@@ -106,7 +106,6 @@ class Deserializer(object):
                     raise AttributeError(
                             "Unable to get %s from %s %r" % (field.name,
                                                              type(dict), dict))
-
         return protobuf
 
 from_dict = Deserializer()
