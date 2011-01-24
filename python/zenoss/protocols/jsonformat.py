@@ -13,6 +13,7 @@
 
 from json import dumps, loads
 from google.protobuf.descriptor import FieldDescriptor
+from .protobufutil import listify
 
 class ParseError(Exception):
   """Thrown in case of parsing error."""
@@ -78,7 +79,7 @@ class Deserializer(object):
 
         if field.type == FieldDescriptor.TYPE_MESSAGE:
             if field.label == FieldDescriptor.LABEL_REPEATED:
-                for v in value:
+                for v in listify(value):
                     self(pb_value.add(), v)
             else:
                 self(pb_value, value)
@@ -89,7 +90,7 @@ class Deserializer(object):
                 raise ParseError('Protobuf field "%s.%s" of type "%d" not supported.' % (message.__class__.__name__, field.name, field.type))
 
             if field.label == FieldDescriptor.LABEL_REPEATED:
-                for v in value:
+                for v in listify(value):
                     pb_value.append(formatter(v))
             else:
                 setattr(protobuf, field.name, formatter(value))
