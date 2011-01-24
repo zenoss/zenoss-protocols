@@ -166,6 +166,9 @@ class ZepServiceClient(object):
 
         return self.client.get('device_issues', params = filterDict)
 
+    def getDetails(self):
+        return self.client.get('details')
+
 class ZepConfigClient(object):
 
     _base_uri = '/zenoss-zep/api/1.0/config/'

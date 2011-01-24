@@ -147,24 +147,10 @@ message EventSummary {
     optional uint64 update_time = 12;
 }
 
-// Deprecated
-message NumberCondition {
-    enum Operation {
-        LT = 1;
-        GT = 2;
-        GTEQ = 3;
-        LTEQ = 4;
-        EQ = 5;
-    }
-
-    optional Operation op = 1 [default = EQ];
-    required int32 value = 2;
-}
-
 message NumberRange {
     // Inclusive
-    optional int32 from = 1;
-    optional int32 to = 2;
+    optional sint64 from = 1;
+    optional sint64 to = 2;
 }
 
 enum FilterOperator {
@@ -197,9 +183,23 @@ message EventTagFilter {
     repeated string tag_uuids = 2;
 }
 
+
+message EventDetailStringFilter {
+    required string name = 1;
+    required string value = 2;
+}
+
+message EventDetailNumericFilter {
+    required string name = 1;
+    required NumberRange value = 2;
+}
+
 message EventDetailFilter {
+    // All details in this filter share the FilterOperator specified.
     optional FilterOperator op = 1 [default = OR];
-    repeated EventDetail details = 2;
+    repeated EventDetailStringFilter string_detail = 2;
+    repeated EventDetailNumericFilter numeric_detail = 3;
+
 }
 
 message EventFilter {
@@ -275,20 +275,58 @@ message EventSummaryUpdate {
     optional string acknowledged_by_user_name = 3;
 }
 
+
+// PUT to the zep uri that starts a saved search.
+// the PUT returns an 204 create if successful.
+// DELETE to the uri in order to expire the reader.
+message EventQuery {
+    optional EventFilter event_filter = 1;
+    optional EventFilter exclusion_filter = 2;
+    repeated EventSort sort = 3;
+    optional uint32 timeout = 4 [default=60];
+}
+
+// once a query has been established, you will have the event_query_uuid
+// with which you will need to make subsequent update requests.
+// message EventSummaryUpdateRequest {
+//     required string event_query_uuid = 1;
+//     required EventSummaryUpdate update_fields = 3;
+//     optional uint32 limit = 5 [default = 100];
+//     optional uint32 offset = 5 [default = 0];
+//
+// }
+
 message EventSummaryUpdateRequest {
     optional EventFilter event_filter = 1;
     optional EventFilter exclusion_filter = 2;
     required EventSummaryUpdate update_fields = 3;
     // On first request, update_time is unset. On next requests, update_time from first response is sent.
-    optional uint64 update_time = 4;
+    optional uint64 update_time = 4; 
     optional uint32 limit = 5 [default = 100];
 }
+
+message EventDetailItem {
+    enum Type {
+        STRING = 1;
+        INTEGER = 2;
+    }
+    required string key = 1;
+    required Type type = 2 [default = STRING];
+    optional string name = 3;
+}
+
+// GET on some zep uri will return this proto as a response
+message EventDetailSet {
+    repeated EventDetailItem details = 1;
+}
+
 
 message EventSummaryUpdateResponse {
     required EventSummaryUpdateRequest request = 1;
     required uint32 remaining = 2; // Number of remaining events to update
     required uint32 updated = 3; // The number of events updated in this batch.
 }
+
 
 // Event Triggers
 enum RuleType {
