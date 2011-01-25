@@ -3,7 +3,7 @@ import time
 import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
 from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, NumberCondition, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import datetime, timedelta, tzinfo
@@ -38,7 +38,7 @@ class ZepServiceClient(object):
         """
         Return a list of event summaries, optionally matching an EventFilter.
 
-        @param filter EventSummaryFilter
+        @param filter EventFilter
         @param list keys List of keys to return
         """
         request = self._buildRequest(offset, limit, sort, filter,

@@ -158,26 +158,6 @@ enum FilterOperator {
     AND = 2;
 }
 
-// An event summary must match all items in a filter that are populated
-message EventSummaryFilter {
-    repeated EventSeverity severity = 1;
-    repeated EventStatus status = 2;
-    // Use /Class/NameFoo for exact match or /Class/NameFoo/ to match that class and children
-    optional string event_class = 3;
-    optional org.zenoss.protobufs.util.TimestampRange first_seen = 4;
-    optional org.zenoss.protobufs.util.TimestampRange last_seen = 5;
-    optional org.zenoss.protobufs.util.TimestampRange status_change = 6;
-    optional NumberCondition count = 7; // Deprecated
-    repeated NumberRange count_range = 15;
-    optional string element_identifier = 8;
-    optional string element_sub_identifier = 9;
-    repeated string uuid = 10; // event summary uuid
-    optional string event_summary = 11;
-    repeated string tag_uuids = 12;
-    optional FilterOperator tag_uuids_op = 13 [default = OR];  // Deprecated
-    optional org.zenoss.protobufs.util.TimestampRange update_time = 14;
-}
-
 message EventTagFilter {
     optional FilterOperator op = 1 [default = OR];
     repeated string tag_uuids = 2;
@@ -306,12 +286,12 @@ message EventSummaryUpdateRequest {
 }
 
 message EventDetailItem {
-    enum Type {
+    enum EventDetailType {
         STRING = 1;
         INTEGER = 2;
     }
     required string key = 1;
-    required Type type = 2 [default = STRING];
+    optional EventDetailType type = 2 [default = STRING];
     optional string name = 3;
 }
 
