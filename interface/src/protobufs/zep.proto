@@ -186,8 +186,26 @@ message EventFilter {
     // All fields are AND-ed, all repeated values are grouped and OR-ed
     repeated EventSeverity severity = 1;
     repeated EventStatus status = 2;
-    // Use /Class/NameFoo for exact match or /Class/NameFoo/ to match that class and children (wildcards "*" allowed)
+
+    // Accepted event_class queries:
+    //
+    //   /Class/NameFoo  -> Matches event_class "/Class/NameFoo" exactly.
+    //   /Class/NameFoo/ -> Matches event_class "/Class/NameFoo" and any subclasses ("/Class/NameFoo/Bar" but not
+    //                      "/Class/NameFooBar").
+    //   /Class/NameFoo* -> Matches any event_class starting with "/Class/NameFoo".
+    //   NameFoo         -> Matches any event_class with "NameFoo" as a component of the event class, i.e.
+    //                      "/Class/NameFoo" or "/NameFoo" but not "/Class/NameFooBar".
+    //   NameFoo*        -> Matches any event_class with a component that starts with "NameFoo", i.e. "/Class/NameFoo"
+    //                      or "/NameFooBar".
+    //   NameFoo/Bar     -> Matches any event class with the components in order "NameFoo" and "Bar". This matches
+    //                      "/Class/NameFoo/Bar" but not "/Class/Bar/NameFoo".
+    //   N*/B*           -> Matches any event class with components with prefix 'N' and 'B' in order.
+    //
+    // NOTE: All wildcard searches are prefix searches - you can't use wildcards in the middle of a component.
+    // NOTE: All searches beginning with a '/' search the entire event class, otherwise the tokenized event class is
+    //       searched.
     repeated string event_class = 3;
+
     repeated org.zenoss.protobufs.util.TimestampRange first_seen = 4;
     repeated org.zenoss.protobufs.util.TimestampRange last_seen = 5;
     repeated org.zenoss.protobufs.util.TimestampRange status_change = 6;
@@ -201,6 +219,8 @@ message EventFilter {
     repeated EventTagFilter tag_filter = 14;
     repeated EventDetailFilter details = 15;
     repeated string fingerprint = 16;
+    repeated string agent = 17;
+    repeated string monitor = 18;
 }
 
 message EventSort {
@@ -217,6 +237,9 @@ message EventSort {
         EVENT_SUMMARY = 10;
         UPDATE_TIME = 11;
         ACKNOWLEDGED_BY_USER_NAME = 12;
+        AGENT = 13;
+        MONITOR = 14;
+        UUID = 15;
     }
 
     enum Direction {
