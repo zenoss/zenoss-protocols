@@ -183,7 +183,6 @@ message EventDetailFilter {
 }
 
 message EventFilter {
-    // All fields are AND-ed, all repeated values are grouped and OR-ed
     repeated EventSeverity severity = 1;
     repeated EventStatus status = 2;
 
@@ -221,6 +220,9 @@ message EventFilter {
     repeated string fingerprint = 16;
     repeated string agent = 17;
     repeated string monitor = 18;
+    // operator is used for all fields on this filter. Repeateds are grouped and ORed.
+    optional FilterOperator operator = 19 [default = AND];
+    repeated EventFilter subfilter = 20;
 }
 
 message EventSort {
