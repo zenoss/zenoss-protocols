@@ -3,7 +3,8 @@ import time
 import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
 from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, \
+    EventSummaryUpdateRequest, EventSummaryRequest, EventQuery
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import datetime, timedelta, tzinfo
@@ -18,6 +19,8 @@ EventSortDirection = ProtobufEnum(EventSort, 'direction')
 ZERO = timedelta(0)
 HOUR = timedelta(hours=1)
 
+class ZepServiceException(Exception):
+    pass
 
 class ZepServiceClient(object):
     _base_uri = '/zenoss-zep/api/1.0/events/'
@@ -72,76 +75,79 @@ class ZepServiceClient(object):
 
         return self.client.post('%s/notes' % uuid, body=note)
 
+    def _updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None):
+        """
+        @param update: EventSummaryUpdate protobuf
+        @param event_filter: EventFilter protobuf
+        @param exclusion_filter: EventFilter protobuf
+        @param limit: integer
+        """
+        search_uuid = self.createSavedSearch(event_filter=event_filter, exclusion_filter=exclusion_filter)
+        updateRequest = EventSummaryUpdateRequest()
+        updateRequest.event_query_uuid = search_uuid
+        updateRequest.update_fields.MergeFrom(update)
+        if limit:
+            updateRequest.limit = limit
+
+        log.debug('Update Request: %s', str(updateRequest))
+        status, response = self.client.put('search/' + search_uuid, body=updateRequest)
+
+        # If a limit is not specified, loop on the request until it has completed and return a summary
+        # of all of the requests. This simplifies usage of the API.
+        sum_updated = response.updated
+        if not limit:
+            while response.HasField('next_request'):
+                status, response = self.nextEventSummaryUpdate(response.next_request)
+                sum_updated += response.updated
+            response.updated = sum_updated
+        else:
+            # Clean up saved search
+            if not response.HasField('next_request'):
+                self.deleteSavedSearch(search_uuid)
+            
+        return status, response
+
     def getEventSummary(self, uuid):
         """
         Get an event summary by event summary uuid.
         """
         return self.client.get('%s' % uuid)
 
-    def updateEventSummaries(self, update, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
+    def nextEventSummaryUpdate(self, next_request):
         """
-        @param update: EventSummaryUpdate protobuf
-        @param filter: EventFilter protobuf
-        @param exclusionFilter: EventFilter protobuf
-        @param updateTime: time
-        @param limit: integer
+        Continues the next batch of event summary updates. This call uses the next_request
+        field from the last update request to update the next range of events.
+
+        @param next_request: EventSummaryUpdateResponse.next_request from previous response.
         """
-        updateRequestDict = dict(
-            update_fields = to_dict(update),
-        )
-
-        if event_filter:
-            updateRequestDict['event_filter'] = to_dict(event_filter)
-            
-            log.debug('Inside zep service, the event filter has become: %s', updateRequestDict['event_filter'])
-
-        if exclusionFilter:
-            log.debug('Found exclusion filter: ' + str(exclusionFilter))
-            updateRequestDict['exclusion_filter'] = to_dict(exclusionFilter)
-        if updateTime:
-            updateRequestDict['update_time'] = updateTime
-        else:
-            # deliberately pass in None so that ZEP will use it's own updated
-            # time.
-            # updateRequestDict['update_time'] = None
-            pass
-
-        if limit is not None:
-            updateRequestDict['limit'] = limit
-
-        log.debug('issuing update request:' + str(updateRequestDict))
-
-        updateRequest = from_dict(EventSummaryUpdateRequest, updateRequestDict)
-
-        status, response = self.client.put('', body=updateRequest)
+        log.debug('Next Update Request: %s', str(next_request))
+        status, response = self.client.put('search/' + next_request.event_query_uuid, body=next_request)
+        if not response.HasField('next_request'):
+            self.deleteSavedSearch(next_request.event_query_uuid)
         return status, response
 
-    def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
+    def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_CLOSED,
-            acknowledged_by_user_uuid = userUuid,
-            acknowledged_by_user_name = userName,
         ))
-        return self.updateEventSummaries(update, event_filter=event_filter,
-            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+                                          limit=limit)
 
-    def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
+    def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_ACKNOWLEDGED,
             acknowledged_by_user_uuid = userUuid,
             acknowledged_by_user_name = userName,
         ))
-        return self.updateEventSummaries(update, event_filter=event_filter,
-            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+                                          limit=limit)
 
-    def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, updateTime=None, limit=None):
+    def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_NEW,
-            acknowledged_by_user_uuid = userUuid,
-            acknowledged_by_user_name = userName,
         ))
-        return self.updateEventSummaries(update, event_filter=event_filter,
-            exclusionFilter=exclusionFilter, updateTime=updateTime, limit=limit)
+        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+                                          limit=limit)
 
     def getEventSeverities(self, tagUuids):
         if not tagUuids:
@@ -168,6 +174,49 @@ class ZepServiceClient(object):
 
     def getDetails(self):
         return self.client.get('details')
+
+    def createSavedSearch(self, event_filter = None, exclusion_filter = None, sort = None, timeout = None,
+                          archive = False):
+        query = EventQuery()
+        if event_filter:
+            query.event_filter.MergeFrom(event_filter)
+        if exclusion_filter:
+            query.exclusion_filter.MergeFrom(exclusion_filter)
+        if sort:
+            for s in sort:
+                query.sort.add().MergeFrom(s)
+        if timeout:
+            query.timeout = timeout
+        url = 'search'
+        if archive:
+            url = 'archive/' + url
+        status, response = self.client.post(url, query)
+        if int(status['status']) != 201:
+            raise ZepServiceException('Invalid response: %s (code: %s)' % (response, status['status']))
+        location = status['location']
+        uuid = location[location.rindex('/') + 1:]
+        return uuid
+
+    def deleteSavedSearch(self, search_uuid, archive = False):
+        if not search_uuid:
+            raise ValueError('Must specify UUID of search to delete')
+        url = 'search/' + search_uuid
+        if archive:
+            url = 'archive/' + url
+        return self.client.delete(url)
+
+    def savedSearch(self, search_uuid, offset = 0, limit = None, archive = False):
+        if not search_uuid:
+            raise ValueError('Must specify UUID of search to perform')
+        params = {}
+        if offset:
+            params['offset'] = offset
+        if limit:
+            params['limit'] = limit
+        url = 'search/' + search_uuid
+        if archive:
+            url = 'archive/' + url
+        return self.client.get(url, params)
 
 class ZepConfigClient(object):
 

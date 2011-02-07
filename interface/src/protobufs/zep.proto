@@ -99,7 +99,7 @@ message RawEvent {
 }
 
 // Represents an event that is sent to ZEP for processing.
-// This is a temporary bridge between eventd and ZEP
+// This is a temporary bridge between zeneventd and ZEP
 message ZepRawEvent {
     required RawEvent raw_event = 1;
     repeated string clear_event_class = 2;
@@ -263,7 +263,6 @@ message EventSummaryRequest {
 }
 
 // message for response for EventSummaryRequest
-// TODO: Can we change this to EventSummaryResponse?
 message EventSummaryResult {
     repeated EventSummary events = 1;
     optional uint32 limit = 2;
@@ -281,9 +280,9 @@ message EventSummaryUpdate {
 }
 
 
-// PUT to the zep uri that starts a saved search.
-// the PUT returns an 204 create if successful.
-// DELETE to the uri in order to expire the reader.
+// POST to events/search that starts a saved search.
+// Returns a 204 created if successful.
+// DELETE to the uri in order to expire the search before the timeout.
 message EventQuery {
     optional EventFilter event_filter = 1;
     optional EventFilter exclusion_filter = 2;
@@ -293,21 +292,19 @@ message EventQuery {
 
 // once a query has been established, you will have the event_query_uuid
 // with which you will need to make subsequent update requests.
-// message EventSummaryUpdateRequest {
-//     required string event_query_uuid = 1;
-//     required EventSummaryUpdate update_fields = 3;
-//     optional uint32 limit = 5 [default = 100];
-//     optional uint32 offset = 5 [default = 0];
-//
-// }
-
 message EventSummaryUpdateRequest {
-    optional EventFilter event_filter = 1;
-    optional EventFilter exclusion_filter = 2;
-    required EventSummaryUpdate update_fields = 3;
-    // On first request, update_time is unset. On next requests, update_time from first response is sent.
-    optional uint64 update_time = 4; 
-    optional uint32 limit = 5 [default = 100];
+    required string event_query_uuid = 1;
+    required EventSummaryUpdate update_fields = 2;
+    optional uint32 offset = 3 [default = 0];
+    optional uint32 limit = 4 [default = 100];
+}
+
+message EventSummaryUpdateResponse {
+    // Message used to update the next sequence in the collection.
+    // This is unset if there are no events left to update.
+    optional EventSummaryUpdateRequest next_request = 1;
+    optional uint32 total = 2; // Never changes - just informational.
+    required uint32 updated = 3; // The number of events updated in this batch.
 }
 
 message EventDetailItem {
@@ -325,18 +322,9 @@ message EventDetailSet {
     repeated EventDetailItem details = 1;
 }
 
-
-message EventSummaryUpdateResponse {
-    required EventSummaryUpdateRequest request = 1;
-    required uint32 remaining = 2; // Number of remaining events to update
-    required uint32 updated = 3; // The number of events updated in this batch.
-}
-
-
 // Event Triggers
 enum RuleType {
     RULE_TYPE_JYTHON = 1;
-    //RULE_TYPE_JAVA = 2; // from __future__ import java
 }
 
 // The content is evaluated by a "ScriptEngine" for RuleType and checked against the event
@@ -352,7 +340,7 @@ message EventTriggerSubscription {
     optional int32 delay_seconds = 2;
     // After first signal, wait this amount of time before sending a signal again (0 for no repeating)
     optional int32 repeat_seconds = 3;
-    // should we send a signal on every occurence of an event or only on the first
+    // should we send a signal on every occurrence of an event or only on the first
     optional bool send_initial_occurrence = 4 [default = true];
     // id of subscriber
     required string subscriber_uuid = 5;
