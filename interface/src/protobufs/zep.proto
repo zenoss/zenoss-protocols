@@ -32,6 +32,10 @@ message EventDetail {
     repeated string value = 2;
 }
 
+message EventDetailSet {
+    repeated EventDetail details = 1;
+}
+
 // Tag events with arbitrary UUIDs. Tags are used for event rainbows and filtering.
 message EventTag {
     required string type = 1;
@@ -318,7 +322,7 @@ message EventDetailItem {
 }
 
 // GET on some zep uri will return this proto as a response
-message EventDetailSet {
+message EventDetailItemSet {
     repeated EventDetailItem details = 1;
 }
 
