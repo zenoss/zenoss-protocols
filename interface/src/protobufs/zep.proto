@@ -297,7 +297,7 @@ message EventQuery {
 // once a query has been established, you will have the event_query_uuid
 // with which you will need to make subsequent update requests.
 message EventSummaryUpdateRequest {
-    required string event_query_uuid = 1;
+    optional string event_query_uuid = 1;
     required EventSummaryUpdate update_fields = 2;
     optional uint32 offset = 3 [default = 0];
     optional uint32 limit = 4 [default = 100];
