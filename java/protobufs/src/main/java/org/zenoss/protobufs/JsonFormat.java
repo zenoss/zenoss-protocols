@@ -10,6 +10,21 @@
  */
 package org.zenoss.protobufs;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.EnumDescriptor;
+import com.google.protobuf.Descriptors.EnumValueDescriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
+import com.google.protobuf.ExtensionRegistry;
+import com.google.protobuf.Message;
+import com.google.protobuf.Message.Builder;
+import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.JsonToken;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,24 +37,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerationException;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonToken;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.EnumDescriptor;
-import com.google.protobuf.Descriptors.EnumValueDescriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
-import com.google.protobuf.ExtensionRegistry;
-import com.google.protobuf.Message;
-import com.google.protobuf.Message.Builder;
 
 /**
  * Class which can serialize Google protobufs to JSON format.
@@ -102,8 +99,7 @@ public class JsonFormat {
      * 
      * @param message
      *            THe protobuf message to serialize.
-     * @param writer
-     *            The writer where the protobuf is stored.
+     * @return A JSON string of the encoded message.
      * @throws IOException
      *             If an exception occurs.
      */
@@ -294,7 +290,7 @@ public class JsonFormat {
 
     private static List<Object> readRepeatable(JsonParser jp, Builder builder,
             ExtensionRegistry registry, FieldDescriptor desc)
-            throws JsonParseException, IOException {
+            throws IOException {
         List<Object> l = new ArrayList<Object>();
         while (jp.nextToken() != JsonToken.END_ARRAY) {
             l.add(readValue(jp, builder, registry, desc));
@@ -304,30 +300,30 @@ public class JsonFormat {
 
     private static Object readValue(JsonParser jp, Builder builder,
             ExtensionRegistry registry, FieldDescriptor desc)
-            throws JsonParseException, IOException {
+            throws IOException {
         final Object val;
         switch (desc.getJavaType()) {
         case BOOLEAN:
-            val = Boolean.valueOf(jp.getBooleanValue());
+            val = jp.getBooleanValue();
             break;
         case BYTE_STRING:
             val = ByteString.copyFrom(jp.getBinaryValue());
             break;
         case DOUBLE:
-            val = Double.valueOf(jp.getDoubleValue());
+            val = jp.getDoubleValue();
             break;
         case ENUM:
             EnumDescriptor enumDesc = desc.getEnumType();
             val = enumDesc.findValueByNumber(jp.getIntValue());
             break;
         case FLOAT:
-            val = Float.valueOf(jp.getFloatValue());
+            val = jp.getFloatValue();
             break;
         case INT:
-            val = Integer.valueOf(jp.getIntValue());
+            val = jp.getIntValue();
             break;
         case LONG:
-            val = Long.valueOf(jp.getLongValue());
+            val = jp.getLongValue();
             break;
         case MESSAGE:
             val = readMessage(jp, builder.newBuilderForField(desc), registry);
@@ -427,7 +423,7 @@ public class JsonFormat {
      *            The type of message to read.
      * @param is
      *            The input stream from which to read.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
      * @return All delimited messages read from the stream.
      * @throws IOException
@@ -446,13 +442,15 @@ public class JsonFormat {
      *            The type of message to read.
      * @param is
      *            The input stream from which to read.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
+     * @param registry
+     *            The extension registry.
      * @return All delimited messages read from the stream.
      * @throws IOException
      *             If an error occurs reading from the stream.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "UnusedParameters"})
     public static <T extends Message> List<T> mergeAllDelimitedFrom(
             InputStream is, T msg, ExtensionRegistry registry)
             throws IOException {
@@ -460,7 +458,7 @@ public class JsonFormat {
         try {
             decoder = new JsonFormatDelimitedDecoder(is);
             List<T> messages = new ArrayList<T>();
-            Message decoded = null;
+            Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
                 messages.add((T) decoded);
             }
@@ -479,7 +477,7 @@ public class JsonFormat {
      *            The type of message to read.
      * @param reader
      *            The reader from which to read.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
      * @return All delimited messages read from the stream.
      * @throws IOException
@@ -498,13 +496,15 @@ public class JsonFormat {
      *            The type of message to read.
      * @param reader
      *            The reader from which to read.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
+     * @param registry
+     *            The extension registry.
      * @return All delimited messages read from the stream.
      * @throws IOException
      *             If an error occurs reading from the stream.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "UnusedParameters"})
     public static <T extends Message> List<T> mergeAllDelimitedFrom(
             Reader reader, T msg, ExtensionRegistry registry)
             throws IOException {
@@ -512,7 +512,7 @@ public class JsonFormat {
         try {
             decoder = new JsonFormatDelimitedDecoder(reader);
             List<T> messages = new ArrayList<T>();
-            Message decoded = null;
+            Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
                 messages.add((T) decoded);
             }
@@ -531,7 +531,7 @@ public class JsonFormat {
      *            The type of message to read.
      * @param json
      *            The encoded JSON string.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
      * @return All delimited messages read from the stream.
      * @throws IOException
@@ -550,20 +550,22 @@ public class JsonFormat {
      *            The type of message to read.
      * @param json
      *            The encoded JSON string.
-     * @param message
+     * @param msg
      *            The message type (used to create a builder) to read.
+     * @param registry
+     *            The extension registry.
      * @return All delimited messages read from the stream.
      * @throws IOException
      *             If an error occurs reading from the stream.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "UnusedParameters"})
     public static <T extends Message> List<T> mergeAllDelimitedFrom(
             String json, T msg, ExtensionRegistry registry) throws IOException {
         JsonFormatDelimitedDecoder decoder = null;
         try {
             decoder = new JsonFormatDelimitedDecoder(new StringReader(json));
             List<T> messages = new ArrayList<T>();
-            Message decoded = null;
+            Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
                 messages.add((T) decoded);
             }
@@ -576,7 +578,7 @@ public class JsonFormat {
     }
 
     private static void writeMessage(JsonGenerator generator, Message message)
-            throws JsonGenerationException, IOException {
+            throws IOException {
         generator.writeStartObject();
         Map<FieldDescriptor, Object> fields = message.getAllFields();
         for (Map.Entry<FieldDescriptor, Object> entry : fields.entrySet()) {
@@ -599,7 +601,7 @@ public class JsonFormat {
     }
 
     private static void writeValue(JsonGenerator generator, JavaType type,
-            Object val) throws JsonGenerationException, IOException {
+            Object val) throws IOException {
         switch (type) {
         case BOOLEAN:
             generator.writeBoolean((Boolean) val);
