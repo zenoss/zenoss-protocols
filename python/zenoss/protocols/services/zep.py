@@ -16,8 +16,7 @@ import time
 import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
 from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, \
-    EventSummaryUpdateRequest, EventSummaryRequest, EventQuery
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery, EventDetailSet
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import datetime, timedelta, tzinfo
@@ -185,9 +184,6 @@ class ZepServiceClient(object):
 
         return self.client.get('device_issues', params = filterDict)
 
-    def getDetails(self):
-        return self.client.get('details')
-
     def createSavedSearch(self, event_filter = None, exclusion_filter = None, sort = None, timeout = None,
                           archive = False):
         query = EventQuery()
@@ -277,3 +273,10 @@ class ZepConfigClient(object):
 
     def removeConfigValue(self, name):
         return self.client.delete(name)
+
+    def getDetails(self):
+        """
+        Fetch the list of custom details that will be indexed. This will be a list of
+        both Zenoss standard details as well as any details that have been added by zenpacks.
+        """
+        return self.client.get('index_details')
