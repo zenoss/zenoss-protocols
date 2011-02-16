@@ -28,8 +28,17 @@ message EventActor {
 }
 
 message EventDetail {
+    enum EventDetailMergeBehavior {
+        REPLACE = 1; // Replace old values with new values
+        APPEND = 2; // Append new values to old values
+        UNIQUE = 3; // Append new values to old values and remove duplicate values
+    }
     required string name = 1;
     repeated string value = 2;
+    // When de-duping events or updating details on an existing event, if an existing
+    // detail is found in the event with the same name, this enum controls how the
+    // detail values should be merged.
+    optional EventDetailMergeBehavior merge_behavior = 3 [default = REPLACE];
 }
 
 message EventDetailSet {
