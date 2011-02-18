@@ -205,7 +205,6 @@ message EventFilter {
     //                      "/Class/NameFoo/Bar" but not "/Class/Bar/NameFoo".
     //   N*/B*           -> Matches any event class with components with prefix 'N' and 'B' in order.
     //
-    // NOTE: All wildcard searches are prefix searches - you can't use wildcards in the middle of a component.
     // NOTE: All searches beginning with a '/' search the entire event class, otherwise the tokenized event class is
     //       searched.
     repeated string event_class = 3;
@@ -218,6 +217,9 @@ message EventFilter {
     repeated string element_identifier = 9;
     repeated string element_sub_identifier = 10;
     repeated string uuid = 11; // event summary uuid
+
+    // All search terms support wildcard queries ('*' and '?'). Phrases are supported within a query by enclosing
+    // the phrase to be searched within double quotes.
     repeated string event_summary = 12;
     repeated string acknowledged_by_user_name = 13;
     repeated EventTagFilter tag_filter = 14;
@@ -225,8 +227,10 @@ message EventFilter {
     repeated string fingerprint = 16;
     repeated string agent = 17;
     repeated string monitor = 18;
+
     // operator is used for all fields on this filter. Repeateds are grouped and ORed.
     optional FilterOperator operator = 19 [default = AND];
+    
     repeated EventFilter subfilter = 20;
 }
 
