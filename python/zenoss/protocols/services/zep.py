@@ -232,29 +232,30 @@ class ZepConfigClient(object):
     _base_uri = '/zenoss-zep/api/1.0/config/'
 
     def __init__(self, uri):
-        self.client = JsonRestServiceClient(uri.rstrip('/') + self._base_uri)
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
 
     def defaultConfig(self, config):
+        
         defaults = {
             'event_age_disable_severity': {
-                'defaultValue': 'SEVERITY_ERROR',
-                'value': config.get('event_age_disable_severity')
+                'defaultValue': EventSeverity.SEVERITY_ERROR,
+                'value': config.event_age_disable_severity
             },
             'event_age_interval_minutes': {
                 'defaultValue': 4 * 60,
-                'value': config.get('event_age_interval_minutes'),
+                'value': config.event_age_interval_minutes,
             },
             'event_archive_purge_interval_days': {
                 'defaultValue': 90,
-                'value': config.get('event_archive_purge_interval_days')
+                'value': config.event_archive_purge_interval_days
             },
             'event_occurrence_purge_interval_days': {
                 'defaultValue': 30,
-                'value': config.get('event_occurrence_purge_interval_days')
+                'value': config.event_occurrence_purge_interval_days
             },
             'event_archive_interval_days': {
                 'defaultValue': 3,
-                'value': config.get('event_archive_interval_days')
+                'value': config.event_archive_interval_days
             }
         }
         return defaults
@@ -265,7 +266,10 @@ class ZepConfigClient(object):
         return defaults
 
     def setConfigValues(self, config):
-        return self.client.post('', config)
+        """
+        @param config: A ZepConfig protobuf object.
+        """
+        return self.client.put('', config)
 
     def setConfigValue(self, name, value):
         # zep expects every config item to be a string

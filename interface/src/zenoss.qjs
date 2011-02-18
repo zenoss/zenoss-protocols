@@ -83,6 +83,18 @@
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryUpdateResponse",
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.EventSummaryUpdateResponse"
+        },
+        "$EventDetailItemSet" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventDetailItemSet",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventDetailItemSet"
+        },
+        "$ZepConfig" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$ZepConfig",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepConfig",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.ZepConfig"
         }
     },
     "exchanges" : {
