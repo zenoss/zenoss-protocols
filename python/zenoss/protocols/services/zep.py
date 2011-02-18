@@ -284,3 +284,23 @@ class ZepConfigClient(object):
         both Zenoss standard details as well as any details that have been added by zenpacks.
         """
         return self.client.get('index_details')
+
+    def addIndexedDetails(self, detailItemSet):
+        """
+        @type eventDetailItem: zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet
+        """
+        return self.client.post('index_details', body=detailItemSet)
+
+    def updateIndexedDetail(self, item):
+        """
+        @type eventDetailItem: zenoss.protocols.protobufs.zep_pb2.EventDetailItem
+        """
+        log.debug("Updating a detail item: '%s'" % item.key)
+        return self.client.put('index_details/%s' % item.key, body=item)
+
+    def removeIndexedDetail(self, key):
+        """
+        @type key: string
+        """
+        log.debug("Removing a detail item: '%s'" % key)
+        return self.client.delete('index_details/%s' % key)
