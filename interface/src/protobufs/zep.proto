@@ -160,8 +160,10 @@ message EventSummary {
     optional uint64 update_time = 12;
 }
 
+// Both from and to are inclusive. If 'from' is not specified, then 'from' is
+// considered as negative infinity. If 'to' is not specified, then 'to' is
+// considered positive infinity.
 message NumberRange {
-    // Inclusive
     optional sint64 from = 1;
     optional sint64 to = 2;
 }
