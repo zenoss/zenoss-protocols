@@ -43,8 +43,9 @@ message State {
     message AvailabilityState {
        enum AvailabilityStateValue {
        	    UP = 1;
-      	    DEGRADED= 2;
+      	    DEGRADED = 2;
        	    DOWN = 3;
+            ATRISK = 4;
        }
        required AvailabilityStateValue state = 1;
     }
