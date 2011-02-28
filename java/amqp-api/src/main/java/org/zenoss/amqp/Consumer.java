@@ -62,6 +62,13 @@ public interface Consumer<T> {
     public Queue getQueue();
 
     /**
+     * Returns the channel this consumer is consuming from.
+     *
+     * @return The channel this consumer is consuming from.
+     */
+    public Channel getChannel();
+
+    /**
      * Acknowledges a message.
      * 
      * @param message

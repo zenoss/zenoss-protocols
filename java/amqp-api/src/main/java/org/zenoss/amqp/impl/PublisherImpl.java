@@ -38,23 +38,23 @@ class PublisherImpl<T> implements Publisher<T> {
     @Override
     public void publish(T body, MessagePropertiesBuilder propertiesBuilder,
                         String routingKey) throws AmqpException {
-        synchronized (this.channel) {
-            if (propertiesBuilder == null) {
-                propertiesBuilder = MessagePropertiesBuilder.newBuilder();
+        if (propertiesBuilder == null) {
+            propertiesBuilder = MessagePropertiesBuilder.newBuilder();
+        }
+        try {
+            final byte[] rawBody;
+            if (converter != null) {
+                rawBody = this.converter.toBytes(body, propertiesBuilder);
+            } else {
+                rawBody = (byte[]) body;
             }
-            try {
-                final byte[] rawBody;
-                if (converter != null) {
-                    rawBody = this.converter.toBytes(body, propertiesBuilder);
-                } else {
-                    rawBody = (byte[]) body;
-                }
+            synchronized (this.channel) {
                 this.channel.getWrapped().basicPublish(exchange.getName(),
                         routingKey, convertProperties(propertiesBuilder.build()),
                         rawBody);
-            } catch (Exception e) {
-                throw new AmqpException(e);
             }
+        } catch (Exception e) {
+            throw new AmqpException(e);
         }
     }
 
@@ -86,5 +86,10 @@ class PublisherImpl<T> implements Publisher<T> {
     @Override
     public Exchange getExchange() {
         return this.exchange;
+    }
+
+    @Override
+    public Channel getChannel() {
+        return this.channel;
     }
 }

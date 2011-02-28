@@ -32,12 +32,10 @@ public class BatchPublisherImpl<T> extends PublisherImpl<T> implements
     @Override
     public void publish(T body, MessagePropertiesBuilder propertiesBuilder,
             String routingKey) throws AmqpException {
-        synchronized (this.channel) {
-            if (!this.channel.isTransactionsEnabled()) {
-                this.channel.enableTransactions();
-            }
-            super.publish(body, propertiesBuilder, routingKey);
+        if (!this.channel.isTransactionsEnabled()) {
+            this.channel.enableTransactions();
         }
+        super.publish(body, propertiesBuilder, routingKey);
     }
 
     @Override

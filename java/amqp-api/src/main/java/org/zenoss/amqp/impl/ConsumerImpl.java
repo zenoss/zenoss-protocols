@@ -13,7 +13,15 @@ package org.zenoss.amqp.impl;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
-import org.zenoss.amqp.*;
+import org.zenoss.amqp.AmqpException;
+import org.zenoss.amqp.Channel;
+import org.zenoss.amqp.Consumer;
+import org.zenoss.amqp.Message;
+import org.zenoss.amqp.MessageConverter;
+import org.zenoss.amqp.MessageDecoderException;
+import org.zenoss.amqp.MessageEnvelope;
+import org.zenoss.amqp.MessageProperties;
+import org.zenoss.amqp.Queue;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +33,7 @@ class ConsumerImpl<T> implements Consumer<T> {
     private final boolean noAck;
     private final MessageConverter<T> converter;
     private QueueingConsumer consumer;
-    private String consumerTag;
+    private volatile String consumerTag;
 
     ConsumerImpl(ChannelImpl channel, Queue queue, boolean noAck) {
         this(channel, queue, noAck, null);
@@ -37,6 +45,7 @@ class ConsumerImpl<T> implements Consumer<T> {
         this.queue = queue;
         this.noAck = noAck;
         this.converter = converter;
+        this.consumer = new QueueingConsumer(this.channel.getWrapped());
     }
 
     @Override
@@ -47,12 +56,9 @@ class ConsumerImpl<T> implements Consumer<T> {
     @Override
     public Message<T> nextMessage(long waitTime, TimeUnit unit)
             throws AmqpException {
-        synchronized (this.channel) {
-            final long timeInMillis = unit.toMillis(waitTime);
-            if (consumer == null) {
-                consumer = new QueueingConsumer(this.channel.getWrapped());
-            }
-            if (consumerTag == null) {
+        final long timeInMillis = unit.toMillis(waitTime);
+        if (consumerTag == null) {
+            synchronized (this.channel) {
                 try {
                     consumerTag = this.channel.getWrapped().basicConsume(
                             queue.getName(), this.noAck, consumer);
@@ -60,22 +66,22 @@ class ConsumerImpl<T> implements Consumer<T> {
                     throw new AmqpException(e);
                 }
             }
-            try {
-                final Delivery delivery;
-                if (timeInMillis > 0) {
-                    delivery = consumer.nextDelivery(timeInMillis);
-                    if (delivery == null) {
-                        return null;
-                    }
-                } else {
-                    delivery = consumer.nextDelivery();
+        }
+        try {
+            final Delivery delivery;
+            if (timeInMillis > 0) {
+                delivery = consumer.nextDelivery(timeInMillis);
+                if (delivery == null) {
+                    return null;
                 }
-                return createMessage(delivery);
-            } catch (ShutdownSignalException e) {
-                throw new AmqpException(e);
-            } catch (InterruptedException e) {
-                throw new AmqpException(e);
+            } else {
+                delivery = consumer.nextDelivery();
             }
+            return createMessage(delivery);
+        } catch (ShutdownSignalException e) {
+            throw new AmqpException(e);
+        } catch (InterruptedException e) {
+            throw new AmqpException(e);
         }
     }
 
@@ -121,6 +127,11 @@ class ConsumerImpl<T> implements Consumer<T> {
     @Override
     public Queue getQueue() {
         return this.queue;
+    }
+
+    @Override
+    public Channel getChannel() {
+        return this.channel;
     }
 
     @Override

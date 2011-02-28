@@ -54,4 +54,11 @@ public interface Publisher<T> {
      * @return The exchange this publisher is publishing to.
      */
     public Exchange getExchange();
+
+    /**
+     * Returns the channel this publisher is publishing to.
+     *
+     * @return The channel this publisher is publishing to.
+     */
+    public Channel getChannel();
 }

@@ -10,9 +10,12 @@
  */
 package org.zenoss.amqp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -23,9 +26,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class which maintains a persistent connection to an AMQP server and allows
@@ -39,21 +39,20 @@ public class AmqpConnectionManager {
 
     public static final int DEFAULT_RETRY_INTERVAL = 1000;
 
-    private static final Logger log = LoggerFactory
-            .getLogger(AmqpConnectionManager.class);
+    private static final Logger log = LoggerFactory.getLogger(AmqpConnectionManager.class);
 
     private final long retry;
     private final AmqpServerUri uri;
     private final ExecutorCompletionService<Object> ecs;
     private final ExecutorService pool;
-    private final List<QueueWorker> workers = new ArrayList<QueueWorker>();
+    private final List<QueueWorker> workers = Collections.synchronizedList(new ArrayList<QueueWorker>());
     private final Map<Future<Object>, QueueWorker> futures = new ConcurrentHashMap<Future<Object>, QueueWorker>();
 
     private volatile Connection connection;
-    private final Map<Exchange, Publisher<com.google.protobuf.Message>> publishers = new HashMap<Exchange, Publisher<com.google.protobuf.Message>>();
+    private final ConcurrentHashMap<String, Publisher<com.google.protobuf.Message>> publishers =
+            new ConcurrentHashMap<String, Publisher<com.google.protobuf.Message>>();
 
-    private final ExecutorService executor = Executors
-            .newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     /**
      * Creates an {@link AmqpConnectionManager} which will perform operations
@@ -84,7 +83,7 @@ public class AmqpConnectionManager {
         this.ecs = new ExecutorCompletionService<Object>(this.pool);
     }
 
-    private synchronized Channel getChannel() throws AmqpException {
+    private Channel openChannel() throws AmqpException {
         return this.connection.openChannel();
     }
 
@@ -98,8 +97,7 @@ public class AmqpConnectionManager {
      *            Queue listener which is called when messages are consumed from
      *            the queue.
      */
-    public synchronized void addListener(QueueConfiguration config,
-            QueueListener listener) {
+    public void addListener(QueueConfiguration config, QueueListener listener) {
         if (config == null || listener == null) {
             throw new NullPointerException();
         }
@@ -111,21 +109,24 @@ public class AmqpConnectionManager {
         }
     }
 
-    private Publisher<com.google.protobuf.Message> getPublisher(
-            ExchangeConfiguration config) throws AmqpException {
+    private Publisher<com.google.protobuf.Message> getPublisher(ExchangeConfiguration config) throws AmqpException {
         if (config == null) {
             throw new NullPointerException();
         }
         Exchange exchange = config.getExchange();
-        Publisher<com.google.protobuf.Message> pub;
-        synchronized (this.publishers) {
-            pub = this.publishers.get(exchange);
-            if (pub == null) {
-                Channel channel = this.getChannel();
-                channel.declareExchange(exchange);
-                pub = channel.createPublisher(exchange, new ProtobufConverter(
-                        config.getMessages()));
-                this.publishers.put(exchange, pub);
+        Publisher<com.google.protobuf.Message> pub = this.publishers.get(exchange.getName());
+        if (pub == null) {
+            Channel channel = this.openChannel();
+            channel.declareExchange(exchange);
+            pub = channel.createPublisher(exchange, new ProtobufConverter(config.getMessages()));
+            Publisher<com.google.protobuf.Message> previous = this.publishers.putIfAbsent(exchange.getName(), pub);
+            if (previous != null) {
+                pub = previous;
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    throw new AmqpException(e.getLocalizedMessage(), e);
+                }
             }
         }
         return pub;
@@ -183,10 +184,9 @@ public class AmqpConnectionManager {
         Channel channel = null;
         Exchange exchange = config.getExchange();
         try {
-            channel = this.getChannel();
+            channel = this.openChannel();
             channel.declareExchange(exchange);
-            return channel.createBatchPublisher(exchange,
-                    new ProtobufConverter(config.getMessages()));
+            return channel.createBatchPublisher(exchange, new ProtobufConverter(config.getMessages()));
         } catch (AmqpException e) {
             if (channel != null) {
                 try {
@@ -230,7 +230,7 @@ public class AmqpConnectionManager {
 
     private void runInternal() throws InterruptedException {
         this.reconnect();
-        Future<Object> future = null;
+        Future<Object> future;
         while ((future = ecs.take()) != null) {
             if (!future.isCancelled()) {
                 try {
@@ -240,8 +240,7 @@ public class AmqpConnectionManager {
                         log.debug("exception", e);
                         this.reconnect();
                     } else {
-                        log.info("Restarting single worker due to exception.",
-                                e);
+                        log.info("Restarting single worker due to exception.", e);
                         QueueWorker worker = this.futures.remove(future);
                         this.futures.put(this.ecs.submit(worker), worker);
                     }
@@ -255,6 +254,19 @@ public class AmqpConnectionManager {
             try {
                 for (Future<Object> future : futures.keySet()) {
                     future.cancel(true);
+                    try {
+                        future.get();
+                    } catch (CancellationException e) {
+                    } catch (ExecutionException e) {
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                for (Publisher publisher : this.publishers.values()) {
+                    try {
+                        publisher.getChannel().close();
+                    } catch (IOException e) {
+                    }
                 }
             } catch (CancellationException ignored) {
             } finally {
@@ -264,9 +276,7 @@ public class AmqpConnectionManager {
                 } finally {
                     this.connection = null;
                     futures.clear();
-                    synchronized (this.publishers) {
-                        this.publishers.clear();
-                    }
+                    this.publishers.clear();
                 }
             }
         }
@@ -274,8 +284,7 @@ public class AmqpConnectionManager {
 
     private synchronized boolean connect() {
         try {
-            this.connection = ConnectionFactory.newInstance().newConnection(
-                    this.uri);
+            this.connection = ConnectionFactory.newInstance().newConnection(this.uri);
         } catch (AmqpException e) {
             log.debug("Unable to connect", e);
             return false;
@@ -308,15 +317,13 @@ public class AmqpConnectionManager {
 
     private static class QueueWorker implements Callable<Object> {
 
-        private static final Logger log = LoggerFactory
-                .getLogger(QueueWorker.class);
+        private static final Logger log = LoggerFactory.getLogger(QueueWorker.class);
 
         private QueueConfiguration config;
         private AmqpConnectionManager manager;
         private QueueListener listener;
 
-        private QueueWorker(QueueConfiguration config, QueueListener listener,
-                AmqpConnectionManager manager) {
+        private QueueWorker(QueueConfiguration config, QueueListener listener, AmqpConnectionManager manager) {
             this.manager = manager;
             this.config = config;
             this.listener = listener;
@@ -324,16 +331,15 @@ public class AmqpConnectionManager {
 
         @Override
         public Object call() throws Exception {
-            Channel channel = manager.getChannel();
+            Channel channel = manager.openChannel();
             channel.declareQueue(config.getQueue());
             for (Binding binding : config.getBindings()) {
                 channel.declareExchange(binding.getExchange());
                 channel.bindQueue(binding);
             }
-            Consumer<com.google.protobuf.Message> consumer = channel
-                    .createConsumer(this.config.getQueue(),
-                            new ProtobufConverter(this.config.getMessages()));
-            log.info("Worker started, listening for messages.");
+            Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
+                    new ProtobufConverter(this.config.getMessages()));
+            log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
             Message<com.google.protobuf.Message> message;
             try {
                 for (;;) {
@@ -348,10 +354,10 @@ public class AmqpConnectionManager {
                     }
                 }
             } finally {
-                log.debug("Tearing down worker");
+                log.debug("Stopping worker for queue: {}", config.getQueue().getName());
                 try {
                     consumer.cancel();
-                } catch (AmqpException exception) {
+                } catch (AmqpException ignored) {
                 }
                 try {
                     channel.close();

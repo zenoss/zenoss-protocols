@@ -90,6 +90,12 @@
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.EventDetailItemSet"
         },
+        "$EventDetailItem" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventDetailItem",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItem",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.EventDetailItem"
+        },
         "$ZepConfig" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$ZepConfig",
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepConfig",
