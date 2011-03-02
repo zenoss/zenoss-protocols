@@ -40,6 +40,7 @@ message Component {
     optional string id = 2;
     optional string title = 3;
     optional Device device = 4;
+    optional int32 production_state = 5;
 }
 
 message Organizer {
