@@ -417,12 +417,12 @@ message ZepConfig {
     // Events with a lower severity than this are selected for aging (along
     // with event_age_interval_minutes). If you specify SEVERITY_CLEAR for
     // this setting, it disables event aging.
-    optional EventSeverity event_age_disable_severity = 1 [default = SEVERITY_WARNING];
+    optional EventSeverity event_age_disable_severity = 1 [default = SEVERITY_ERROR];
 
     // The number of minutes that elapse from the last time an event was seen
     // until it is a candidate for event aging. Setting this to 0 disables
     // event aging.
-    optional uint32 event_age_interval_minutes = 2 [default = 60];
+    optional uint32 event_age_interval_minutes = 2 [default = 240];
 
     // The number of days since a closed event was last seen before it is moved
     // to the event archive. The minimum value is 1 and the maximum value is 30.
