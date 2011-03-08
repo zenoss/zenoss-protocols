@@ -161,28 +161,8 @@ class ZepServiceClient(object):
         return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
 
-    def getEventSeverities(self, tagUuids):
-        if not tagUuids:
-            raise ValueError('At least one tag UUID must be provided.')
-
-        return self.client.get('severities', params={ 'tag' : tagUuids })
-
-    def getWorstSeverity(self, tagUuids):
-        if not tagUuids:
-            raise ValueError('At least one tag UUID must be provided.')
-
-        return self.client.get('worst_severity', params={ 'tag' : tagUuids })
-
-    def getDeviceIssues(self, filter):
-        if filter:
-            filterDict = to_dict(filter)
-            if 'severity' in filterDict:
-                filterDict['severity'] = [EventSeverity.getName(i) for i in filterDict['severity']]
-
-            if 'status' in filterDict:
-                filterDict['status'] = [EventStatus.getName(i) for i in filterDict['status']]
-
-        return self.client.get('device_issues', params = filterDict)
+    def getEventTagSeverities(self, event_filter):
+        return self.client.post('tag_severities', body=event_filter)
 
     def createSavedSearch(self, event_filter = None, exclusion_filter = None, sort = None, timeout = None,
                           archive = False):

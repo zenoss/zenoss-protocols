@@ -66,7 +66,7 @@ class RestServiceClient(object):
     _default_headers = {}
     _serializer = UrlEncodedSerializer()
 
-    def __init__(self, uri, timeout=10):
+    def __init__(self, uri, timeout=60):
         self._uri_parts = urlparse.urlsplit(uri, allow_fragments=False)
         self.default_params = urlparse.parse_qs(self._uri_parts.query)
 
