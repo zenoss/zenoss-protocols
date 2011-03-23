@@ -15,10 +15,17 @@ class ProtobufEnum(object):
     """
     Helpful functions for protobuf enums.
     """
-    def __init__(self, protobuf, field):
+    def __init__(self, protobuf, field=None, enum=None):
+        """
+
+        """
         self._protobuf = protobuf
-        self._field = field
-        self._enum = self._protobuf.DESCRIPTOR.fields_by_name[self._field].enum_type
+
+        if field:
+            self._enum = self._protobuf.DESCRIPTOR.fields_by_name[field].enum_type
+        elif enum:
+            #protobuf should be the class that contains the named enum
+            self._enum = self._protobuf.DESCRIPTOR.enum_types_by_name[enum]
         self._prefix = '_' in self._enum.values[0].name and self._enum.values[0].name.split('_', 1)[0] + '_' or None
         self._prettyNames = {}
 
@@ -54,3 +61,4 @@ def listify(ob):
     if not isinstance(ob, (tuple, list, set)):
         return [ob]
     return ob
+
