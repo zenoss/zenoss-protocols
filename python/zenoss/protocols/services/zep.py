@@ -141,6 +141,8 @@ class ZepServiceClient(object):
     def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_CLOSED,
+            current_user_uuid = userUuid,
+            current_user_name = userName,
         ))
         return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
@@ -148,8 +150,8 @@ class ZepServiceClient(object):
     def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_ACKNOWLEDGED,
-            acknowledged_by_user_uuid = userUuid,
-            acknowledged_by_user_name = userName,
+            current_user_uuid = userUuid,
+            current_user_name = userName,
         ))
         return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)

@@ -153,11 +153,12 @@ message EventSummary {
     optional uint64 status_change_time = 5;
     optional uint64 last_seen_time = 6;
     optional uint32 count = 7 [default = 1];
-    optional string acknowledged_by_user_uuid = 8;
-    optional string acknowledged_by_user_name = 9;
+    optional string current_user_uuid = 8;
+    optional string current_user_name = 9;
     optional string cleared_by_event_uuid = 10;
     repeated EventNote notes = 11;
-    optional uint64 update_time = 12;
+    repeated EventAuditLog audit_log = 12;
+    optional uint64 update_time = 13;
 }
 
 // Both from and to are inclusive. If 'from' is not specified, then 'from' is
@@ -223,7 +224,7 @@ message EventFilter {
     // All search terms support wildcard queries ('*' and '?'). Phrases are supported within a query by enclosing
     // the phrase to be searched within double quotes.
     repeated string event_summary = 12;
-    repeated string acknowledged_by_user_name = 13;
+    repeated string current_user_name = 13;
     repeated EventTagFilter tag_filter = 14;
     repeated EventDetailFilter details = 15;
     repeated string fingerprint = 16;
@@ -249,7 +250,7 @@ message EventSort {
         ELEMENT_SUB_IDENTIFIER = 9;
         EVENT_SUMMARY = 10;
         UPDATE_TIME = 11;
-        ACKNOWLEDGED_BY_USER_NAME = 12;
+        CURRENT_USER_NAME = 12;
         AGENT = 13;
         MONITOR = 14;
         UUID = 15;
@@ -289,8 +290,8 @@ message EventSummaryResult {
 // This is passed with every EventSummaryUpdateRequest.
 message EventSummaryUpdate {
     optional EventStatus status = 1;
-    optional string acknowledged_by_user_uuid = 2;
-    optional string acknowledged_by_user_name = 3;
+    optional string current_user_uuid = 2;
+    optional string current_user_name = 3;
 }
 
 
@@ -413,6 +414,13 @@ message EventTagSeverities {
 
 message EventTagSeveritiesSet {
     repeated EventTagSeverities severities = 1;
+}
+
+message EventAuditLog {
+    required uint64 timestamp = 1;
+    required EventStatus new_status = 2;
+    optional string user_uuid = 3;
+    optional string user_name = 4;
 }
 
 message ZepConfig {
