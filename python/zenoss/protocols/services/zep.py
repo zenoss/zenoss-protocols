@@ -159,6 +159,8 @@ class ZepServiceClient(object):
     def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_NEW,
+            current_user_uuid = userUuid,
+            current_user_name = userName,
         ))
         return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
