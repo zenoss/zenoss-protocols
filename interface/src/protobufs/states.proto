@@ -16,29 +16,27 @@ package org.zenoss.protobufs.states;
 message State {
     enum StateType {
         AVAILABILITY = 1;
-        COMPLIANCE = 2;
-        CONFIGURATION = 3;
-        //UTILIZATION = 4;
+        PERFORMANCE = 2;
+        CAPACITY = 3;
     }
 
-    message ComplianceState {
-        enum ComplianceStateValue {
-            IN = 1;
-            OUT = 2;
+    message CapacityState {
+        enum CapacityStateValue {
+            UNACCEPTABLE = 1;
+            REDUCED = 2;
+            ACCEPTABLE = 3;
         }
-        required ComplianceStateValue state = 1;
+        required CapacityStateValue state = 1;
     }
     
-    message ConfigurationState {
-        enum ConfigurationStateValue {
-            UNCHANGED = 1;
-            CHANGED = 2;
+    message PerformanceState {
+        enum PerformanceStateValue {
+            UNACCEPTABLE = 1;
+            DEGRADED = 2;
+            ACCEPTABLE = 3;
         }
-        required ConfigurationStateValue state = 1;
+        required PerformanceStateValue state = 1;
     }
-    
-    //message UtilizationState {
-    //}
     
     message AvailabilityState {
        enum AvailabilityStateValue {
@@ -50,10 +48,8 @@ message State {
        required AvailabilityStateValue state = 1;
     }
 
-
     required StateType type = 1;
     optional AvailabilityState availability = 2;
-    optional ComplianceState compliance = 3;
-    optional ConfigurationState configuration = 4;
-    //optional UtilizationState utilization = 5;
+    optional CapacityState capacity = 3;
+    optional PerformanceState performance = 4;
 }
