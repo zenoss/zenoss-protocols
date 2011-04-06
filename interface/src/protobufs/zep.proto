@@ -118,6 +118,7 @@ message ZepRawEvent {
     repeated string clear_event_class = 2;
     optional EventStatus status = 3 [default = STATUS_NEW];
     repeated EventTag tags = 4;
+    optional string event_class_mapping_uuid = 5;
 }
 
 // Represents an individual event occurrence (processed RawEvent).
@@ -397,7 +398,8 @@ message Signal {
     // If this is signal clears all previous signals
     optional bool clear = 5 [default = false];
     optional EventSummary event = 6;
-    optional string message = 7;
+    optional EventSummary clear_event = 7;
+    optional string message = 8;
 }
 
 message EventTagSeverity {
