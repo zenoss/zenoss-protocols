@@ -16,7 +16,7 @@ from amqplib.client_0_8.connection import Connection
 from amqplib.client_0_8.basic_message import Message
 from zenoss.protocols.amqpconfig import getAMQPConfiguration
 from zenoss.protocols import queueschema
-
+import socket
 
 log = logging.getLogger('zen.%s' % __name__)
 
@@ -53,7 +53,7 @@ class Publisher(object):
                                           password=self._config.password,
                                           virtual_host=self._config.vhost,
                                           ssl=self._config.usessl)
-
+            log.info("Connecting to RabbitMQ...")
         if not self._channel:
             self._channel = self._connection.connection.channel()
 
@@ -77,12 +77,18 @@ class Publisher(object):
         return self._exchanges[exchange]
 
     def close(self):
-        if self._channel:
-            self._channel.close()
+        try:
+            if self._channel:
+                self._channel.close()
 
-        if self._connection:
-            self._connection.close()
+            if self._connection:
+                self._connection.close()
+        except Exception as e:
+            log.info("error closing publisher %s" % e)
+        finally:
+            self._reset()
 
+    def _reset(self):
         self._channel = None
         self._connection = None
         self._exchanges = {}
@@ -101,15 +107,25 @@ class Publisher(object):
         """
         msg = self.buildMessage(obj, headers)
 
-        channel = self.getChannel()
-        exchangeConfig = self.useExchange(exchange)
 
-        try:
-            log.debug('Publishing with routing key %s to exchange %s' % (routing_key, exchangeConfig.name))
-            channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory)
-        except Exception as e:
-            log.exception(e)
-            raise
+        count = 0
+        maxtries = 2
+        while count < maxtries:
+            count += 1
+            try:
+                channel = self.getChannel()
+                exchangeConfig = self.useExchange(exchange)
+                log.debug('Publishing with routing key %s to exchange %s' % (routing_key, exchangeConfig.name))
+                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory)
+                break
+            except socket.error as e:
+                log.info("amqp connection was closed %s" % e)
+                self._reset()
+            except Exception as e:
+                log.exception(e)
+                raise
+        else:
+            raise Exception("Could not publish message. Connection may be down")
 
     def buildMessage(self, obj, headers=None):
         msg_headers = {
