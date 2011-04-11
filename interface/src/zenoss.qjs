@@ -107,6 +107,12 @@
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventFilter",
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.EventFilter"
+        },
+        "$DaemonHeartbeat" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$DaemonHeartbeat",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeat",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeat"
         }
     },
     "exchanges" : {
@@ -172,6 +178,15 @@
             "description" : "When an event matches a trigger, a signal is created.",
             "content_types" : ["$Signal"],
             "routing_key_regexp" : "zenoss\\.signal"
+        },
+        "$Heartbeats" : {
+            "name" : "zenoss.heartbeats",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Used for daemon heartbeats.",
+            "content_types" : ["$DaemonHeartbeat"],
+            "routing_key_regexp" : "zenoss\\.heartbeats"
         }
     },
     "queues" : {
@@ -276,6 +291,19 @@
                 {
                     "exchange" : "$Signals",
                     "routing_key" : "zenoss.signal"
+                }
+            ]
+        },
+        "$ZepHeartbeats" : {
+            "name" : "zenoss.queues.zep.heartbeats",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "ZEP queue for reading daemon heartbeats.",
+            "bindings" : [
+                {
+                    "exchange" : "$Heartbeats",
+                    "routing_key" : "zenoss.heartbeat.#"
                 }
             ]
         }
