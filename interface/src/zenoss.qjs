@@ -113,6 +113,12 @@
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeat",
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeat"
+        },
+        "$DaemonHeartbeatSet" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$DaemonHeartbeatSet",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeatSet",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeatSet"
         }
     },
     "exchanges" : {

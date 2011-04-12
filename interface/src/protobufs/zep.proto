@@ -467,3 +467,7 @@ message DaemonHeartbeat {
     // The time the heartbeat was last received.
     optional uint64 last_time = 4;
 }
+
+message DaemonHeartbeatSet {
+    repeated DaemonHeartbeat heartbeats = 1;
+}

@@ -288,3 +288,18 @@ class ZepConfigClient(object):
         """
         log.debug("Removing a detail item: '%s'" % key)
         return self.client.delete('index_details/%s' % key)
+
+class ZepHeartbeatClient(object):
+
+    _base_uri = '/zenoss-zep/api/1.0/heartbeats/'
+
+    def __init__(self, uri):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
+
+    def getHeartbeats(self, monitor=None):
+        uri = monitor if monitor else ''
+        return self.client.get(uri)
+
+    def deleteHeartbeats(self, monitor=None):
+        uri = monitor if monitor else ''
+        return self.client.delete(uri)
