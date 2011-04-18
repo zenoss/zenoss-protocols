@@ -182,8 +182,9 @@ message EventTagFilter {
 
 // Values will be searched as an exact match unless otherwise
 // specified by their detail type.
-// Strings: Exact or wildcare if * or ?
+// Strings: Exact or wildcard if * or ?
 // Numeric: Exact or range if in the form of M:, :N, or M:N
+// IP Address: Exact or wildcard if * or ?, ranges in form of ADDR1-ADDR2, ADDR1/MASK
 message EventDetailFilter {
     // All details in this filter share the FilterOperator specified.
     required string key = 1;
@@ -330,6 +331,7 @@ message EventDetailItem {
         FLOAT = 3;
         LONG = 4;
         DOUBLE = 5;
+        IP_ADDRESS = 6;
     }
     required string key = 1;
     optional EventDetailType type = 2 [default = STRING];
