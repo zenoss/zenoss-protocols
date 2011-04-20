@@ -12,13 +12,14 @@
 ###########################################################################
 
 from zenoss.protocols.services import ProtobufRestServiceClient
+from zenoss.protocols.services.zep import ZepConnectionError
 from zenoss.protocols.jsonformat import to_dict
 
 class TriggerServiceClient(object):
     _base_uri = '/zenoss-zep/api/1.0/triggers/'
 
     def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
         
         
     def getTriggers(self):

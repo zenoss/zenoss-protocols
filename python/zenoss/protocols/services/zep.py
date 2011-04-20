@@ -14,7 +14,7 @@
 import json
 import time
 import logging
-from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient
+from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient, ServiceConnectionError
 from zenoss.protocols.jsonformat import to_dict, from_dict
 from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery, EventDetailSet
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
@@ -34,12 +34,15 @@ HOUR = timedelta(hours=1)
 class ZepServiceException(Exception):
     pass
 
+class ZepConnectionError(ServiceConnectionError):
+    pass
+
 class ZepServiceClient(object):
     _base_uri = '/zenoss-zep/api/1.0/events/'
     _timeFormat = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
 
     def getEventSummariesFromArchive(self, offset=0, limit=100, keys=None,
                                      sort=None, filter=None,
@@ -216,7 +219,7 @@ class ZepConfigClient(object):
     _base_uri = '/zenoss-zep/api/1.0/config/'
 
     def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
 
     def defaultConfig(self, config):
         
@@ -294,7 +297,7 @@ class ZepHeartbeatClient(object):
     _base_uri = '/zenoss-zep/api/1.0/heartbeats/'
 
     def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri)
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
 
     def getHeartbeats(self, monitor=None):
         uri = monitor if monitor else ''

@@ -66,7 +66,8 @@ class RestServiceClient(object):
     _default_headers = {}
     _serializer = UrlEncodedSerializer()
 
-    def __init__(self, uri, timeout=60):
+    def __init__(self, uri, timeout=60, connection_error_class=ServiceConnectionError):
+        self._connection_error_class = connection_error_class
         self._uri_parts = urlparse.urlsplit(uri, allow_fragments=False)
         self.default_params = urlparse.parse_qs(self._uri_parts.query)
 
@@ -112,10 +113,10 @@ class RestServiceClient(object):
         try:
             response, content = self.http.request(request.uri, method=request.method, headers=request.headers, body=request.body)
         except socket.timeout as e:
-            raise ServiceConnectionError('Timed out connecting to service.', e)
+            raise self._connection_error_class('Timed out connecting to service.', e)
         except socket.error as e:
             if e.errno == errno.ECONNREFUSED:
-                raise ServiceConnectionError('Could not connect to service.', e)
+                raise self._connection_error_class('Could not connect to service.', e)
             else:
                 raise
 
@@ -188,9 +189,9 @@ class ProtobufRestServiceClient(RestServiceClient):
         'Accept' : ProtobufSerializer._content_type,
     }
 
-    def __init__(self, uri, schema=None, **kwargs):
+    def __init__(self, uri, schema=None, connection_error_class=ServiceConnectionError, **kwargs):
         self._serializer = ProtobufSerializer(schema)
-        super(ProtobufRestServiceClient, self).__init__(uri, **kwargs)
+        super(ProtobufRestServiceClient, self).__init__(uri, connection_error_class=connection_error_class, **kwargs)
 
 
 class JsonSerializer(RestSerializer):
@@ -208,6 +209,6 @@ class JsonSerializer(RestSerializer):
 
 class JsonRestServiceClient(RestServiceClient):
 
-    def __init__(self, uri, schema=None, **kwargs):
+    def __init__(self, uri, schema=None, connection_error_class=ServiceConnectionError, **kwargs):
         self._serializer = JsonSerializer()
-        super(JsonRestServiceClient, self).__init__(uri, **kwargs)
+        super(JsonRestServiceClient, self).__init__(uri, connection_error_class=connection_error_class, **kwargs)
