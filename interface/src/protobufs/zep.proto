@@ -406,7 +406,8 @@ message Signal {
 
 message EventTagSeverity {
     required EventSeverity severity = 1;
-    optional uint32 count = 2;
+    optional uint32 count = 2 [default=0];
+    optional uint32 acknowledged_count = 3 [default=0];
 }
 
 message EventTagSeverities {
