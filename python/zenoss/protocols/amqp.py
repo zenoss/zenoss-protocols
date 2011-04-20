@@ -53,7 +53,7 @@ class Publisher(object):
                                           password=self._config.password,
                                           virtual_host=self._config.vhost,
                                           ssl=self._config.usessl)
-            log.info("Connecting to RabbitMQ...")
+            log.debug("Connecting to RabbitMQ...")
         if not self._channel:
             self._channel = self._connection.connection.channel()
 
