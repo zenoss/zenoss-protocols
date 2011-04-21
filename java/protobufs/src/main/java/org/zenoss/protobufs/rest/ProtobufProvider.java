@@ -61,13 +61,7 @@ public class ProtobufProvider implements MessageBodyWriter<Message>,
     @Override
     public long getSize(Message message, Class<?> type, Type genericType,
             Annotation[] annotations, MediaType mediaType) {
-        final int size;
-        if (mediaType.isCompatible(MediaType.APPLICATION_JSON_TYPE)) {
-            size = -1;
-        } else {
-            size = message.getSerializedSize();
-        }
-        return size;
+        return -1;
     }
 
     @Override
