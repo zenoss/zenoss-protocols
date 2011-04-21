@@ -68,11 +68,11 @@ def usage():
     
         %prog -u guest -p guest -H localhost -V / -E '$RawZenEvents' -T '$RawEvent'  -R zenoss.zenevent.test -D '{ "uuid" : "123"}'
     """    
-    
+
 def main():
     from optparse import OptionParser
     parser = OptionParser(usage=usage())
-    
+
     parser.add_option('-E', '--exchange', type='string', dest='exchange',
                       help="Exchange to push to", action='store')
     parser.add_option('-T', '--type', type='string', dest='messageType',
@@ -95,7 +95,7 @@ def main():
         parser.error('You must supply a message type.')
     elif not options.routingKey:
         parser.error('You must supply a routing key.')
-        
+
     getAMQPConfiguration().update(options)
     initLogging(options)
 

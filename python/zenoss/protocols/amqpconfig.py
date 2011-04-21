@@ -12,6 +12,7 @@
 ###########################################################################
 
 from __future__ import absolute_import
+from collections import defaultdict
 import logging
 from zenoss.protocols import queueschema
 import warnings
@@ -69,22 +70,22 @@ class AMQPConfig(object):
     def update(self, options):
         """
         Update the settings from a dictionary.
-        
+
         See AMQPConfig._options for list of valid options.    
         """
         optionMap = self._getOptionMap()
-        
+
         if isinstance(options, dict):
             options = options.iteritems()
         elif isinstance(options, object):
             # Looks like a plain old object with properties as options
             options = options.__dict__.iteritems()
-            
+
         for key, value in options:
             if key in optionMap:
                 parser = optionMap[key].get('parser', str)
                 setattr(self, '_' + optionMap[key]['key'], parser(value))
-                
+
     def getContentType(self, identifier):
         warnings.warn('Use zenoss.protocols.queueschema.getContentType() instead', DeprecationWarning)
         return queueschema.getContentType(identifier)
@@ -109,9 +110,9 @@ class AMQPConfig(object):
         """
         Iterates over every queue defined and establishes the
         binding and the queue.
-        
+
         @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever    
+        @param channel: The connection to the amqp sever
         """
         for queue in queueschema.getQueues():
             self.declareQueue(channel, queue.identifier)
@@ -119,38 +120,47 @@ class AMQPConfig(object):
     def declareExchanges(self, channel):
         """
         Declares every exchange.
-        
+
         @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever        
+        @param channel: The connection to the amqp sever
         """
         for exchange in queueschema.getExchanges():
             self.declareExchange(channel, exchange.identifier)
 
-    def declareQueue(self, channel, queueIdentifier):
+    def declareQueue(self, channel, queueIdentifier, replacements=None):
         """
         Creates the queue and binds it to the exchange using the schema
         configuration.
-        
+
         @type  channel: AQMPChannel
         @param channel: The connection to the amqp sever
         @type  queueIdentifier: string
         @param queueIdentifier: The identifier of the queue we wish to create
+        @type replacements: dict
+        @param replacements: Strings that should replace python string formatting in the routing key
         """
         queueConfig = queueschema.getQueue(queueIdentifier)
         qname = queueConfig.name
         for identifier, binding in queueConfig.bindings.iteritems():
-            log.debug("Creating queue %s with routing_key %s to exchange  %s" % (queueConfig.name, binding.routing_key, binding.exchange.name))
-            channel.queue_declare(queue=qname, durable=True,
-                                       auto_delete=False)
+            routing_key = binding.routing_key
+            if replacements:
+                # Replace args in the routing key with the replacements specified,
+                # or '#' if none
+                d = defaultdict(lambda:'#')
+                d.update(replacements)
+                routing_key = routing_key % d
+            log.debug("Creating queue %s with routing_key %s to exchange  %s" % (
+                qname, routing_key, binding.exchange.name))
+            channel.queue_declare(queue=qname, durable=True, auto_delete=False)
             result = channel.queue_bind(queue=qname, exchange=binding.exchange.name,
-                                    routing_key=binding.routing_key)
+                                    routing_key=routing_key)
         return result
 
     def declareExchange(self, channel, exchangeIdentifier):
         """
         Creates the queue and binds it to the exchange using the schema
         configuration.
-        
+
         @type  channel: AQMPChannel
         @param channel: The connection to the amqp sever
         @type  queueIdentifier: string
@@ -281,7 +291,7 @@ class TwistedAMQPConfig(AMQPConfig):
             return delegate.__getattribute__(name)
 
 
-_CONFIGURATION  = AMQPConfig()        
+_CONFIGURATION  = AMQPConfig()
 _TWISTEDCONFIG = TwistedAMQPConfig(_CONFIGURATION)
 def setAMQPConfiguration(config):
     _CONFIGURATION.update(config)

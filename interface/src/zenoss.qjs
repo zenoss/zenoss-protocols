@@ -119,6 +119,12 @@
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeatSet",
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeatSet"
+        },
+        "$VMwareModelRequest" : {
+            "java_class" : "org.zenoss.protobufs.modelrequest.ModelRequest$VMwareModelRequest",
+            "python_class" : "zenoss.protocols.protobufs.modelrequest_pb2.VMwareModelRequest",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.modelrequest.VMwareModelRequest"
         }
     },
     "exchanges" : {
@@ -193,6 +199,15 @@
             "description" : "Used for daemon heartbeats.",
             "content_types" : ["$DaemonHeartbeat"],
             "routing_key_regexp" : "zenoss\\.heartbeats"
+        },
+        "$ModelRequests" : {
+            "name" : "zenoss.modelrequests",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Used to send model requests to collector daemons.",
+            "content_types" : ["$VMwareModelRequest"],
+            "routing_key_regexp" : "zenoss\\.modelrequests\\.(<?Pcollector>[^.]+)\\.(<?Pservice>([^.]+))"
         }
     },
     "queues" : {
@@ -310,6 +325,19 @@
                 {
                     "exchange" : "$Heartbeats",
                     "routing_key" : "zenoss.heartbeat.#"
+                }
+            ]
+        },
+        "$VMwareRequests" : {
+            "name" : "zenoss.queues.modelrequests.vmware",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Queue for requests for zenvmwaremodeler to run.",
+            "bindings" : [
+                {
+                    "exchange" : "$ModelRequests",
+                    "routing_key" : "zenoss.modelrequests.%(collector)s.%(service)s"
                 }
             ]
         }
