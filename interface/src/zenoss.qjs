@@ -121,7 +121,7 @@
             "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeatSet"
         },
         "$VMwareModelRequest" : {
-            "java_class" : "org.zenoss.protobufs.modelrequest.ModelRequest$VMwareModelRequest",
+            "java_class" : "org.zenoss.protobufs.modelrequest.Modelrequest$VMwareModelRequest",
             "python_class" : "zenoss.protocols.protobufs.modelrequest_pb2.VMwareModelRequest",
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.modelrequest.VMwareModelRequest"
