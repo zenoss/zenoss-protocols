@@ -3,7 +3,7 @@ Zenoss Event Processing API
 ===========================
 
 :Version: 1.0
-:Base URL: /zenoss-zep/api/$version/
+:Base URL: /zeneventserver/api/$version/
 
 ------
 Events
@@ -65,7 +65,7 @@ API
 
 Request::
 
-    GET /zenoss-zep/api/$version/events?$parameters
+    GET /zeneventserver/api/$version/events?$parameters
     Accept: application/x-protobuf
     
 Response::
@@ -83,7 +83,7 @@ API
 
 Request::
 
-    GET /zenoss-zep/api/$version/events/$eventUuid
+    GET /zeneventserver/api/$version/events/$eventUuid
     Accept: application/x-protobuf
     
 Response::

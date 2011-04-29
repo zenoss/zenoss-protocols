@@ -38,7 +38,7 @@ class ZepConnectionError(ServiceConnectionError):
     pass
 
 class ZepServiceClient(object):
-    _base_uri = '/zenoss-zep/api/1.0/events/'
+    _base_uri = '/zeneventserver/api/1.0/events/'
     _timeFormat = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     def __init__(self, uri):
@@ -216,7 +216,7 @@ class ZepServiceClient(object):
 
 class ZepConfigClient(object):
 
-    _base_uri = '/zenoss-zep/api/1.0/config/'
+    _base_uri = '/zeneventserver/api/1.0/config/'
 
     def __init__(self, uri):
         self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
@@ -294,7 +294,7 @@ class ZepConfigClient(object):
 
 class ZepHeartbeatClient(object):
 
-    _base_uri = '/zenoss-zep/api/1.0/heartbeats/'
+    _base_uri = '/zeneventserver/api/1.0/heartbeats/'
 
     def __init__(self, uri):
         self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
