@@ -240,9 +240,9 @@ class ZepConfigClient(object):
                 'defaultValue': 30,
                 'value': config.event_occurrence_purge_interval_days
             },
-            'event_archive_interval_days': {
-                'defaultValue': 3,
-                'value': config.event_archive_interval_days
+            'event_archive_interval_minutes': {
+                'defaultValue': 4320,
+                'value': config.event_archive_interval_minutes
             }
         }
         return defaults
