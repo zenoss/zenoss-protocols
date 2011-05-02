@@ -12,6 +12,12 @@
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.protobufs.zep.ZepRawEvent"
         },
+        "$Event" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$Event",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Event",
+            "content_type" : "application/x-protobuf",
+            "x-protobuf" : "org.zenoss.protobufs.zep.Event"
+        },
         "$EventSummary" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummary",
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummary",

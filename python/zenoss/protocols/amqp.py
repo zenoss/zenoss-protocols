@@ -16,7 +16,11 @@ from amqplib.client_0_8.connection import Connection
 from amqplib.client_0_8.basic_message import Message
 from zenoss.protocols.amqpconfig import getAMQPConfiguration
 from zenoss.protocols import queueschema
+from zenoss.protocols.exceptions import PublishException, NoRouteException, NoConsumersException
 import socket
+
+REPLY_CODE_NO_ROUTE = 312
+REPLY_CODE_NO_CONSUMERS = 313
 
 log = logging.getLogger('zen.%s' % __name__)
 
@@ -93,7 +97,7 @@ class Publisher(object):
         self._connection = None
         self._exchanges = {}
 
-    def publish(self, exchange, routing_key, obj, headers=None, mandatory=False):
+    def publish(self, exchange, routing_key, obj, headers=None, mandatory=False, immediate=False):
         """
         Blocking method for publishing items to the queue
 
@@ -116,7 +120,17 @@ class Publisher(object):
                 channel = self.getChannel()
                 exchangeConfig = self.useExchange(exchange)
                 log.debug('Publishing with routing key %s to exchange %s' % (routing_key, exchangeConfig.name))
-                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory)
+                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory, immediate=immediate)
+                if mandatory or immediate:
+                    self._channel.close()
+                    self._channel = None
+                    if not channel.returned_messages.empty():
+                        reply_code, reply_text, exchange, routing_key, unused = channel.returned_messages.get()
+                        if reply_code == REPLY_CODE_NO_ROUTE:
+                            raise NoRouteException(reply_code, reply_text, exchange, routing_key)
+                        if reply_code == REPLY_CODE_NO_CONSUMERS:
+                            raise NoConsumersException(reply_code, reply_text, exchange, routing_key)
+                        raise PublishException(reply_code, reply_text, exchange, routing_key)
                 break
             except socket.error as e:
                 log.info("amqp connection was closed %s" % e)

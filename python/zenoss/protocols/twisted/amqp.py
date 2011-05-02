@@ -130,7 +130,7 @@ class AMQProtocol(AMQClient):
         yield config.declareQueue(self.chan, queueIdentifier)
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False):
+    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False):
         body = msg
         headers = {}
 
@@ -157,7 +157,8 @@ class AMQProtocol(AMQClient):
         yield self.chan.basic_publish(exchange=exchangeConfig.name,
                                       routing_key=routing_key,
                                       content=content,
-                                      mandatory=mandatory)
+                                      mandatory=mandatory,
+                                      immediate=immediate)
         returnValue("SUCCESS")
 
     def send(self):
@@ -268,7 +269,7 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False):
+    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False):
         """
         Send a C{message} to exchange C{exchange}.
 
@@ -282,7 +283,7 @@ class AMQPFactory(ReconnectingClientFactory):
         @param message: The message to send
         @type message:str
         """
-        self.messages.append((exchangeIdentifier, routing_key, message, mandatory))
+        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate))
         if self.p is not None:
             return self.p.send()
         else:

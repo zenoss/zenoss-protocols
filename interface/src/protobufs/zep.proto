@@ -142,6 +142,7 @@ message Event {
     optional string monitor = 18;
     repeated EventDetail details = 19;
     repeated EventTag tags = 20;
+    optional string summary_uuid = 21;
 }
 
 // Represents a summary of an event (based on fingerprint).

@@ -214,6 +214,12 @@ class ZepServiceClient(object):
             url = 'archive/' + url
         return self.client.get(url, params)
 
+    def getEventOccurrence(self, occurrence_uuid):
+        """
+        Get an event occurrence by event occurrence uuid.
+        """
+        return self.client.get('occurrences/%s' % occurrence_uuid)
+
 class ZepConfigClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/config/'
