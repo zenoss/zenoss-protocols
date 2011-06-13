@@ -39,6 +39,7 @@ class Publisher(object):
         self._channel = None
         self._config = getAMQPConfiguration()
         self._exchanges = {}
+        self._queues = set()
 
     def __enter__(self):
         self.getChannel()
@@ -96,6 +97,7 @@ class Publisher(object):
         self._channel = None
         self._connection = None
         self._exchanges = {}
+        self._queues = set()
 
     def publish(self, exchange, routing_key, obj, headers=None, mandatory=False, immediate=False):
         """
@@ -111,11 +113,7 @@ class Publisher(object):
         """
         msg = self.buildMessage(obj, headers)
 
-
-        count = 0
-        maxtries = 2
-        while count < maxtries:
-            count += 1
+        for i in range(2):
             try:
                 channel = self.getChannel()
                 exchangeConfig = self.useExchange(exchange)
@@ -140,6 +138,25 @@ class Publisher(object):
                 raise
         else:
             raise Exception("Could not publish message. Connection may be down")
+
+    def createQueue(self, exchange, queueIdentifier):
+        if queueIdentifier not in self._queues:
+            amqpConfiguration = getAMQPConfiguration()
+            for i in range(2):
+                try:
+                    channel = self.getChannel()
+                    self.useExchange(exchange)
+                    amqpConfiguration.declareQueue(channel, queueIdentifier)
+                    self._queues.add(queueIdentifier)
+                    break
+                except socket.error as e:
+                    log.info("AMQP connection was closed %s" % e)
+                    self._reset()
+                except Exception as e:
+                    log.exception(e)
+                    raise
+            else:
+                raise Exception("Could not create queue. Connection may be down")
 
     def buildMessage(self, obj, headers=None):
         msg_headers = {

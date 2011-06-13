@@ -214,6 +214,15 @@
             "description" : "Used to send model requests to collector daemons.",
             "content_types" : ["$VMwareModelRequest"],
             "routing_key_regexp" : "zenoss\\.modelrequests\\.(<?Pcollector>[^.]+)\\.(<?Pservice>([^.]+))"
+        },
+        "$MigratedEvents" : {
+            "name" : "zenoss.zenevents.migrated",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Used to migrate old events to ZEP.",
+            "content_types" : ["$EventSummary"],
+            "routing_key_regexp" : "zenoss\\.event\\.(summary|archive)"
         }
     },
     "queues" : {
@@ -344,6 +353,19 @@
                 {
                     "exchange" : "$ModelRequests",
                     "routing_key" : "zenoss.modelrequests.%(collector)s.%(service)s"
+                }
+            ]
+        },
+        "$ZepMigratedEvents" : {
+            "name" : "zenoss.queues.zep.migrated_events",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "ZEP queue for reading migrated events.",
+            "bindings" : [
+                {
+                    "exchange" : "$MigratedEvents",
+                    "routing_key" : "zenoss.events.#"
                 }
             ]
         }
