@@ -222,7 +222,7 @@
             "auto_delete" : false,
             "description" : "Used to migrate old events to ZEP.",
             "content_types" : ["$EventSummary"],
-            "routing_key_regexp" : "zenoss\\.event\\.(summary|archive)"
+            "routing_key_regexp" : "zenoss\\.events\\.(summary|archive)"
         }
     },
     "queues" : {
@@ -356,8 +356,8 @@
                 }
             ]
         },
-        "$ZepMigratedEvents" : {
-            "name" : "zenoss.queues.zep.migrated_events",
+        "$ZepMigratedEventSummary" : {
+            "name" : "zenoss.queues.zep.migrated.summary",
             "durable" : true,
             "exclusive" : false,
             "auto_delete" : false,
@@ -365,7 +365,20 @@
             "bindings" : [
                 {
                     "exchange" : "$MigratedEvents",
-                    "routing_key" : "zenoss.events.#"
+                    "routing_key" : "zenoss.events.summary"
+                }
+            ]
+        },
+        "$ZepMigratedEventArchive" : {
+            "name" : "zenoss.queues.zep.migrated.archive",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "ZEP queue for reading migrated events.",
+            "bindings" : [
+                {
+                    "exchange" : "$MigratedEvents",
+                    "routing_key" : "zenoss.events.archive"
                 }
             ]
         }
