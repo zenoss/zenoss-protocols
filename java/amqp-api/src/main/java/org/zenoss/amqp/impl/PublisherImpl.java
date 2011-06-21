@@ -63,24 +63,24 @@ class PublisherImpl<T> implements Publisher<T> {
             return null;
         }
         // TODO: Figure out a better way to share this data and not duplicate
-        BasicProperties props = new BasicProperties();
-        props.setAppId(properties.getAppId());
+        BasicProperties.Builder props = new BasicProperties.Builder();
+        props.appId(properties.getAppId());
         // props.setClusterId(?);
-        props.setContentEncoding(properties.getContentEncoding());
-        props.setContentType(properties.getContentType());
-        props.setCorrelationId(properties.getCorrelationId());
+        props.contentEncoding(properties.getContentEncoding());
+        props.contentType(properties.getContentType());
+        props.correlationId(properties.getCorrelationId());
         if (properties.getDeliveryMode() != null) {
-            props.setDeliveryMode(properties.getDeliveryMode().getMode());
+            props.deliveryMode(properties.getDeliveryMode().getMode());
         }
-        props.setExpiration(properties.getExpiration());
-        props.setHeaders(properties.getHeaders());
-        props.setMessageId(properties.getMessageId());
-        props.setPriority(properties.getPriority());
-        props.setReplyTo(properties.getReplyTo());
-        props.setTimestamp(properties.getTimestamp());
-        props.setType(properties.getType());
-        props.setUserId(properties.getUserId());
-        return props;
+        props.expiration(properties.getExpiration());
+        props.headers(properties.getHeaders());
+        props.messageId(properties.getMessageId());
+        props.priority(properties.getPriority());
+        props.replyTo(properties.getReplyTo());
+        props.timestamp(properties.getTimestamp());
+        props.type(properties.getType());
+        props.userId(properties.getUserId());
+        return props.build();
     }
 
     @Override
