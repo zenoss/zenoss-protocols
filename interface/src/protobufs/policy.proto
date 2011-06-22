@@ -1,0 +1,26 @@
+//##########################################################################
+//
+// This program is part of Zenoss Core, an open source monitoring platform.
+// Copyright (C) 2010, Zenoss Inc.
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 or (at your
+// option) any later version as published by the Free Software Foundation.
+//
+// For complete information please visit: http://www.zenoss.com/oss/
+//
+//##########################################################################
+
+package org.zenoss.protobufs.policy;
+
+import 'states.proto';
+import 'util.proto';
+
+message Trigger {
+    required string nodeId = 1;
+    required string triggerId = 2;
+    optional string contextId = 3 [default="global"];
+    required string triggerType = 4;
+    required org.zenoss.protobufs.states.State.StateType policyType = 5;
+    repeated org.zenoss.protobufs.util.Property properties = 6;
+}

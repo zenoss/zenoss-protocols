@@ -13,6 +13,9 @@
 
 package org.zenoss.protobufs.model;
 
+import "policy.proto";
+
+
 enum ModelElementType {
     DEVICE = 1;
     COMPONENT = 2;
@@ -52,4 +55,6 @@ message Organizer {
 message Service {
     optional string uuid = 1;
     optional string title = 2;
+    repeated string impacts = 3;
+    repeated org.zenoss.protobufs.policy.Trigger triggers = 4;
 }

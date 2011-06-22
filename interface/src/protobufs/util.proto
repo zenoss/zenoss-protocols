@@ -39,3 +39,8 @@ message ScheduleWindowSet {
     repeated ScheduleWindow windows = 1;
 }
 
+message Property {
+    required string name = 1;
+    required string value = 2;
+}
+
