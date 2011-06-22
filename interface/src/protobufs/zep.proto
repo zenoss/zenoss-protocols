@@ -81,13 +81,13 @@ enum SyslogPriority {
 }
 
 enum EventStatus {
-    STATUS_NEW = 1;
-    STATUS_ACKNOWLEDGED = 2;
-    STATUS_SUPPRESSED = 3;
-    STATUS_CLOSED = 4; // Closed by the user.
-    STATUS_CLEARED = 5; // Closed by a matching clear event.
-    STATUS_DROPPED = 6; // Dropped via a transform.
-    STATUS_AGED = 7; // Closed via automatic aging.
+    STATUS_NEW = 0;
+    STATUS_ACKNOWLEDGED = 1;
+    STATUS_SUPPRESSED = 2;
+    STATUS_CLOSED = 3; // Closed by the user.
+    STATUS_CLEARED = 4; // Closed by a matching clear event.
+    STATUS_DROPPED = 5; // Dropped via a transform.
+    STATUS_AGED = 6; // Closed via automatic aging.
 }
 
 // Represents an event that is sent from zenhub
