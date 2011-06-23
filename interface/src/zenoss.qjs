@@ -1,11 +1,5 @@
 {
     "content_types" : {
-        "$RawEvent" : {
-            "java_class" : "org.zenoss.protobufs.zep.Zep$RawEvent",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.RawEvent",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.RawEvent"
-        },
         "$ZepRawEvent" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$ZepRawEvent",
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepRawEvent",
@@ -140,7 +134,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "New zenevents will go into this exchange for ZEP to process them.",
-            "content_types" : ["$RawEvent"],
+            "content_types" : ["$Event"],
             "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
         },
         "$ZepZenEvents" : {

@@ -66,7 +66,7 @@ def usage():
     
     Example:
     
-        %prog -u guest -p guest -H localhost -V / -E '$RawZenEvents' -T '$RawEvent'  -R zenoss.zenevent.test -D '{ "uuid" : "123"}'
+        %prog -u guest -p guest -H localhost -V / -E '$RawZenEvents' -T '$Event'  -R zenoss.zenevent.test -D '{ "uuid" : "123"}'
     """    
 
 def main():

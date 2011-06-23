@@ -13,9 +13,12 @@ message EventActor {
     optional org.zenoss.protobufs.model.ModelElementType element_type_id = 1;
     optional string element_uuid = 2;
     optional string element_identifier = 3;
-    optional org.zenoss.protobufs.model.ModelElementType element_sub_type_id = 4;
-    optional string element_sub_uuid = 5;
-    optional string element_sub_identifier = 6;
+    optional string element_title = 4;
+
+    optional org.zenoss.protobufs.model.ModelElementType element_sub_type_id = 5;
+    optional string element_sub_uuid = 6;
+    optional string element_sub_identifier = 7;
+    optional string element_sub_title = 8;
 }
 
 message EventDetail {
@@ -39,7 +42,7 @@ message EventDetailSet {
 // Tag events with arbitrary UUIDs. Tags are used for event rainbows and filtering.
 message EventTag {
     required string type = 1;
-    required string uuid = 2;
+    repeated string uuid = 2;
 }
 
 // Notes added to an event (formerly event log).
@@ -81,38 +84,7 @@ enum EventStatus {
     STATUS_AGED = 6; // Closed via automatic aging.
 }
 
-// Represents an event that is sent from zenhub
-message RawEvent {
-    required string uuid = 1;
-    required uint64 created_time = 2;
-    optional string fingerprint = 3;
-    optional string event_class = 4;
-    optional string event_class_key = 5;
-    optional EventActor actor = 6;
-    optional string summary = 7;
-    optional string message = 8;
-    optional EventSeverity severity = 9;
-    optional string event_key = 10;
-    optional string event_group = 11;
-    optional string agent = 12;
-    optional SyslogPriority syslog_priority = 13;
-    optional uint32 syslog_facility = 14;
-    optional uint32 nt_event_code = 15;
-    optional string monitor = 16;
-    repeated EventDetail details = 17;
-}
-
-// Represents an event that is sent to ZEP for processing.
-// This is a temporary bridge between zeneventd and ZEP
-message ZepRawEvent {
-    required RawEvent raw_event = 1;
-    repeated string clear_event_class = 2;
-    optional EventStatus status = 3 [default = STATUS_NEW];
-    repeated EventTag tags = 4;
-    optional string event_class_mapping_uuid = 5;
-}
-
-// Represents an individual event occurrence (processed RawEvent).
+// Represents an individual event occurrence
 message Event {
     optional string uuid = 1;
     optional uint64 created_time = 2;
@@ -134,6 +106,14 @@ message Event {
     repeated EventDetail details = 19;
     repeated EventTag tags = 20;
     optional string summary_uuid = 21;
+    optional EventStatus status = 22 [default = STATUS_NEW];
+}
+
+// Represents an event that is sent to ZEP for processing.
+// This is a bridge between zeneventd and ZEP
+message ZepRawEvent {
+    required Event event = 1;
+    repeated string clear_event_class = 2;
 }
 
 // Represents a summary of an event (based on fingerprint).
