@@ -20,7 +20,7 @@ setup(
     author = "Zenoss",
     author_email = "support@zenoss.com",
     description = "Protobufs and AMQP client for integrating with Zenoss.",
-    license = "GPLv2",
+    license = "GPLv2 or later",
     keywords = "zenoss protocols",
     url = "http://www.zenoss.com/",
     zip_safe=False,
