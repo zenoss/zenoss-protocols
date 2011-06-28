@@ -13,7 +13,7 @@
 
 import logging
 import pkg_resources # Import this so zenoss.protocols will be found
-from zenoss.protocols.queueschema import schema
+from zenoss.protocols.queueschema import schema, SchemaException
 from zenoss.protocols.amqpconfig import AMQPConfig, getAMQPConfiguration
 from zenoss.protocols import hydrateQueueMessage
 from zenoss.protocols.amqp import Publisher
@@ -41,13 +41,18 @@ class Formatter(object):
         for k, v in message.application_headers.iteritems():
             self.dumpHeader(k, v, stream)
 
+
 class JsonFormatter(Formatter):
     """
     Outputs HTTP style headers with information about the queue state of the message
     along with a JSON formatted message.
     """
     def dump(self, message, queueName, stream):
-        proto = hydrateQueueMessage(message)
+        try:
+            proto = hydrateQueueMessage(message)
+        except SchemaException:
+            log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
+            return
 
         self.dumpHeaders(message, stream)
         self.dumpHeader('X-Queue-Name', queueName, stream)
@@ -71,7 +76,13 @@ class ProtobufFormatter(Formatter):
     along with a base64 encoded protobuf message.
     """
     def dump(self, message, queueName, stream):
-        # Make sure we can read it in, then convert back to string
+        try:
+            # Make sure we can read it in, then convert back to string
+            proto = hydrateQueueMessage(message)
+        except SchemaException:
+            log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
+            return
+
         proto = hydrateQueueMessage(message)
 
         self.dumpHeaders(message, stream)

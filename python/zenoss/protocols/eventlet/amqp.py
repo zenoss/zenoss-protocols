@@ -11,6 +11,8 @@
 #
 ###########################################################################
 
+import logging
+from zenoss.protocols.queueschema import SchemaException
 from zenoss.protocols import queueschema, hydrateQueueMessage
 from zenoss.protocols.amqpconfig import getAMQPConfiguration
 
@@ -24,8 +26,11 @@ __doc__ = """
 An eventlet based AMQP publisher/subscriber (consumer).
 """
 
+log = logging.getLogger("zenoss.protocols.eventlet.amqp")
+
 class Connection(amqp.Connection):
     pass
+
 
 class Publishable(object):
     def __init__(self, message, exchange, routingKey, mandatory=False):
@@ -33,6 +38,7 @@ class Publishable(object):
         self.exchange = exchange
         self.routingKey = routingKey
         self.mandatory = mandatory
+
 
 class PubSub(object):
     def __init__(self, connection, queueName):
@@ -112,6 +118,7 @@ class PubSub(object):
             self._connection.close()
             self._connection = None
 
+
 class ProtobufPubSub(PubSub):
     def __init__(self, connection, queueName):
         queue = None
@@ -153,15 +160,23 @@ class ProtobufPubSub(PubSub):
         return super(ProtobufPubSub, self).publish(publishable)
 
     def _processMessage(self, message):
-        proto = hydrateQueueMessage(message)
-
         try:
-            handler = self._handlers[proto.DESCRIPTOR.full_name]
-        except KeyError:
-            raise Exception('No message handler for "%s"' % proto.DESCRIPTOR.full_name)
+            proto = hydrateQueueMessage(message)
 
-        for publishable in handler(message, proto):
-            yield publishable
+            try:
+                handler = self._handlers[proto.DESCRIPTOR.full_name]
+            except KeyError:
+                raise Exception('No message handler for "%s"' % proto.DESCRIPTOR.full_name)
+
+            for publishable in handler(message, proto):
+                yield publishable
+
+        except SchemaException:
+            # received an invalid message log it and move on
+            log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
+
+            # we can't process the message so throw it away
+            message.ack()
 
 
 def getProtobufPubSub(queue, connection=None):

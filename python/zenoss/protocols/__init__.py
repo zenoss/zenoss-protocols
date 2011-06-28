@@ -30,18 +30,30 @@ def hydrateQueueMessage(message):
     """
     Process a queue message and return a fully hydrated protobuf class.
     @throws InvalidQueueMessage
+
+    This method is designed to hydrate both messages from twisted and from eventlet.
+    They come in slightly different formats.
     """
-    contentType = message.properties.get('content_type', None)
+    if not hasattr(message, 'properties') and hasattr(message, 'content'):
+        message = message.content
+
+    properties = message.properties
+    contentType = properties.get('content_type') or properties.get('content-type')
 
     # check content type
     if not contentType or contentType != "application/x-protobuf":
         raise InvalidQueueMessage("%s is not a valid protobuf content type" % contentType)
 
+    fullName = None
+    if hasattr(message, 'application_headers'):
+        fullName = message.application_headers.get('X-Protobuf-FullName')
+    else:
+        fullName = properties.get('headers', {}).get('X-Protobuf-FullName')
+
     # make sure we have the full name
-    if not message.application_headers.get('X-Protobuf-FullName'):
+    if not fullName:
         raise InvalidQueueMessage("Message does not have a valid protobuf full name")
 
-    fullName = message.application_headers['X-Protobuf-FullName']
     return queueschema.hydrateProtobuf(fullName, message.body)
 
 # Deprecated alias
