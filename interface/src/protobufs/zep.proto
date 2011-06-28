@@ -191,8 +191,16 @@ message EventFilter {
     repeated org.zenoss.protobufs.util.TimestampRange status_change = 6;
     repeated org.zenoss.protobufs.util.TimestampRange update_time = 7;
     repeated NumberRange count_range = 8;
+
+    // Searches on element_identifier and element_sub_identifier provide optimized substring searching. To search the
+    // full identifier, enclose your search in double quotes. For example:
+    //
+    //  host    -> Matches 'localhost', 'machine.myhostname.com'.
+    //  "host"  -> Matches 'host' exactly.
+    //  "host*" -> Matches all identifiers which start with 'host'.
     repeated string element_identifier = 9;
     repeated string element_sub_identifier = 10;
+    
     repeated string uuid = 11; // event summary uuid
 
     // All search terms support wildcard queries ('*' and '?'). Phrases are supported within a query by enclosing
@@ -209,6 +217,11 @@ message EventFilter {
     optional FilterOperator operator = 19 [default = AND];
     
     repeated EventFilter subfilter = 20;
+
+    // Searches on element_title and element_sub_title use the same behavior as searching on element_identifier and
+    // element_sub_identifier above.
+    repeated string element_title = 21;
+    repeated string element_sub_title = 22;
 }
 
 message EventSort {
@@ -230,6 +243,8 @@ message EventSort {
         UUID = 15;
         FINGERPRINT = 16;
         DETAIL = 17; // detail key must be set, specified below.
+        ELEMENT_TITLE = 18;
+        ELEMENT_SUB_TITLE = 19;
     }
 
     enum Direction {
