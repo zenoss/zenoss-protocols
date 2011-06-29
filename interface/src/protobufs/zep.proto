@@ -435,12 +435,6 @@ message ZepConfig {
     // maximum value is determined by the range of event archive partitions. With
     // the default configuration, the maximum value is 1000 days.
     optional uint32 event_archive_purge_interval_days = 4 [default = 90];
-
-    // The number of days that event occurrences are saved. By default, they are
-    // kept for 30 days. The minimum value is 1 and the maximum value is determined
-    // by the range of event occurrence partitions. With the default configuration,
-    // the maximum value is 250 days.
-    optional uint32 event_occurrence_purge_interval_days = 5 [default = 30];
 }
 
 message DaemonHeartbeat {

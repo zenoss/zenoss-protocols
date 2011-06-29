@@ -214,12 +214,6 @@ class ZepServiceClient(object):
             url = 'archive/' + url
         return self.client.get(url, params)
 
-    def getEventOccurrence(self, occurrence_uuid):
-        """
-        Get an event occurrence by event occurrence uuid.
-        """
-        return self.client.get('occurrences/%s' % occurrence_uuid)
-
 class ZepConfigClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/config/'
@@ -241,10 +235,6 @@ class ZepConfigClient(object):
             'event_archive_purge_interval_days': {
                 'defaultValue': 90,
                 'value': config.event_archive_purge_interval_days
-            },
-            'event_occurrence_purge_interval_days': {
-                'defaultValue': 30,
-                'value': config.event_occurrence_purge_interval_days
             },
             'event_archive_interval_minutes': {
                 'defaultValue': 4320,
