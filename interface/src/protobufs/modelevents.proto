@@ -42,7 +42,7 @@ message ModelEvent{
 
 
     //ID of the event
-    required string event_uuid = 1;
+    optional string event_uuid = 1;
 
     //Type of the event
     required Type type = 2;

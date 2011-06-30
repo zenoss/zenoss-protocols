@@ -24,7 +24,7 @@ from txamqp.content import Content
 from zenoss.protocols.amqpconfig import getTwistedAMQPConfiguration
 
 
-log = logging.getLogger('zenoss.protocols.twisted')
+log = logging.getLogger('zen.protocols.twisted')
 
 
 class PersistentMessage(Content):
