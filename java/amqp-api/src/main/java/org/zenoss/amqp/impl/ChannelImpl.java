@@ -233,4 +233,14 @@ class ChannelImpl implements Channel {
         return new ConsumerImpl<T>(this, queue, noAck, converter);
     }
 
+    @Override
+    public synchronized void setQos(int prefetchSize, int prefetchCount) throws AmqpException {
+        try {
+            this.wrapped.basicQos(prefetchSize, prefetchCount, false);
+        } catch (IOException e) {
+            throw new AmqpException(e);
+        } catch (ShutdownSignalException e) {
+            throw new AmqpException(e);
+        }
+    }
 }

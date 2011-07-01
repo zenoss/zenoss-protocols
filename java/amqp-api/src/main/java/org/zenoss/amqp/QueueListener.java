@@ -9,6 +9,14 @@ package org.zenoss.amqp;
  */
 public abstract class QueueListener {
 
+    private static final int DEFAULT_PREFETCH_SIZE = 0;
+    private static final int DEFAULT_PREFETCH_COUNT = 1;
+
+    protected void configureChannel(Channel channel) throws AmqpException {
+        /* Set a default QOS on the channel */
+        channel.setQos(DEFAULT_PREFETCH_SIZE, DEFAULT_PREFETCH_COUNT);
+    }
+
     /**
      * Method which is called when a message is is received on the queue. The
      * default behavior of this method is to acknowledge the message when the

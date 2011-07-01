@@ -11,6 +11,16 @@ import java.io.Closeable;
  */
 public interface Channel extends Closeable {
     /**
+     * Specifies QOS on the channel. These settings can reduce the number of messages that accummulate in the
+     * consumer in memory.
+     *
+     * @param prefetchSize Total size of messages to pre-fetch in the consumer.
+     * @param prefetchCount Number of messages to pre-fetch in the consumer.
+     * @throws AmqpException If an exception occurs.
+     */
+    public void setQos(int prefetchSize, int prefetchCount) throws AmqpException;
+
+    /**
      * Declares the specified queue on the server.
      * 
      * @param queue
@@ -175,7 +185,7 @@ public interface Channel extends Closeable {
      *         false, then all messages should be acknowledged with a call to
      *         {@link Consumer#ackMessage(Message)} or
      *         {@link Consumer#rejectMessage(Message, boolean)}.
-     * @throws AmqpException
+     * @throws AmqpException If the consumer cannot be created.
      */
     public Consumer<byte[]> createConsumer(Queue queue, boolean noAck)
             throws AmqpException;

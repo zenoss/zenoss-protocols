@@ -325,6 +325,7 @@ public class AmqpConnectionManager {
         @Override
         public Object call() throws Exception {
             Channel channel = manager.openChannel();
+            this.listener.configureChannel(channel);
             channel.declareQueue(config.getQueue());
             for (Binding binding : config.getBindings()) {
                 channel.declareExchange(binding.getExchange());
