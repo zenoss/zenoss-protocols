@@ -114,7 +114,6 @@ message Event {
 message ZepRawEvent {
     required Event event = 1;
     repeated string clear_event_class = 2;
-    optional bool apply_transforms = 3 [default = true];
 }
 
 // Represents a summary of an event (based on fingerprint).
