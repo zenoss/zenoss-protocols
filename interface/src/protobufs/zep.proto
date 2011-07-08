@@ -107,6 +107,7 @@ message Event {
     repeated EventTag tags = 20;
     optional string summary_uuid = 21;
     optional EventStatus status = 22 [default = STATUS_NEW];
+    optional bool apply_transforms = 23 [default = true];
 }
 
 // Represents an event that is sent to ZEP for processing.
