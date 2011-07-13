@@ -19,8 +19,7 @@ import org.zenoss.protobufs.zep.Zep.Signal;
 
 public class ConsumerTest {
 
-    public static void main(String[] args) throws AmqpException,
-            URISyntaxException {
+    public static void main(String[] args) throws AmqpException, InterruptedException, URISyntaxException {
         if (args.length < 1) {
             System.err.println("Usage: ConsumerTest <AmqpServerUri>");
             System.exit(1);
@@ -38,7 +37,7 @@ public class ConsumerTest {
                     .createConsumer(ProducerTest.QUEUE_EVENTS,
                             new ProtobufConverter(Event.getDefaultInstance(),
                                     Signal.getDefaultInstance()));
-            Message<com.google.protobuf.Message> msg = null;
+            Message<com.google.protobuf.Message> msg;
             while ((msg = consumer.nextMessage(delay, TimeUnit.SECONDS)) != null) {
                 if (msg.getBody() instanceof Event) {
                     System.out.println("Received event: " + msg.getBody());

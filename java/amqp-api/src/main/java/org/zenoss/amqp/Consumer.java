@@ -19,8 +19,9 @@ public interface Consumer<T> {
      * @return The next message from the queue.
      * @throws AmqpException
      *             If an error occurs reading from the queue.
+     * @throws InterruptedException If the thread was interrupted while consuming from the queue.
      */
-    public Message<T> nextMessage() throws AmqpException;
+    public Message<T> nextMessage() throws AmqpException, InterruptedException;
 
     /**
      * Waits up to the specified amount of time for a message to arrive on the
@@ -35,9 +36,10 @@ public interface Consumer<T> {
      *         available in the specified time.
      * @throws AmqpException
      *             If an error occurs reading from the queue.
+     * @throws InterruptedException If the thread was interrupted while consuming from the queue.
      */
     public Message<T> nextMessage(long waitTime, TimeUnit unit)
-            throws AmqpException;
+            throws AmqpException, InterruptedException;
 
     /**
      * Cancels the consumer so the server sends no more messages to the client.

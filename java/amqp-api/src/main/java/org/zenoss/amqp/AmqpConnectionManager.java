@@ -7,12 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
@@ -38,8 +35,7 @@ public class AmqpConnectionManager {
     private final AmqpServerUri uri;
     private final ExecutorCompletionService<Object> ecs;
     private final ExecutorService pool;
-    private final List<QueueWorker> workers = Collections.synchronizedList(new ArrayList<QueueWorker>());
-    private final Map<Future<Object>, QueueWorker> futures = new ConcurrentHashMap<Future<Object>, QueueWorker>();
+    private final Map<String, QueueWorker> workers = new ConcurrentHashMap<String, QueueWorker>();
 
     private volatile Connection connection;
     private final ConcurrentHashMap<String, Publisher<com.google.protobuf.Message>> publishers =
@@ -80,6 +76,16 @@ public class AmqpConnectionManager {
         return this.connection.openChannel();
     }
 
+    private static void getFuture(Future<?> future) {
+        try {
+            future.get();
+        } catch (ExecutionException e) {
+            log.debug("exception", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /**
      * Adds a queue listener for the specified queue configuration.
      * 
@@ -89,16 +95,45 @@ public class AmqpConnectionManager {
      * @param listener
      *            Queue listener which is called when messages are consumed from
      *            the queue.
+     * @return Unique identifier for this listener (used to disable it with {@link #removeListener(String)}.
      */
-    public void addListener(QueueConfiguration config, QueueListener listener) {
+    public String addListener(QueueConfiguration config, QueueListener listener) {
         if (config == null || listener == null) {
             throw new NullPointerException();
         }
-        QueueWorker worker = new QueueWorker(config, listener, this);
-        this.workers.add(worker);
+        final String uuid = UUID.randomUUID().toString();
+        final QueueWorker worker = new QueueWorker(uuid, config, listener, this);
+        this.workers.put(uuid, worker);
         // If we're already running throw it in the pool
         if (this.connection != null) {
-            this.futures.put(this.ecs.submit(worker), worker);
+            try {
+                worker.setFuture(this.ecs.submit(worker));
+            } finally {
+                /* In case of error, don't keep around reference to worker */
+                this.workers.remove(uuid);
+            }
+        }
+        return uuid;
+    }
+
+    /**
+     * Removes and stops the listener with the specified identifier.
+     *
+     * @param listenerId The identifier of the listener (as returned by
+     *                   {@link #addListener(QueueConfiguration, QueueListener)}).
+     */
+    public void removeListener(String listenerId) {
+        final QueueWorker worker = this.workers.get(listenerId);
+        if (worker != null) {
+            worker.shutdown();
+            final Future<Object> future = worker.getFuture();
+            if (future != null) {
+                getFuture(future);
+            }
+            worker.reset();
+        }
+        else {
+            log.info("Unknown listener: {}", listenerId);
         }
     }
 
@@ -199,9 +234,9 @@ public class AmqpConnectionManager {
      * {@link AmqpConnectionManager}.
      */
     public void init() {
-        this.executor.submit(new Callable<Object>() {
+        this.executor.submit(new ThreadRenamingCallable<Object>("AmqpConnectionManager") {
             @Override
-            public Object call() throws Exception {
+            protected Object doCall() throws Exception {
                 runInternal();
                 return null;
             }
@@ -225,19 +260,35 @@ public class AmqpConnectionManager {
         this.reconnect();
         Future<Object> future;
         while ((future = ecs.take()) != null) {
+            QueueWorker worker = null;
+            for (QueueWorker info : this.workers.values()) {
+                if (future.equals(info.getFuture())) {
+                    worker = info;
+                    break;
+                }
+            }
+            if (worker == null) {
+                log.debug("Unable to associate Future with QueueWorker: {}", future);
+                continue;
+            }
             if (!future.isCancelled()) {
                 try {
                     future.get();
+                    log.debug("Queue worker completed successfully: {}", worker.getWorkerId());
+                    this.workers.remove(worker.getWorkerId());
                 } catch (ExecutionException e) {
                     if (isAmqpException(e)) {
                         log.debug("exception", e);
                         this.reconnect();
                     } else {
                         log.info("Restarting single worker due to exception.", e);
-                        QueueWorker worker = this.futures.remove(future);
-                        this.futures.put(this.ecs.submit(worker), worker);
+                        worker.reset();
+                        worker.setFuture(this.ecs.submit(worker));
                     }
                 }
+            }
+            else {
+                this.workers.remove(worker.getWorkerId());
             }
         }
     }
@@ -245,31 +296,36 @@ public class AmqpConnectionManager {
     private synchronized void disconnect() {
         if (this.connection != null) {
             try {
-                for (Future<Object> future : futures.keySet()) {
-                    future.cancel(true);
-                    try {
-                        future.get();
-                    } catch (CancellationException e) {
-                    } catch (ExecutionException e) {
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
+                /* Stop the workers if they are running */
+                for (QueueWorker worker : workers.values()) {
+                    worker.shutdown();
+
+                    final Future<Object> future = worker.getFuture();
+                    if (future != null) {
+                        getFuture(future);
+                        worker.setFuture(null);
                     }
+                    /* Reset the worker so it can be used again */
+                    worker.reset();
                 }
-                for (Publisher publisher : this.publishers.values()) {
+
+                /* Close and remove publishers */
+                final Iterator<Publisher<com.google.protobuf.Message>> publisherIt =
+                        this.publishers.values().iterator();
+                while (publisherIt.hasNext()) {
                     try {
+                        final Publisher publisher = publisherIt.next();
+                        publisherIt.remove();
                         publisher.getChannel().close();
-                    } catch (IOException e) {
+                    } catch (IOException ignored) {
                     }
                 }
-            } catch (CancellationException ignored) {
             } finally {
                 try {
                     this.connection.close();
                 } catch (IOException ignored) {
                 } finally {
                     this.connection = null;
-                    futures.clear();
-                    this.publishers.clear();
                 }
             }
         }
@@ -283,8 +339,8 @@ public class AmqpConnectionManager {
             return false;
         }
         log.info("Connected to message broker at {}", this.uri);
-        for (QueueWorker worker : this.workers) {
-            this.futures.put(this.ecs.submit(worker), worker);
+        for (QueueWorker worker : this.workers.values()) {
+            worker.setFuture(this.ecs.submit(worker));
         }
         return true;
     }
@@ -308,35 +364,90 @@ public class AmqpConnectionManager {
         this.pool.shutdownNow();
     }
 
-    private static class QueueWorker implements Callable<Object> {
+    private static class QueueWorker extends ThreadRenamingCallable<Object> {
 
         private static final Logger log = LoggerFactory.getLogger(QueueWorker.class);
 
-        private QueueConfiguration config;
-        private AmqpConnectionManager manager;
-        private QueueListener listener;
+        private final String workerId;
+        private final QueueConfiguration config;
+        private final AmqpConnectionManager manager;
+        private final QueueListener listener;
+        private Future<Object> future;
+        private volatile boolean shutdown = false;
+        private volatile Thread runningThread = null;
 
-        private QueueWorker(QueueConfiguration config, QueueListener listener, AmqpConnectionManager manager) {
+        private QueueWorker(String workerId, QueueConfiguration config, QueueListener listener,
+                            AmqpConnectionManager manager) {
+            super(config.getQueue().getName());
+            this.workerId = workerId;
             this.manager = manager;
             this.config = config;
             this.listener = listener;
         }
 
+        /**
+         * The unique identifier for the worker.
+         *
+         * @return The unique identifier for the worker.
+         */
+        public String getWorkerId() {
+            return workerId;
+        }
+
+        /**
+         * Returns the configuration for the queue this worker is consuming from.
+         *
+         * @return The queue configuration this worker is consuming from.
+         */
+        public QueueConfiguration getConfig() {
+            return config;
+        }
+
+        /**
+         * Returns the future object (or null if the worker hasn't been started).
+         *
+         * @return The future object (or null if the worker hasn't been started).
+         */
+        public synchronized Future<Object> getFuture() {
+            return future;
+        }
+
+        /**
+         * Sets the future object for the worker.
+         *
+         * @param future The future object for the worker.
+         */
+        public synchronized void setFuture(Future<Object> future) {
+            this.future = future;
+        }
+
+        /**
+         * After a worker has been run, it should be reset to allow to be submitted again.
+         */
+        public void reset() {
+            this.shutdown = false;
+            this.runningThread = null;
+        }
+
         @Override
-        public Object call() throws Exception {
-            Channel channel = manager.openChannel();
+        protected Object doCall() throws Exception {
+            this.runningThread = Thread.currentThread();
+            if (this.shutdown) {
+                throw new IllegalStateException("This worker has already been shut down");
+            }
+            final Channel channel = manager.openChannel();
             this.listener.configureChannel(channel);
             channel.declareQueue(config.getQueue());
             for (Binding binding : config.getBindings()) {
                 channel.declareExchange(binding.getExchange());
                 channel.bindQueue(binding);
             }
-            Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
+            final Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
                     new ProtobufConverter(this.config.getMessages()));
             log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
             Message<com.google.protobuf.Message> message;
             try {
-                for (;;) {
+                while (!this.shutdown) {
                     try {
                         while ((message = consumer.nextMessage()) != null) {
                             this.listener.receive(message, consumer);
@@ -345,8 +456,11 @@ public class AmqpConnectionManager {
                         // Unsupported message in this queue - reject the message
                         log.warn("Failed to decode message in queue: {}", e);
                         consumer.rejectMessage(e.getRawMessage(), false);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                     }
                 }
+                return null;
             } finally {
                 log.debug("Stopping worker for queue: {}", config.getQueue().getName());
                 try {
@@ -357,6 +471,14 @@ public class AmqpConnectionManager {
                     channel.close();
                 } catch (IOException ignored) {
                 }
+                this.runningThread = null;
+            }
+        }
+
+        public void shutdown() {
+            this.shutdown = true;
+            if (this.runningThread != null) {
+                this.runningThread.interrupt();
             }
         }
     }

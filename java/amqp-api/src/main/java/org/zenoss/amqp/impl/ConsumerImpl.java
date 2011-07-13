@@ -42,13 +42,12 @@ class ConsumerImpl<T> implements Consumer<T> {
     }
 
     @Override
-    public Message<T> nextMessage() throws AmqpException {
+    public Message<T> nextMessage() throws AmqpException, InterruptedException {
         return nextMessage(0, TimeUnit.SECONDS);
     }
 
     @Override
-    public Message<T> nextMessage(long waitTime, TimeUnit unit)
-            throws AmqpException {
+    public Message<T> nextMessage(long waitTime, TimeUnit unit) throws AmqpException, InterruptedException {
         final long timeInMillis = unit.toMillis(waitTime);
         if (consumerTag == null) {
             synchronized (this.channel) {
@@ -72,8 +71,6 @@ class ConsumerImpl<T> implements Consumer<T> {
             }
             return createMessage(delivery);
         } catch (ShutdownSignalException e) {
-            throw new AmqpException(e);
-        } catch (InterruptedException e) {
             throw new AmqpException(e);
         }
     }
