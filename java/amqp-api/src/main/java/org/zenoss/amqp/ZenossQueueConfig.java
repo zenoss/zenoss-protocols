@@ -3,8 +3,14 @@
  */
 package org.zenoss.amqp;
 
+import org.zenoss.utils.ZenPacks;
+import org.zenoss.utils.ZenossException;
+
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Helper class used to retrieve the {@link QueueConfig} object for Zenoss.
@@ -13,20 +19,29 @@ public class ZenossQueueConfig {
     private static volatile QueueConfig sZenossQueueConfig = null;
 
     /**
-     * Returns the {@link QueueConfig} object for the zenoss.qjs file.
-     * 
-     * @return The {@link QueueConfig} object for the zenoss.qjs file.
+     * Returns the {@link QueueConfig} object for merged .qjs files, including those
+     * defined in ZenPacks.
+     *
+     * @return The {@link QueueConfig} object for the merged .qjs files.
      * @throws IOException
      */
     public static QueueConfig getConfig() throws IOException {
         if (sZenossQueueConfig == null) {
-            InputStream is = null;
+            List<InputStream> streams = new ArrayList<InputStream>();
             try {
-                is = ZenossQueueConfig.class
+                InputStream is = ZenossQueueConfig.class
                         .getResourceAsStream("/org/zenoss/protobufs/zenoss.qjs");
-                sZenossQueueConfig = new QueueConfig(is);
+                streams.add(is);
+                try {
+                    for (String path : ZenPacks.getQueueConfigPaths()) {
+                        streams.add(new FileInputStream(path));
+                    }
+                } catch (ZenossException ignored) {
+                    // Don't load from ZenPacks, I guess
+                }
+                sZenossQueueConfig = new QueueConfig(streams);
             } finally {
-                if (is != null) {
+                for (InputStream is : streams) {
                     is.close();
                 }
             }

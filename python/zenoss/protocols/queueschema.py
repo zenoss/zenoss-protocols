@@ -153,17 +153,18 @@ class Exchange(object):
 
 
 class Schema(object):
-    def __init__(self, schema):
+    def __init__(self, *schemas):
         self._content_types = {}
         self._queues = {}
         self._exchanges = {}
         self._protobuf_map = {}
         self._queue_name_map = {}
         self._exchange_name_map = {}
-        self._load(schema)
+        for schema in schemas:
+            self._load(schema)
 
     def _load(self, schema):
-        for identifier, contentConfig in schema.content_types.iteritems():
+        for identifier, contentConfig in schema.get('content_types', {}).iteritems():
             self._content_types[identifier] = ContentType(
                 identifier,
                 contentConfig['java_class'],
@@ -173,7 +174,7 @@ class Schema(object):
             )
 
         # exchanges
-        for identifier, exchangeConfig in schema.exchanges.iteritems():
+        for identifier, exchangeConfig in schema.get('exchanges', {}).iteritems():
             self._exchanges[identifier] = Exchange(
                 identifier,
                 exchangeConfig['name'],
@@ -186,7 +187,7 @@ class Schema(object):
             )
 
         # queues
-        for identifier, queueConfig in schema.queues.iteritems():
+        for identifier, queueConfig in schema.get('queues', {}).iteritems():
             self._queues[identifier] = Queue(
                 identifier,
                 queueConfig['name'],
@@ -299,7 +300,7 @@ class Schema(object):
 
 
 # Load default schema on import
-schema = Schema(queueschema)
+schema = Schema(queueschema.SCHEMA)
 getContentType = schema.getContentType
 getExchange = schema.getExchange
 getExchanges = schema.getExchanges

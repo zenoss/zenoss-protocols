@@ -29,6 +29,11 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>org.zenoss</groupId>
+            <artifactId>utils</artifactId>
+            <version>1.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.8.2</version>

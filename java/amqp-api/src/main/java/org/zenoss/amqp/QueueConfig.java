@@ -62,12 +62,23 @@ public class QueueConfig {
     /**
      * Creates a queue configuration from the specified input stream.
      * 
-     * @param is
-     *            Input stream.
+     * @param inputStream Input stream the contents of which should be parsed
      * @throws IOException
      */
-    public QueueConfig(InputStream is) throws IOException {
-        load(is);
+    public QueueConfig(InputStream inputStream) throws IOException {
+        load(inputStream);
+    }
+
+    /**
+     * Creates a queue configuration from the specified input streams.
+     *
+     * @param inputStreams Input streams to be parsed.
+     * @throws IOException
+     */
+    public QueueConfig(List<InputStream> inputStreams) throws IOException {
+        for (InputStream is : inputStreams) {
+            load(is);
+        }
     }
 
     protected void load(InputStream is) throws IOException {
