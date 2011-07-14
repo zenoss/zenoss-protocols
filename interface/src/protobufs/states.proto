@@ -43,4 +43,6 @@ message State {
     optional AvailabilityState availability = 2;
     optional CapacityState capacity = 3;
     optional PerformanceState performance = 4;
+
+    extensions 1000 to max;
 }

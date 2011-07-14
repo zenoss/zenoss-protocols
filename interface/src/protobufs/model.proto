@@ -18,7 +18,8 @@ message Device {
     optional string uuid = 1;
     optional string id = 2;
     optional string title = 3;
-    
+
+    extensions 1000 to max;
 }
 
 message Component {
@@ -26,11 +27,15 @@ message Component {
     optional string id = 2;
     optional string title = 3;
     optional Device device = 4;
+
+    extensions 1000 to max;
 }
 message Organizer {
     optional string uuid = 1;
     optional string title = 2;
     optional string path = 3;
+
+    extensions 1000 to max;
 }
 
 message Service {
@@ -38,4 +43,6 @@ message Service {
     optional string title = 2;
     repeated string impacts = 3;
     repeated org.zenoss.protobufs.policy.Trigger triggers = 4;
+
+    extensions 1000 to max;
 }

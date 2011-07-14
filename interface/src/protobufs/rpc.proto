@@ -11,7 +11,8 @@ message RpcRequest {
 	}
 	required int32 id = 1; // Unique id for the request (per connection)
 	repeated RpcRequestPayload requests = 2; // RPC request payload
-    extensions 100 to 199;
+
+    extensions 1000 to max;
 }
 
 message RpcResponse {
@@ -23,7 +24,8 @@ message RpcResponse {
 	// Unique id for the response
 	required int32 id = 1;
 	repeated RpcResponsePayload responses = 2;
-	extensions 100 to 199;
+
+    extensions 1000 to max;
 }
 
 message RpcError {
@@ -41,4 +43,6 @@ message RpcError {
 	optional string exception_class = 3;
 	optional string stack_trace = 4;
 	optional int32 service_error_code = 5;
+
+    extensions 1000 to max;
 }

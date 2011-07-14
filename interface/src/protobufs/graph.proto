@@ -16,7 +16,7 @@ message Node {
     repeated org.zenoss.protobufs.util.Property properties = 3;
     repeated Edge edges = 4;
     // Node types will need metadata
-    extensions 100 to 199;
+    extensions 1000 to max;
 }
 
 message Edge {
@@ -25,7 +25,7 @@ message Edge {
     optional string relationship_provider = 3;
     
     // Edge types may need metadata
-    extensions 100 to 199;
+    extensions 1000 to max;
 }
 
 message GraphChangeEvent {
@@ -37,6 +37,8 @@ message GraphChangeEvent {
 
     required Action action = 1;
     optional Node node = 2;
+
+    extensions 1000 to max;
 }
 
 message GraphChangeList {
@@ -44,5 +46,7 @@ message GraphChangeList {
     optional bool reset = 2 [default = false];
     repeated org.zenoss.protobufs.stateevent.StateEvent state_events = 3;
     repeated org.zenoss.protobufs.policy.Trigger triggers = 4;
+
+    extensions 1000 to max;
 }
 

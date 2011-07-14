@@ -19,6 +19,8 @@ message EventActor {
     optional string element_sub_uuid = 6;
     optional string element_sub_identifier = 7;
     optional string element_sub_title = 8;
+
+    extensions 1000 to max;
 }
 
 message EventDetail {
@@ -33,6 +35,8 @@ message EventDetail {
     // detail is found in the event with the same name, this enum controls how the
     // detail values should be merged.
     optional EventDetailMergeBehavior merge_behavior = 3 [default = REPLACE];
+
+    extensions 1000 to max;
 }
 
 message EventDetailSet {
@@ -43,6 +47,7 @@ message EventDetailSet {
 message EventTag {
     required string type = 1;
     repeated string uuid = 2;
+    extensions 1000 to max;
 }
 
 // Notes added to an event (formerly event log).
@@ -52,6 +57,7 @@ message EventNote {
     optional string user_name = 3;
     optional uint64 created_time = 4;
     required string message = 5;
+    extensions 1000 to max;
 }
 
 enum EventSeverity {
@@ -108,6 +114,7 @@ message Event {
     optional string summary_uuid = 21;
     optional EventStatus status = 22 [default = STATUS_NEW];
     optional bool apply_transforms = 23 [default = true];
+    extensions 1000 to max;
 }
 
 // Represents an event that is sent to ZEP for processing.
@@ -115,6 +122,7 @@ message Event {
 message ZepRawEvent {
     required Event event = 1;
     repeated string clear_event_class = 2;
+    extensions 1000 to max;
 }
 
 // Represents a summary of an event (based on fingerprint).
@@ -133,6 +141,7 @@ message EventSummary {
     repeated EventNote notes = 11;
     repeated EventAuditLog audit_log = 12;
     optional uint64 update_time = 13;
+    extensions 1000 to max;
 }
 
 // Both from and to are inclusive. If 'from' is not specified, then 'from' is
@@ -151,6 +160,7 @@ enum FilterOperator {
 message EventTagFilter {
     optional FilterOperator op = 1 [default = OR];
     repeated string tag_uuids = 2;
+    extensions 1000 to max;
 }
 
 // Values will be searched as an exact match unless otherwise
@@ -163,6 +173,7 @@ message EventDetailFilter {
     required string key = 1;
     repeated string value = 2;
     optional FilterOperator op = 3 [default = OR];
+    extensions 1000 to max;
 }
 
 message EventFilter {
@@ -223,6 +234,7 @@ message EventFilter {
     // element_sub_identifier above.
     repeated string element_title = 21;
     repeated string element_sub_title = 22;
+    extensions 1000 to max;
 }
 
 message EventSort {
@@ -256,6 +268,8 @@ message EventSort {
     required Field field = 1;
     optional Direction direction = 2 [default = ASCENDING];
     optional string detail_key = 3;
+
+    extensions 1000 to max;
 }
 
 // message for requesting event summaries.
@@ -265,6 +279,8 @@ message EventSummaryRequest {
     repeated EventSort sort = 3;
     optional uint32 limit = 4 [default = 1000];
     optional uint32 offset = 5;
+
+    extensions 1000 to max;
 }
 
 // message for response for EventSummaryRequest
@@ -274,6 +290,7 @@ message EventSummaryResult {
     // Will be set to offset + limit if results remain, otherwise unset.
     optional uint32 next_offset = 3;
     optional uint32 total = 4;
+    extensions 1000 to max;
 }
 
 // Properties which can be modified on an event summary
@@ -282,6 +299,8 @@ message EventSummaryUpdate {
     optional EventStatus status = 1;
     optional string current_user_uuid = 2;
     optional string current_user_name = 3;
+
+    extensions 1000 to max;
 }
 
 
@@ -293,6 +312,8 @@ message EventQuery {
     optional EventFilter exclusion_filter = 2;
     repeated EventSort sort = 3;
     optional uint32 timeout = 4 [default=60];
+
+    extensions 1000 to max;
 }
 
 // once a query has been established, you will have the event_query_uuid
@@ -302,6 +323,8 @@ message EventSummaryUpdateRequest {
     required EventSummaryUpdate update_fields = 2;
     optional uint32 offset = 3 [default = 0];
     optional uint32 limit = 4 [default = 100];
+
+    extensions 1000 to max;
 }
 
 message EventSummaryUpdateResponse {
@@ -310,6 +333,8 @@ message EventSummaryUpdateResponse {
     optional EventSummaryUpdateRequest next_request = 1;
     optional uint32 total = 2; // Never changes - just informational.
     required uint32 updated = 3; // The number of events updated in this batch.
+
+    extensions 1000 to max;
 }
 
 message EventDetailItem {
@@ -325,6 +350,8 @@ message EventDetailItem {
     optional EventDetailType type = 2 [default = STRING];
     optional string name = 3;
     // @TODO: add renderer, filter, field definition, etc.
+
+    extensions 1000 to max;
 }
 
 // GET on some zep uri will return this proto as a response
@@ -342,6 +369,8 @@ message Rule {
     required int32 api_version = 1;
     required RuleType type = 2;
     required string source = 3;
+
+    extensions 1000 to max;
 }
 
 message EventTriggerSubscription {
@@ -356,6 +385,8 @@ message EventTriggerSubscription {
     required string subscriber_uuid = 5;
     // id of trigger to subscribe to
     required string trigger_uuid = 6;
+
+    extensions 1000 to max;
 }
 
 message EventTriggerSubscriptionSet {
@@ -371,6 +402,8 @@ message EventTrigger {
     required Rule rule = 4;
 
     repeated EventTriggerSubscription subscriptions = 5;
+
+    extensions 1000 to max;
 }
 
 message EventTriggerSet {
@@ -390,12 +423,16 @@ message Signal {
     optional EventSummary event = 6;
     optional EventSummary clear_event = 7;
     optional string message = 8;
+
+    extensions 1000 to max;
 }
 
 message EventTagSeverity {
     required EventSeverity severity = 1;
     optional uint32 count = 2 [default=0];
     optional uint32 acknowledged_count = 3 [default=0];
+
+    extensions 1000 to max;
 }
 
 message EventTagSeverities {
@@ -414,6 +451,8 @@ message EventAuditLog {
     required EventStatus new_status = 2;
     optional string user_uuid = 3;
     optional string user_name = 4;
+
+    extensions 1000 to max;
 }
 
 message ZepConfig {
@@ -436,6 +475,8 @@ message ZepConfig {
     // maximum value is determined by the range of event archive partitions. With
     // the default configuration, the maximum value is 1000 days.
     optional uint32 event_archive_purge_interval_days = 4 [default = 90];
+
+    extensions 1000 to max;
 }
 
 message DaemonHeartbeat {
@@ -451,6 +492,8 @@ message DaemonHeartbeat {
 
     // The time the heartbeat was last received.
     optional uint64 last_time = 4;
+
+    extensions 1000 to max;
 }
 
 message DaemonHeartbeatSet {

@@ -14,4 +14,6 @@ message Trigger {
     required string triggerType = 4;
     required org.zenoss.protobufs.states.State.StateType policyType = 5;
     repeated org.zenoss.protobufs.util.Property properties = 6;
+
+    extensions 1000 to max;
 }

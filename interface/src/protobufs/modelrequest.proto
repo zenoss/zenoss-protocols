@@ -9,4 +9,6 @@ message VMwareModelRequest {
     required uint64 timestamp = 2;
     required string endpoint = 3;
     repeated string host_refs = 4;
+
+    extensions 1000 to max;
 }

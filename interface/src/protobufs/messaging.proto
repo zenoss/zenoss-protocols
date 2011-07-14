@@ -11,5 +11,5 @@ message AppMessage {
     required string type = 3;
     
     // For each type you need to define an extension field for the data
-    extensions 100 to 199;
+    extensions 1000 to max;
 }

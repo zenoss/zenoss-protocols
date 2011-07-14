@@ -25,6 +25,8 @@ message ScheduleWindow {
     optional uint64 created_time = 4;
     optional int32 duration_seconds = 5;
     optional RepeatType repeat = 6;
+
+    extensions 1000 to max;
 }
 
 message ScheduleWindowSet {
@@ -34,5 +36,7 @@ message ScheduleWindowSet {
 message Property {
     required string name = 1;
     required string value = 2;
+
+    extensions 1000 to max;
 }
 
