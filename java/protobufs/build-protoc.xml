@@ -12,7 +12,7 @@ compiler in a specified path.
 		<property name="proto.src.dir.absolute" location="${proto.src.dir}" />
 		<property name="proto.dest.dir.absolute" location="${proto.dest.dir}" />
 		<fileset id="proto.rawfiles" dir="${proto.src.dir.absolute}">
-			<include name="*.proto" />
+            <include name="**/*.proto" />
 		</fileset>
 		<!-- NOTE: This won't work on paths with spaces in their names -->
 		<pathconvert property="proto.files" refid="proto.rawfiles" pathsep=" " />

@@ -4,7 +4,7 @@
 
 package org.zenoss.protobufs.model;
 
-import "policy.proto";
+import "zenoss/protocols/protobufs/policy.proto";
 
 
 enum ModelElementType {

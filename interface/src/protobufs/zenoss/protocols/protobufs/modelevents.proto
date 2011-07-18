@@ -2,7 +2,7 @@
 //# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
-import "model.proto";
+import "zenoss/protocols/protobufs/model.proto";
 
 package org.zenoss.protobufs.modelevents;
 

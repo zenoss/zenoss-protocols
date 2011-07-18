@@ -4,8 +4,8 @@
 
 package org.zenoss.protobufs.policy;
 
-import 'states.proto';
-import 'util.proto';
+import 'zenoss/protocols/protobufs/states.proto';
+import 'zenoss/protocols/protobufs/util.proto';
 
 message Trigger {
     required string nodeId = 1;

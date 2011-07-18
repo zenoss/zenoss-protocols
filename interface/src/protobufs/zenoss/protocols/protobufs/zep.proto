@@ -2,10 +2,10 @@
 //# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
-import "messaging.proto";
-import "model.proto";
-import "states.proto";
-import "util.proto";
+import "zenoss/protocols/protobufs/messaging.proto";
+import "zenoss/protocols/protobufs/model.proto";
+import "zenoss/protocols/protobufs/states.proto";
+import "zenoss/protocols/protobufs/util.proto";
 
 package org.zenoss.protobufs.zep;
 

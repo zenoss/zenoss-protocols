@@ -28,7 +28,8 @@ export QJS_BUILD
 
 build:
 	mkdir -p ${PROTODIR} && touch ${PROTODIR}/__init__.py
-	$(PROTOC) -I ../interface/src/protobufs/ --python_out=${PROTODIR} ../interface/src/protobufs/*.proto
+	cp -r ../interface/src/protobufs/zenoss/protocols/protobufs/*.proto ${PROTODIR}
+	$(PROTOC) -I ../interface/src/protobufs/ --python_out=. ../interface/src/protobufs/zenoss/protocols/protobufs/*.proto
 	mkdir -p ${DATADIR} && touch ${DATADIR}/__init__.py
 	python -c "$$QJS_BUILD" > ${DATADIR}/queueschema.py
 

@@ -2,9 +2,9 @@
 //# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
-import "zep.proto";
-import "model.proto";
-import "states.proto";
+import "zenoss/protocols/protobufs/zep.proto";
+import "zenoss/protocols/protobufs/model.proto";
+import "zenoss/protocols/protobufs/states.proto";
 
 package org.zenoss.protobufs.stateevent;
 
