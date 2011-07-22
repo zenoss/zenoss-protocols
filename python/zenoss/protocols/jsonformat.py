@@ -95,18 +95,18 @@ class Deserializer(object):
             else:
                 setattr(protobuf, field.name, formatter(value))
 
-    def __call__(self, protobuf, dict):
+    def __call__(self, protobuf, dictvar):
         if isinstance(protobuf, type):
             protobuf = protobuf()
 
         for field in protobuf.DESCRIPTOR.fields:
-            if field.name in dict:
+            if field.name in dictvar:
                 try:
-                    self._convert(protobuf, field, dict.get(field.name))
+                    self._convert(protobuf, field, dictvar.get(field.name))
                 except AttributeError:
                     raise AttributeError(
                             "Unable to get %s from %s %r" % (field.name,
-                                                             type(dict), dict))
+                                                             type(dictvar), dictvar))
         return protobuf
 
 from_dict = Deserializer()
