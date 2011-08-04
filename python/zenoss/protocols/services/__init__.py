@@ -57,6 +57,9 @@ class UrlEncodedSerializer(RestSerializer):
 
 class RestRequest(object):
     def __init__(self, uri, method='GET', headers=None, body=None):
+        # Don't send unicode URLs - leads to UnicodeDecodeError in Python 2.7 httplib
+        if isinstance(uri, unicode):
+            uri = uri.encode('utf-8')
         self.uri = uri
         self.method = method
         self.headers = headers
