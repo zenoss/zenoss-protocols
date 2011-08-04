@@ -2,129 +2,87 @@
     "content_types" : {
         "$ZepRawEvent" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$ZepRawEvent",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepRawEvent",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.ZepRawEvent"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepRawEvent"
         },
         "$Event" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$Event",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Event",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.Event"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Event"
         },
         "$EventSummary" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummary",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummary",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummary"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummary"
         },
         "$EventSummaryResult" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummaryResult",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryResult",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummaryResult"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryResult"
         },
         "$ModelEventList" : {
             "java_class" : "org.zenoss.protobufs.modelevents.Modelevents$ModelEventList",
-            "python_class" : "zenoss.protocols.protobufs.modelevents_pb2.ModelEventList",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.modelevents.ModelEventList"
+            "python_class" : "zenoss.protocols.protobufs.modelevents_pb2.ModelEventList"
         },
         "$StateEvent" : {
             "java_class" : "org.zenoss.protobufs.stateevent.Stateevent$StateEvent",
-            "python_class" : "zenoss.protocols.protobufs.stateevent_pb2.StateEvent",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.stateevent.StateEvent"
+            "python_class" : "zenoss.protocols.protobufs.stateevent_pb2.StateEvent"
         },
         "$GraphChangeEvent" : {
             "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeEvent",
-            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeEvent",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.graph.GraphChangeEvent"
+            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeEvent"
         },
         "$GraphChangeList" : {
             "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeList",
-            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeList",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.graph.GraphChangeList"
+            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeList"
         },
         "$Signal" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$Signal",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Signal",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.Signal"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.Signal"
         },
         "$EventTriggerSet" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventTriggerSet",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTriggerSet",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventTriggerSet"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTriggerSet"
         },
         "$EventTrigger" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventTrigger",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTrigger",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventTrigger"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTrigger"
         },
         "$EventTagSeveritiesSet" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventTagSeveritiesSet",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTagSeveritiesSet",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventTagSeveritiesSet"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTagSeveritiesSet"
         },
         "$EventSummaryUpdateRequest" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummaryUpdateRequest",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryUpdateRequest",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummaryUpdateRequest"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryUpdateRequest"
         },
         "$EventSummaryUpdateResponse" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventSummaryUpdateResponse",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryUpdateResponse",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventSummaryUpdateResponse"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventSummaryUpdateResponse"
         },
         "$EventDetailItemSet" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventDetailItemSet",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventDetailItemSet"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet"
         },
         "$EventDetailItem" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventDetailItem",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItem",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventDetailItem"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventDetailItem"
         },
         "$ZepConfig" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$ZepConfig",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepConfig",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.ZepConfig"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.ZepConfig"
         },
         "$EventFilter" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventFilter",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventFilter",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.EventFilter"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventFilter"
         },
         "$DaemonHeartbeat" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$DaemonHeartbeat",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeat",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeat"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeat"
         },
         "$DaemonHeartbeatSet" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$DaemonHeartbeatSet",
-            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeatSet",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.zep.DaemonHeartbeatSet"
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.DaemonHeartbeatSet"
         },
         "$VMwareModelRequest" : {
             "java_class" : "org.zenoss.protobufs.modelrequest.Modelrequest$VMwareModelRequest",
-            "python_class" : "zenoss.protocols.protobufs.modelrequest_pb2.VMwareModelRequest",
-            "content_type" : "application/x-protobuf",
-            "x-protobuf" : "org.zenoss.protobufs.modelrequest.VMwareModelRequest"
+            "python_class" : "zenoss.protocols.protobufs.modelrequest_pb2.VMwareModelRequest"
         }
     },
     "exchanges" : {
@@ -134,8 +92,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "New zenevents will go into this exchange for ZEP to process them.",
-            "content_types" : ["$Event"],
-            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+            "content_types" : ["$Event"]
         },
         "$ZepZenEvents" : {
             "name" : "zenoss.zenevents.zep",
@@ -143,8 +100,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "Zenevents that have been partially transformed for ZEP go to this exchange",
-            "content_types" : ["$ZepRawEvent"],
-            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+            "content_types" : ["$ZepRawEvent"]
         },
         "$ProcessedZenEvents" : {
             "name" : "zenoss.zenevents",
@@ -152,8 +108,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "After ZEP processes the event, the realized event will be put in the fanout exchange.",
-            "content_types" : ["$EventSummary"],
-            "routing_key_regexp" : "zenoss\\.zenevent(<?Pevent_class>(\\.[a-z_]+)+)"
+            "content_types" : ["$EventSummary"]
         },
         "$ModelChangeEvents" : {
             "name" : "zenoss.events.modelchange",
@@ -161,8 +116,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "When a device, component, or service changes in Zenoss, a modelchange event is sent.",
-            "content_types" : ["$ModelEventList"],
-            "routing_key_regexp" : "zenoss\\.event\\.modelchange"
+            "content_types" : ["$ModelEventList"]
         },
         "$StateChangeEvents" : {
             "name" : "zenoss.events.statechange",
@@ -170,8 +124,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "After StateImp processes events, it creates state change events for zenevents that can change state.",
-            "content_types" : ["$StateEvent"],
-            "routing_key_regexp" : "zenoss\\.event\\.statechange"
+            "content_types" : ["$StateEvent"]
         },
         "$ImpactChangeEvents" : {
             "name" : "zenoss.events.impactchange",
@@ -179,8 +132,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "When a device, component, or service changes the impact of a service, an impactchange event is sent.",
-            "content_types" : ["$GraphChangeList"],
-            "routing_key_regexp" : "zenoss\\.event\\.impactchange"
+            "content_types" : ["$GraphChangeList"]
         },
         "$Signals" : {
             "name" : "zenoss.signals",
@@ -188,8 +140,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "When an event matches a trigger, a signal is created.",
-            "content_types" : ["$Signal"],
-            "routing_key_regexp" : "zenoss\\.signal"
+            "content_types" : ["$Signal"]
         },
         "$Heartbeats" : {
             "name" : "zenoss.heartbeats",
@@ -197,8 +148,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "Used for daemon heartbeats.",
-            "content_types" : ["$DaemonHeartbeat"],
-            "routing_key_regexp" : "zenoss\\.heartbeats"
+            "content_types" : ["$DaemonHeartbeat"]
         },
         "$ModelRequests" : {
             "name" : "zenoss.modelrequests",
@@ -206,8 +156,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "Used to send model requests to collector daemons.",
-            "content_types" : ["$VMwareModelRequest"],
-            "routing_key_regexp" : "zenoss\\.modelrequests\\.(<?Pcollector>[^.]+)\\.(<?Pservice>([^.]+))"
+            "content_types" : ["$VMwareModelRequest"]
         },
         "$MigratedEvents" : {
             "name" : "zenoss.zenevents.migrated",
@@ -215,8 +164,7 @@
             "durable" : true,
             "auto_delete" : false,
             "description" : "Used to migrate old events to ZEP.",
-            "content_types" : ["$EventSummary"],
-            "routing_key_regexp" : "zenoss\\.events\\.(summary|archive)"
+            "content_types" : ["$EventSummary"]
         }
     },
     "queues" : {
@@ -346,7 +294,7 @@
             "bindings" : [
                 {
                     "exchange" : "$ModelRequests",
-                    "routing_key" : "zenoss.modelrequests.%(collector)s.%(service)s"
+                    "routing_key" : "zenoss.modelrequests.{collector}.{service}"
                 }
             ]
         },

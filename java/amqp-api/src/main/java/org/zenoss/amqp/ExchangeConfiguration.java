@@ -3,36 +3,48 @@
  */
 package org.zenoss.amqp;
 
+import com.google.protobuf.Message;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import com.google.protobuf.Message;
 
 /**
  * Represents a configuration of an exchange (stored in *.qjs file).
  */
 public class ExchangeConfiguration {
 
+    private final String identifier;
     private final Exchange exchange;
     private final List<Message> messages;
 
     /**
-     * Creates a new {@link ExchangeConfiguration} with the specified exchange
-     * and messages.
-     * 
+     * Creates a new {@link ExchangeConfiguration} with the specified exchange,
+     * messages, and description.
+     *
+     * @param identifier The identifier for the exchange in the .qjs file.
      * @param exchange
      *            Exchange.
      * @param messages
      *            Messages which can be published to exchange.
      */
-    public ExchangeConfiguration(Exchange exchange, Collection<Message> messages) {
-        if (exchange == null || messages == null) {
+    public ExchangeConfiguration(String identifier, Exchange exchange, Collection<Message> messages) {
+        if (identifier == null || exchange == null || messages == null) {
             throw new NullPointerException();
         }
+        this.identifier = identifier;
         this.exchange = exchange;
         this.messages = new ArrayList<Message>(messages);
+    }
+
+    /**
+     * The identifier for this configuration in the .qjs file.
+     *
+     * @return The identifier for the exchange.
+     */
+    public String getIdentifier() {
+        return identifier;
     }
 
     /**
@@ -57,7 +69,8 @@ public class ExchangeConfiguration {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().getSimpleName()).append('[');
-        sb.append("exchange=").append(exchange);
+        sb.append("identifier=").append(identifier);
+        sb.append(",exchange=").append(exchange);
         sb.append(",messages=[");
         for (int i = 0; i < messages.size(); i++) {
             if (i > 0) {

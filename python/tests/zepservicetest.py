@@ -65,13 +65,13 @@ test_event_summary_update.status = STATUS_NEW
 
 class MockZepServiceHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == ZepServiceClient._base_uri + 'summary/%s' % test_event_summary.uuid:
+        if self.path == ZepServiceClient._base_uri + test_event_summary.uuid:
             self.send_response(200)
             self.send_header('Content-Type', 'application/x-protobuf')
             self.send_header('X-Protobuf-FullName', test_event_summary.DESCRIPTOR.full_name)
             self.end_headers()
             self.wfile.write(test_event_summary.SerializeToString())
-        elif self.path == ZepServiceClient._base_uri + 'summary':
+        elif self.path == ZepServiceClient._base_uri:
             self.send_response(200)
             self.send_header('Content-Type', 'application/x-protobuf')
             self.send_header('X-Protobuf-FullName', test_event_result.DESCRIPTOR.full_name)
@@ -112,12 +112,11 @@ class ZepServiceTest(unittest.TestCase):
         assert response['content-type'] == 'application/x-protobuf'
         assert content.SerializeToString() == test_event_summary.SerializeToString()
 
-
     def test_get_event_summaries(self):
         response, content = self.client.getEventSummaries()
         assert response['content-type'] == 'application/x-protobuf'
         assert content.SerializeToString() == test_event_result.SerializeToString()
-
+        
     def test_update_event_summary(self):
         response, content = self.client.updateEventSummary(test_event_summary.uuid, test_event_summary_update)
         assert response.status == 204

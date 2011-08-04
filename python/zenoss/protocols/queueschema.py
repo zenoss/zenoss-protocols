@@ -13,6 +13,10 @@
 
 from zope.dottedname.resolve import resolve
 from zenoss.protocols.data import queueschema
+import re
+import logging
+
+log = logging.getLogger('zen.protocols')
 
 __all__ = [
     'ContentType',
@@ -34,34 +38,20 @@ class SchemaException(Exception):
 
 # create readonly-ish objects that represent the configuration
 class ContentType(object):
-    def __init__(self, identifier, java_class, python_class, content_type, protobuf_name):
+    def __init__(self, identifier, python_class):
         self.identifier = identifier
-        self._java_class = java_class
         self._python_class = python_class
-        self._content_type = content_type
-        self._protobuf_name = protobuf_name
-
-    @property
-    def java_class(self):
-        return self._java_class
 
     @property
     def python_class(self):
         return self._python_class
 
-    @property
-    def content_type(self):
-        return self._content_type
-
-    @property
-    def protobuf_name(self):
-        return self._protobuf_name
-
 
 class Binding(object):
-    def __init__(self, exchange, routing_key):
+    def __init__(self, exchange, routing_key, arguments=None):
         self._exchange = exchange
         self._routing_key = routing_key
+        self._arguments = arguments
 
     @property
     def exchange(self):
@@ -71,15 +61,20 @@ class Binding(object):
     def routing_key(self):
         return self._routing_key
 
+    @property
+    def arguments(self):
+        return self._arguments
+
 
 class Queue(object):
-    def __init__(self, identifier, name, durable, exclusive, auto_delete, description):
+    def __init__(self, identifier, name, durable, exclusive, auto_delete, description, arguments=None):
         self.identifier = identifier
         self._name = name
         self._durable = durable
         self._exclusive = exclusive
         self._auto_delete = auto_delete
         self._description = description
+        self._arguments = arguments
         self._bindings = {}
 
     def bind(self, binding):
@@ -109,11 +104,15 @@ class Queue(object):
     def bindings(self):
         return self._bindings
 
+    @property
+    def arguments(self):
+        return self._arguments
+
     def getBinding(self, exchangeIdentifier):
         return self._bindings[exchangeIdentifier]
 
 class Exchange(object):
-    def __init__(self, identifier, name, type, durable, auto_delete, description, content_types, routing_key_regexp):
+    def __init__(self, identifier, name, type, durable, auto_delete, description, content_types, arguments=None):
         self.identifier = identifier
         self._name = name
         self._type = type
@@ -121,7 +120,7 @@ class Exchange(object):
         self._durable = durable
         self._description = description
         self._content_types = content_types
-        self._routing_key_regexp = routing_key_regexp
+        self._arguments = arguments
 
     @property
     def name(self):
@@ -148,34 +147,88 @@ class Exchange(object):
         return self._content_types
 
     @property
-    def routing_key_regexp(self):
-        return self._routing_key_regexp
+    def arguments(self):
+        return self._arguments
 
+_REPLACEMENT_PATTERN = re.compile(r'\{([^}]+)\}')
+
+class MissingReplacementException(Exception):
+    pass
+
+def substitute_replacements(template, replacements):
+    if replacements is None:
+        replacements = {}
+    def _replace(matchobj):
+        if matchobj.group(1) in replacements:
+            return replacements[matchobj.group(1)]
+        raise MissingReplacementException('Unable to replace %s in %s' % (matchobj.group(1), template))
+
+    if '{' not in template or '}' not in template:
+        return template
+
+    return _REPLACEMENT_PATTERN.sub(_replace, template)
+
+def substitute_replacements_in_arguments(arguments, replacements):
+    substituted = {}
+    for k, v in arguments.iteritems():
+        substituted_key = substitute_replacements(k, replacements)
+        if isinstance(v, basestring):
+            substituted_value = substitute_replacements(v, replacements)
+        else:
+            substituted_value = v
+        substituted[substituted_key] = substituted_value
+    return substituted
+
+class ExchangeNode(object):
+    def __init__(self, identifier, name, type, durable, auto_delete, description, content_type_ids, arguments):
+        self.identifier = identifier
+        self.name = name
+        self.type = type
+        self.durable = durable
+        self.auto_delete = auto_delete
+        self.description = description
+        self.content_type_ids = content_type_ids
+        self.arguments = arguments
+
+class QueueNode(object):
+    def __init__(self, identifier, name, durable, exclusive, auto_delete, description, arguments):
+        self.identifier = identifier
+        self.name = name
+        self.durable = durable
+        self.exclusive = exclusive
+        self.auto_delete = auto_delete
+        self.description = description
+        self.arguments = arguments
+        self.binding_nodes = []
+
+class BindingNode(object):
+    def __init__(self, exchange_identifier, routing_key, arguments):
+        self.exchange_identifier = exchange_identifier
+        self.routing_key = routing_key
+        self.arguments = arguments
 
 class Schema(object):
     def __init__(self, *schemas):
         self._content_types = {}
-        self._queues = {}
-        self._exchanges = {}
-        self._protobuf_map = {}
-        self._queue_name_map = {}
-        self._exchange_name_map = {}
+        self._queue_nodes = {}
+        self._exchange_nodes = {}
+        self._protobuf_full_name_to_class = None
+        self._queue_nodes_by_name = {}
+        self._exchange_nodes_by_name = {}
         for schema in schemas:
             self._load(schema)
 
     def _load(self, schema):
         for identifier, contentConfig in schema.get('content_types', {}).iteritems():
-            self._content_types[identifier] = ContentType(
+            content_type = ContentType(
                 identifier,
-                contentConfig['java_class'],
-                contentConfig['python_class'],
-                contentConfig['content_type'],
-                contentConfig['x-protobuf']
+                contentConfig['python_class']
             )
+            self._content_types[identifier] = content_type
 
         # exchanges
         for identifier, exchangeConfig in schema.get('exchanges', {}).iteritems():
-            self._exchanges[identifier] = Exchange(
+            exchange_node = ExchangeNode(
                 identifier,
                 exchangeConfig['name'],
                 exchangeConfig['type'],
@@ -183,100 +236,144 @@ class Schema(object):
                 exchangeConfig['auto_delete'],
                 exchangeConfig['description'],
                 exchangeConfig['content_types'],
-                exchangeConfig['routing_key_regexp']
+                self._convertArguments(exchangeConfig.get('arguments', {}))
             )
+            self._exchange_nodes[identifier] = exchange_node
+            self._exchange_nodes_by_name[exchange_node.name] = exchange_node
 
         # queues
         for identifier, queueConfig in schema.get('queues', {}).iteritems():
-            self._queues[identifier] = Queue(
+            queue_node = QueueNode(
                 identifier,
                 queueConfig['name'],
                 queueConfig['durable'],
                 queueConfig['exclusive'],
                 queueConfig['auto_delete'],
-                queueConfig['description']
+                queueConfig['description'],
+                self._convertArguments(queueConfig.get('arguments', {}))
             )
+            self._queue_nodes[identifier] = queue_node
+            self._queue_nodes_by_name[queue_node.name] = queue_node
 
-            for config in queueConfig['bindings']:
-                self._queues[identifier].bind(Binding(self.getExchange(config['exchange']), config['routing_key']))
+            for config in queueConfig.get('bindings', []):
+                binding_node = BindingNode(config['exchange'],
+                                           config['routing_key'],
+                                           self._convertArguments(config.get('arguments', {})))
+                queue_node.binding_nodes.append(binding_node)
 
-        # Protobuf index
-        for config in self._content_types.values():
-            self._protobuf_map[config.protobuf_name] = config
+    def _convertArguments(self, arguments):
+        if arguments is None:
+            return {}
 
-        # Queue name index
-        for config in self._queues.values():
-            self._queue_name_map[config.name] = config
-
-        # Exchange name index
-        for config in self._exchanges.values():
-            self._exchange_name_map[config.name] = config
+        # TODO: amqplib doesn't support same types as Java client - for now just use
+        # whatever types are returned from JSON parser
+        return dict((k,v.get('value')) for k, v in arguments.iteritems())
                 
     def getContentType(self, identifier):
         if isinstance(identifier, ContentType):
             return identifier
-                    
+        
         return self._content_types[identifier]
 
-    def getExchange(self, name):
+    def getExchange(self, name, replacements=None):
         if isinstance(name, Exchange):
             return name
+
+        if name in self._exchange_nodes:
+            exchange_node = self._exchange_nodes[name]
+        else:
+            exchange_node = self._exchange_nodes_by_name[name]
+        
+        return Exchange(exchange_node.identifier,
+                        substitute_replacements(exchange_node.name, replacements),
+                        exchange_node.type,
+                        exchange_node.durable,
+                        exchange_node.auto_delete,
+                        exchange_node.description,
+                        [self._content_types[content_type_id] for content_type_id in exchange_node.content_type_ids],
+                        substitute_replacements_in_arguments(exchange_node.arguments, replacements))
             
-        if name in self._exchange_name_map:
-            return self._exchange_name_map[name]
-        else:        
-            return self._exchanges[name]
-            
-    def getQueue(self, name):
+    def getQueue(self, name, replacements=None):
         if isinstance(name, Queue):
             return name
-                    
-        if name in self._queue_name_map:
-            return self._queue_name_map[name]
-        else:        
-            return self._queues[name]
 
-    def getQueues(self, queueNames=None):
+        if name in self._queue_nodes:
+            queue_node = self._queue_nodes[name]
+        else:        
+            queue_node = self._queue_nodes_by_name[name]
+
+        queue = Queue(queue_node.identifier,
+                      substitute_replacements(queue_node.name, replacements),
+                      queue_node.durable,
+                      queue_node.exclusive,
+                      queue_node.auto_delete,
+                      queue_node.description,
+                      substitute_replacements_in_arguments(queue_node.arguments, replacements))
+        for binding_node in queue_node.binding_nodes:
+            binding = Binding(self.getExchange(binding_node.exchange_identifier, replacements),
+                              substitute_replacements(binding_node.routing_key, replacements),
+                              substitute_replacements_in_arguments(binding_node.arguments, replacements))
+            queue.bind(binding)
+        
+        return queue
+
+    def getQueues(self, queueNames=None, replacements=None):
         """
         Get all queues or if supplied, all queues matching a list of `queue_names`.
         
         @throws KeyError
         """
+        queues = []
         if queueNames:
-            queues = []
             for name in queueNames:
-                if name in self._queue_name_map:
-                    queues.append(self._queue_name_map[name])
-                elif name in self._queues:
-                    # Get by identifier
-                    queues.append(self._queues[name])
-                else:
-                    raise KeyError('Queue "%s" does not exist.' % name)
-
-            return queues
-                
-        return self._queues.values()
+                queues.append(self.getQueue(name, replacements))
+        else:
+            for queueIdentifier in self._queue_nodes.keys():
+                try:
+                    queues.append(self.getQueue(queueIdentifier, replacements))
+                except MissingReplacementException:
+                    # Ignore missing replacements when returning all queues
+                    pass
+        return queues
             
-    def getExchanges(self):
-        return self._exchanges.values()
+    def getExchanges(self, replacements=None):
+        exchanges = []
+        for exchangeIdentifier in self._exchange_nodes.keys():
+            try:
+                exchanges.append(self.getExchange(exchangeIdentifier, replacements))
+            except MissingReplacementException:
+                # Ignore missing replacements when returning all exchanges
+                pass
+        return exchanges
                   
     def getProtobuf(self, protobuf_name):
         """
         Get a protobuf class from the identifier supplied.
         """
-        if protobuf_name in self._protobuf_map:
-            config = self._protobuf_map[protobuf_name]
+
+        # Initialize mapping of protobuf full name to protobuf class
+        if self._protobuf_full_name_to_class is None:
+            self._protobuf_full_name_to_class = {}
+            for contentType in self._content_types.values():
+                try:
+                    cls = resolve(contentType.python_class)
+                    self._protobuf_full_name_to_class[cls.DESCRIPTOR.full_name] = cls
+                except ImportError:
+                    log.exception('Failed to resolve protobuf: %s', protobuf_name)
+
+        if protobuf_name in self._protobuf_full_name_to_class:
+            cls = self._protobuf_full_name_to_class[protobuf_name]
         else:
             try:
                 config = self.getContentType(protobuf_name)
             except KeyError:
                 raise SchemaException('Could not find protobuf "%s"' % protobuf_name)
 
-        try:
-            cls = resolve(config.python_class)
-        except ImportError:
-            raise ImportError('Could not find protobuf python class "%s"' % config.python_class)
-                                    
+            try:
+                cls = resolve(config.python_class)
+            except ImportError:
+                raise ImportError('Could not find protobuf python class "%s"' % config.python_class)
+
         return cls
         
     def getNewProtobuf(self, protobuf_name):

@@ -1,0 +1,162 @@
+{
+    "content_types" : {
+    },
+    "exchanges" : {
+        "$HeadersExchange" : {
+            "name": "zenoss.test.headers",
+            "type": "headers",
+            "durable": true,
+            "auto_delete": false,
+            "description" : "Sample headers exchange.",
+            "content_types" : [],
+            "arguments": {
+                "arg1": {
+                    "value": "val1"
+                },
+                "arg1_2": {
+                    "type": "string",
+                    "value": "val1_2"
+                },
+                "arg2": {
+                    "value": false
+                },
+                "arg2_2": {
+                    "type": "boolean",
+                    "value": true
+                },
+                "arg3": {
+                    "type": "byte",
+                    "value": 5
+                },
+                "arg4": {
+                    "type": "byte[]",
+                    "value": "+vv8/Q=="
+                },
+                "arg5": {
+                    "type": "short",
+                    "value": 5
+                },
+                "arg6": {
+                    "value": 100
+                },
+                "arg6_1": {
+                    "type": "int",
+                    "value": 200
+                },
+                "arg7": {
+                    "type": "long",
+                    "value": 1000
+                },
+                "arg8": {
+                    "value": 2147483648
+                },
+                "arg9": {
+                    "value": 1.0
+                },
+                "arg10": {
+                    "type": "double",
+                    "value": 1.0
+                },
+                "arg10_1": {
+                    "value": 1.7976931348623157e+308
+                },
+                "arg11": {
+                    "type": "decimal",
+                    "value": "3.14"
+                },
+                "arg12": {
+                    "type": "array",
+                    "value": [
+                        {
+                            "type": "byte",
+                            "value": 1
+                        },
+                        {
+                            "value": "string1"
+                        }
+                    ]
+                },
+                "arg12_1": {
+                    "value": [
+                        {
+                            "type": "byte",
+                            "value": 1
+                        },
+                        {
+                            "value": "string1"
+                        }
+                    ]
+                },
+                "arg13": {
+                    "type": "timestamp",
+                    "value": 1311869517
+                },
+                "arg14": {
+                    "type": "table",
+                    "value": {
+                        "table_key1": {
+                            "value": true
+                        },
+                        "table_key2": {
+                            "value": "string2"
+                        }
+                    }
+                },
+                "arg14_1": {
+                    "value": {
+                        "table_key1": {
+                            "value": true
+                        },
+                        "table_key2": {
+                            "value": "string2"
+                        }
+                    }
+                },
+                "arg15": {
+                    "value": null
+                }
+            }
+        },
+        "$ReplacementExchange": {
+            "name" : "zenoss.exchanges.{exchange_uuid}",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample replacement exchange.",
+            "content_types" : [],
+            "arguments": {
+                "arg_{exchange_name}": {
+                    "value": "my argument {exchange_value}"
+                }
+            }
+        }
+    },
+    "queues" : {
+        "$ReplacementQueue": {
+            "name" : "zenoss.queues.{queue_uuid}",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Replacement queue exchange.",
+            "arguments": {
+                "arg1": {
+                    "value": "my {arg5} and {arg6}"
+                },
+                "queue_arg_{queue_name}": {
+                    "value": "my {arg7} and {arg8}"
+                }
+            },
+            "bindings" : [
+                {
+                    "exchange" : "$ReplacementExchange",
+                    "routing_key" : "zenoss.events.{key}",
+                    "arguments": {
+                        "binding_arg{name}": {
+                            "value": "my binding argument {arg1} and {arg2}"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

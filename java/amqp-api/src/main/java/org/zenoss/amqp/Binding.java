@@ -19,7 +19,7 @@ public class Binding {
 
     /**
      * Creates a binding of the queue to the exchange via the routing key.
-     * 
+     *
      * @param queue
      *            Queue to bind.
      * @param exchange
@@ -60,9 +60,7 @@ public class Binding {
         if (arguments == null || arguments.isEmpty()) {
             this.arguments = Collections.emptyMap();
         } else {
-            Map<String, Object> args = new HashMap<String, Object>();
-            args.putAll(arguments);
-            this.arguments = Collections.unmodifiableMap(args);
+            this.arguments = new HashMap<String, Object>(arguments);
         }
     }
 
@@ -99,7 +97,7 @@ public class Binding {
      * @return An immutable map containing arguments used to create the binding.
      */
     public Map<String, Object> getArguments() {
-        return arguments;
+        return Collections.unmodifiableMap(this.arguments);
     }
 
     @Override
@@ -109,6 +107,9 @@ public class Binding {
         sb.append("queue=").append(queue.getName());
         sb.append(",exchange=").append(exchange.getName());
         sb.append(",routingKey=").append(routingKey);
+        if (!this.arguments.isEmpty()) {
+            sb.append(",arguments=").append(this.arguments);
+        }
         sb.append(']');
         return sb.toString();
     }

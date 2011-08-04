@@ -6,6 +6,7 @@ package org.zenoss.amqp;
 import org.zenoss.utils.ZenPacks;
 import org.zenoss.utils.ZenossException;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,12 +30,13 @@ public class ZenossQueueConfig {
         if (sZenossQueueConfig == null) {
             List<InputStream> streams = new ArrayList<InputStream>();
             try {
-                InputStream is = ZenossQueueConfig.class
-                        .getResourceAsStream("/org/zenoss/protobufs/zenoss.qjs");
-                streams.add(is);
+                InputStream is = ZenossQueueConfig.class.getResourceAsStream("/org/zenoss/protobufs/zenoss.qjs");
+                if (is != null) {
+                    streams.add(is);
+                }
                 try {
                     for (String path : ZenPacks.getQueueConfigPaths()) {
-                        streams.add(new FileInputStream(path));
+                        streams.add(new BufferedInputStream(new FileInputStream(path)));
                     }
                 } catch (ZenossException ignored) {
                     // Don't load from ZenPacks, I guess
@@ -42,7 +44,12 @@ public class ZenossQueueConfig {
                 sZenossQueueConfig = new QueueConfig(streams);
             } finally {
                 for (InputStream is : streams) {
-                    is.close();
+                    if (is != null) {
+                        try {
+                            is.close();
+                        } catch (IOException ignored) {
+                        }
+                    }
                 }
             }
         }

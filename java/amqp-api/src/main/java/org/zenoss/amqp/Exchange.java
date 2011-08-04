@@ -31,7 +31,12 @@ public class Exchange {
          * A topic AMQP exchange in which messages are matched against a routing
          * key to determine if they are delivered.
          */
-        TOPIC("topic");
+        TOPIC("topic"),
+
+        /**
+         * A headers AMQP exchange in which message headers determine which queues the message should be delivered to.
+         */
+        HEADERS("headers");
 
         private final String name;
 
@@ -77,34 +82,6 @@ public class Exchange {
     private final Map<String, Object> arguments;
 
     /**
-     * Creates a non-durable, non-autodelete {@link Type#FANOUT} exchange with
-     * the specified name.
-     * 
-     * @param name
-     *            The name of the exchange.
-     * @throws NullPointerException
-     *             If the exchange name is null.
-     */
-    public Exchange(String name) {
-        this(name, Type.FANOUT);
-    }
-
-    /**
-     * Creates a non-durable, non-autodelete queue with the specified name and
-     * type.
-     * 
-     * @param name
-     *            The name of the exchange.
-     * @param type
-     *            The type of the exchange.
-     * @throws NullPointerException
-     *             If the exchange name or type is null.
-     */
-    public Exchange(String name, Type type) throws NullPointerException {
-        this(name, type, false, false);
-    }
-
-    /**
      * Create an exchange with the specified name, type, durable, and autoDelete
      * settings.
      * 
@@ -143,8 +120,7 @@ public class Exchange {
      * @throws NullPointerException
      *             If the exchange name or type is null.
      */
-    public Exchange(String name, Type type, boolean durable,
-            boolean autoDelete, Map<String, Object> arguments)
+    public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments)
             throws NullPointerException {
         if (name == null || type == null) {
             throw new NullPointerException();

@@ -53,9 +53,10 @@ _m2.test_enum = protobuf_data['messages'][1]['test_enum']
 
 empty_protobuf = EmptyTestMessage()
 
-class MockSchema:
-    content_types = {
-        "$TestMessage" : {
+mock_schema = """\
+{
+    "content_types": {
+        "$TestMessage": {
             "java_class" : "org.zenoss.test.TestMessage",
             "python_class" : "tests.protobufs.test_pb2.TestMessage",
             "content_type" : "application/x-protobuf",
@@ -67,33 +68,106 @@ class MockSchema:
             "content_type" : "application/x-protobuf",
             "x-protobuf" : "org.zenoss.test.EmptyTestMessage"
         }
-    }
-    exchanges = {
+    },
+    "exchanges": {
         "$TestExchange" : {
             "name" : "zenoss.test",
             "type" : "direct",
-            "durable" : True,
-            "auto_delete" : False,
+            "durable" : true,
+            "auto_delete" : false,
             "description" : "Test exchange",
             "content_types" : ["$TestMessage"],
-            "routing_key_regexp" : "zenoss.test"
+            "arguments": {
+                "exchange_arg1": {
+                    "value": "val1"
+                },
+                "exchange_arg2": {
+                    "value": false
+                },
+                "exchange_arg3": {
+                    "value": 100
+                }
+            }
+        },
+        "$ReplacementExchange": {
+            "name" : "zenoss.exchanges.{exchange_uuid}",
+            "type" : "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample replacement exchange.",
+            "content_types" : [],
+            "arguments": {
+                "arg_{exchange_name}": {
+                    "value": "my argument {exchange_value}"
+                }
+            }
         }
-    }
-    queues = {
+    },
+    "queues": {
         "$TestQueue" : {
             "name" : "zenoss.queues.test",
-            "durable" : True,
-            "exclusive" : False,
-            "auto_delete" : False,
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
             "description" : "Test queue",
+            "arguments": {
+                "queue_arg1": {
+                    "value": "val1"
+                },
+                "queue_arg2": {
+                    "value": false
+                },
+                "queue_arg3": {
+                    "value": 1
+                }
+            },
             "bindings" : [
                 {
                     "exchange" : "$TestExchange",
-                    "routing_key" : "zenoss.test"
+                    "routing_key" : "zenoss.test",
+                    "arguments": {
+                        "binding_arg1": {
+                            "value": "binding_val1"
+                        },
+                        "binding_arg2": {
+                            "value": false
+                        },
+                        "binding_arg3": {
+                            "value": 100
+                        }
+                    }
+                }
+            ]
+        },
+        "$ReplacementQueue": {
+            "name" : "zenoss.queues.{queue_uuid}",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Replacement queue exchange.",
+            "arguments": {
+                "arg1": {
+                    "value": "my {arg5} and {arg6}"
+                },
+                "queue_arg_{queue_name}": {
+                    "value": "my {arg7} and {arg8}"
+                }
+            },
+            "bindings" : [
+                {
+                    "exchange" : "$ReplacementExchange",
+                    "routing_key" : "zenoss.events.{key}",
+                    "arguments": {
+                        "binding_arg{name}": {
+                            "value": "my binding argument {arg1} and {arg2}"
+                        }
+                    }
                 }
             ]
         }
-
     }
+}
+"""
 
-queueschema = Schema(MockSchema)
+from json import loads
+queueschema = Schema(loads(mock_schema))

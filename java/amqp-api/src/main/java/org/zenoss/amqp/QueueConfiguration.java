@@ -4,18 +4,19 @@
 
 package org.zenoss.amqp;
 
+import com.google.protobuf.Message;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import com.google.protobuf.Message;
 
 /**
  * Represents the configuration for communicating with a specific queue.
  */
 public class QueueConfiguration {
 
+    private final String identifier;
     private final Queue queue;
     private final List<Binding> bindings;
     private final List<Message> messages;
@@ -23,7 +24,8 @@ public class QueueConfiguration {
     /**
      * Creates a new {@link QueueConfiguration} with the specified queue, list
      * of bindings, and list of messages.
-     * 
+     *
+     * @param identifier The identifier for the queue in the .qjs file.
      * @param queue
      *            Queue.
      * @param bindings
@@ -31,14 +33,24 @@ public class QueueConfiguration {
      * @param messages
      *            List of messages consumed from the queue.
      */
-    public QueueConfiguration(Queue queue, Collection<Binding> bindings,
-            Collection<Message> messages) {
-        if (queue == null || bindings == null || messages == null) {
+    public QueueConfiguration(String identifier, Queue queue, Collection<Binding> bindings,
+                              Collection<Message> messages) {
+        if (identifier == null || queue == null || bindings == null || messages == null) {
             throw new NullPointerException();
         }
+        this.identifier = identifier;
         this.queue = queue;
         this.bindings = new ArrayList<Binding>(bindings);
         this.messages = new ArrayList<Message>(messages);
+    }
+
+    /**
+     * Returns the identifier for the queue in the .qjs file.
+     *
+     * @return The identifier for the queue in the .qjs file.
+     */
+    public String getIdentifier() {
+        return identifier;
     }
 
     /**
@@ -73,7 +85,8 @@ public class QueueConfiguration {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().getSimpleName()).append('[');
-        sb.append("queue=").append(queue);
+        sb.append("identifier=").append(identifier);
+        sb.append(",queue=").append(queue);
         sb.append(",bindings=").append(bindings);
         sb.append(",messages=[");
         for (int i = 0; i < messages.size(); i++) {

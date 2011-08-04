@@ -31,5 +31,6 @@ setup(
             'zenqpush = zenoss.protocols.scripts.zenqpush:main',
             'zenqload = zenoss.protocols.scripts.zenqload:main',
         ]
-    }
+    },
+    test_suite = "tests.suite.test_all"
 )
