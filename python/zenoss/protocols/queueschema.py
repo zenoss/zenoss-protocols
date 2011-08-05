@@ -41,10 +41,17 @@ class ContentType(object):
     def __init__(self, identifier, python_class):
         self.identifier = identifier
         self._python_class = python_class
+        self._protobuf_name = None
 
     @property
     def python_class(self):
         return self._python_class
+
+    @property
+    def protobuf_name(self):
+        if self._protobuf_name is None:
+            self._protobuf_name = resolve(self._python_class).DESCRIPTOR.full_name
+        return self._protobuf_name
 
 
 class Binding(object):
