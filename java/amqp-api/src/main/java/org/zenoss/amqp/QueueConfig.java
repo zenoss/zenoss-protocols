@@ -204,13 +204,23 @@ public class QueueConfig {
         }
     }
 
+    private Class<?> loadClass(String className) throws ClassNotFoundException {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (cl != null) {
+            try {
+                return cl.loadClass(className);
+            } catch (ClassNotFoundException cnfe) {}
+        }
+        return Class.forName(className);
+    }
+
     private Message loadMessageFromContentTypeId(String contentTypeId) {
         String javaClass = this.contentTypeIdToJavaClass.get(contentTypeId);
         if (javaClass == null) {
             throw new IllegalStateException("Failed to find content type: " + contentTypeId);
         }
         try {
-            Class<?> clazz = Class.forName(javaClass);
+            Class<?> clazz = loadClass(javaClass);
             Method method = clazz.getMethod("getDefaultInstance");
             return (Message) method.invoke(null);
         } catch (Exception e) {
