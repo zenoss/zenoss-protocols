@@ -16,6 +16,7 @@ from queueschematest import TestQueueConfig
 from servicetest import ProtobufRestServiceClientTest, SerializerTest
 from triggerservicetest import TriggerServiceTest
 from zepservicetest import ZepServiceTest
+from jsontest import JsonTest
 
 test_all = TestSuite()
 test_classes = [
@@ -23,6 +24,7 @@ test_classes = [
     ProtobufRestServiceClientTest,
     SerializerTest,
     TriggerServiceTest,
+    JsonTest,
     # TODO: Woefully out of date
 #    ZepServiceTest,
 ]

@@ -22,6 +22,7 @@ message TestMessage {
     optional TestEnum test_enum = 3;
     repeated TestNestedMessage messages = 4;
     optional TestNestedMessage nested = 5;
+    optional bytes binary = 6;
 }
 
 message EmptyTestMessage {

@@ -14,6 +14,7 @@
 import unittest
 from uuid import uuid4
 from json import dumps, loads
+from base64 import b64encode, b64decode
 
 from time import time
 import pkg_resources # Import this so zenoss.protocols will be found
@@ -38,13 +39,15 @@ class JsonTest(unittest.TestCase):
         'nested' : {
             'uuid' : str(uuid4()),
             'test_enum' : OPTION_A,
-        }
+        },
+        'binary': b64encode('\x00\x01\x02\x03\xff'),
     }
 
     def _compareProtoDict(self, data, pb):
         assert data['uuid'] == pb.uuid
         assert data['created_time'] == pb.created_time
         assert data['test_enum'] == pb.test_enum
+        assert b64decode(data['binary']) == pb.binary
         assert data['nested']['uuid'] == pb.nested.uuid
         assert data['nested']['test_enum'] == pb.nested.test_enum
         assert data['messages'][0]['uuid'] == pb.messages[0].uuid
@@ -59,6 +62,7 @@ class JsonTest(unittest.TestCase):
         self.message.test_enum = self.data['test_enum']
         self.message.nested.uuid = self.data['nested']['uuid']
         self.message.nested.test_enum = self.data['nested']['test_enum']
+        self.message.binary = b64decode(self.data['binary'])
 
         m1 = self.message.messages.add()
         m1.uuid = self.data['messages'][0]['uuid']

@@ -11,7 +11,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = descriptor.FileDescriptor(
   name='test.proto',
   package='org.zenoss.test',
-  serialized_pb='\n\ntest.proto\x12\x0forg.zenoss.test\"O\n\x11TestNestedMessage\x12,\n\ttest_enum\x18\x01 \x01(\x0e\x32\x19.org.zenoss.test.TestEnum\x12\x0c\n\x04uuid\x18\x02 \x01(\t\"\xc9\x01\n\x0bTestMessage\x12\x0c\n\x04uuid\x18\x01 \x02(\t\x12\x14\n\x0c\x63reated_time\x18\x02 \x01(\x04\x12,\n\ttest_enum\x18\x03 \x01(\x0e\x32\x19.org.zenoss.test.TestEnum\x12\x34\n\x08messages\x18\x04 \x03(\x0b\x32\".org.zenoss.test.TestNestedMessage\x12\x32\n\x06nested\x18\x05 \x01(\x0b\x32\".org.zenoss.test.TestNestedMessage\"\"\n\x10\x45mptyTestMessage\x12\x0e\n\x06unused\x18\x01 \x03(\t*4\n\x08TestEnum\x12\x0c\n\x08OPTION_A\x10\x01\x12\x0c\n\x08OPTION_B\x10\x02\x12\x0c\n\x08OPTION_C\x10\x03')
+  serialized_pb='\n\ntest.proto\x12\x0forg.zenoss.test\"O\n\x11TestNestedMessage\x12,\n\ttest_enum\x18\x01 \x01(\x0e\x32\x19.org.zenoss.test.TestEnum\x12\x0c\n\x04uuid\x18\x02 \x01(\t\"\xd9\x01\n\x0bTestMessage\x12\x0c\n\x04uuid\x18\x01 \x02(\t\x12\x14\n\x0c\x63reated_time\x18\x02 \x01(\x04\x12,\n\ttest_enum\x18\x03 \x01(\x0e\x32\x19.org.zenoss.test.TestEnum\x12\x34\n\x08messages\x18\x04 \x03(\x0b\x32\".org.zenoss.test.TestNestedMessage\x12\x32\n\x06nested\x18\x05 \x01(\x0b\x32\".org.zenoss.test.TestNestedMessage\x12\x0e\n\x06\x62inary\x18\x06 \x01(\x0c\"\"\n\x10\x45mptyTestMessage\x12\x0e\n\x06unused\x18\x01 \x03(\t*4\n\x08TestEnum\x12\x0c\n\x08OPTION_A\x10\x01\x12\x0c\n\x08OPTION_B\x10\x02\x12\x0c\n\x08OPTION_C\x10\x03')
 
 _TESTENUM = descriptor.EnumDescriptor(
   name='TestEnum',
@@ -34,8 +34,8 @@ _TESTENUM = descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=352,
-  serialized_end=404,
+  serialized_start=368,
+  serialized_end=420,
 )
 
 
@@ -122,6 +122,13 @@ _TESTMESSAGE = descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    descriptor.FieldDescriptor(
+      name='binary', full_name='org.zenoss.test.TestMessage.binary', index=5,
+      number=6, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value="",
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -132,7 +139,7 @@ _TESTMESSAGE = descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=113,
-  serialized_end=314,
+  serialized_end=330,
 )
 
 
@@ -159,8 +166,8 @@ _EMPTYTESTMESSAGE = descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=316,
-  serialized_end=350,
+  serialized_start=332,
+  serialized_end=366,
 )
 
 _TESTNESTEDMESSAGE.fields_by_name['test_enum'].enum_type = _TESTENUM
