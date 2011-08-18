@@ -13,6 +13,8 @@
 
 import unittest
 import pkg_resources # Import this so zenoss.protocols will be found
+from zenoss.protocols.data.queueschema import SCHEMA
+from zenoss.protocols.queueschema import Schema
 from zenoss.protocols.services.zep import ZepServiceClient
 from zenoss.protocols.protobufs.zep_pb2 import EventSummary, EventSummaryResult, EventSummaryUpdate, STATUS_NEW
 from zenoss.protocols.jsonformat import from_dict
@@ -105,7 +107,8 @@ class ZepServiceTest(unittest.TestCase):
         thread.start()
 
         # Connect the client to the random port
-        self.client = ZepServiceClient('http://localhost:%d' % self.port)
+        schema = Schema(SCHEMA)
+        self.client = ZepServiceClient('http://localhost:%d' % self.port, schema)
 
     def test_get_event_summary(self):
         response, content = self.client.getEventSummary(test_event_summary.uuid)

@@ -18,6 +18,7 @@ class PublishException(Exception):
     fails to publish.
     """
     def __init__(self, reply_code, reply_text, exchange, routing_key):
+        super(PublishException, self).__init__()
         self._reply_code = reply_code
         self._reply_text = reply_text
         self._exchange = exchange

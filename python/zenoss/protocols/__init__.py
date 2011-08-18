@@ -13,9 +13,8 @@
 
 __import__('pkg_resources').declare_namespace(__name__)
 
-from zenoss.protocols import queueschema
-from zenoss.protocols.amqpconfig import setAMQPConfiguration
-
+from zenoss.protocols.adapters import registerAdapters
+registerAdapters()
 
 class InvalidQueueMessage(Exception):
     """
@@ -26,7 +25,7 @@ class InvalidQueueMessage(Exception):
         self.reason = value
         super(InvalidQueueMessage, self).__init__(value)
 
-def hydrateQueueMessage(message):
+def hydrateQueueMessage(message, queueSchema):
     """
     Process a queue message and return a fully hydrated protobuf class.
     @throws InvalidQueueMessage
@@ -54,14 +53,6 @@ def hydrateQueueMessage(message):
     if not fullName:
         raise InvalidQueueMessage("Message does not have a valid protobuf full name")
 
-    return queueschema.hydrateProtobuf(fullName, message.body)
+    return queueSchema.hydrateProtobuf(fullName, message.body)
 
-# Deprecated alias
-parse_protobuf = hydrateQueueMessage
-
-def initializeAMQP(config):
-    """
-    Reads the queue config and then populates the queue config singleton
-    """
-    setAMQPConfiguration(config)
 

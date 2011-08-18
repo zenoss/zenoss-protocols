@@ -1,19 +1,25 @@
 from setuptools import setup, find_packages
 
+# 'make build' will build the protobufs and copy them to the needed locations.
+import subprocess
+subprocess.check_call(['make','build'])
+
 setup(
     name = "zenoss.protocols",
-    version = "0.1",
+    version = "0.2",
     packages = find_packages(),
     long_description=open('README.txt').read(),
     install_requires = [
         'setuptools',
         'httplib2',
         'zope.dottedname',
+        'zope.interface',
+        'zope.component',
+        'Twisted',
+        'amqplib',
+        'txamqp',
     ],
     include_package_data=True,
-    package_data={
-        'zenoss/protocols/twisted': ['zenoss/protocols/twisted/amqp0-9-1.xml'],
-    },
     # in the zenoss namespace
     namespace_packages = ['zenoss'],
     # metadata for upload to PyPI
@@ -27,7 +33,6 @@ setup(
     entry_points={
         'console_scripts': [
             'zenqdump = zenoss.protocols.scripts.zenqdump:main',
-            'zenqinit = zenoss.protocols.scripts.zenqinit:main',
             'zenqpush = zenoss.protocols.scripts.zenqpush:main',
             'zenqload = zenoss.protocols.scripts.zenqload:main',
         ]

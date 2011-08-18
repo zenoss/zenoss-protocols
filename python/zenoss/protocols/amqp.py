@@ -11,12 +11,11 @@
 #
 ###########################################################################
 import logging
-import amqplib.client_0_8 as amqp
 from amqplib.client_0_8.connection import Connection
 from amqplib.client_0_8.basic_message import Message
-from zenoss.protocols.amqpconfig import getAMQPConfiguration
-from zenoss.protocols import queueschema
+from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.exceptions import PublishException, NoRouteException, NoConsumersException
+from zope.component import getAdapter
 import socket
 
 REPLY_CODE_NO_ROUTE = 312
@@ -30,14 +29,15 @@ class Publisher(object):
 
     Example:
 
-    with Publisher() as publish:
+    with Publisher(amqpConnectionInfo, queueSchema) as publish:
         publish(exchange, routing_key, obj)
 
     """
-    def __init__(self):
+    def __init__(self, amqpConnectionInfo, queueSchema):
         self._connection = None
         self._channel = None
-        self._config = getAMQPConfiguration()
+        self._connectionInfo = amqpConnectionInfo
+        self._schema = queueSchema
         self._exchanges = {}
         self._queues = set()
 
@@ -53,11 +53,11 @@ class Publisher(object):
         Lazily initialize the connection
         """
         if not self._connection:
-            self._connection = Connection(host='%s:%d' % (self._config.host, self._config.port),
-                                          userid=self._config.user,
-                                          password=self._config.password,
-                                          virtual_host=self._config.vhost,
-                                          ssl=self._config.usessl)
+            self._connection = Connection(host='%s:%d' % (self._connectionInfo.host, self._connectionInfo.port),
+                                          userid=self._connectionInfo.user,
+                                          password=self._connectionInfo.password,
+                                          virtual_host=self._connectionInfo.vhost,
+                                          ssl=self._connectionInfo.usessl)
             log.debug("Connecting to RabbitMQ...")
         if not self._channel:
             self._channel = self._connection.connection.channel()
@@ -69,12 +69,12 @@ class Publisher(object):
         Use an exchange, making sure we only declare it once per connection.
         """
         if exchange not in self._exchanges:
-            exchangeConfig = queueschema.getExchange(exchange)
+            exchangeConfig = self._schema.getExchange(exchange)
             self._exchanges[exchange] = exchangeConfig
 
             try:
                 channel = self.getChannel()
-                getAMQPConfiguration().declareExchange(channel, exchangeConfig)
+                getAdapter(channel, IAMQPChannelAdapter).declareExchange(exchangeConfig)
             except Exception as e:
                 log.exception(e)
                 raise
@@ -133,20 +133,16 @@ class Publisher(object):
             except socket.error as e:
                 log.info("amqp connection was closed %s" % e)
                 self._reset()
-            except Exception as e:
-                log.exception(e)
-                raise
         else:
             raise Exception("Could not publish message. Connection may be down")
 
-    def createQueue(self, exchange, queueIdentifier):
+    def createQueue(self, queueIdentifier, replacements=None):
         if queueIdentifier not in self._queues:
-            amqpConfiguration = getAMQPConfiguration()
+            queue = self._schema.getQueue(queueIdentifier, replacements)
             for i in range(2):
                 try:
                     channel = self.getChannel()
-                    self.useExchange(exchange)
-                    amqpConfiguration.declareQueue(channel, queueIdentifier)
+                    getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
                     self._queues.add(queueIdentifier)
                     break
                 except socket.error as e:

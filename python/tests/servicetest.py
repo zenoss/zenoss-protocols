@@ -15,7 +15,7 @@ import unittest
 import httplib2
 import pkg_resources # Import this so zenoss.protocols will be found
 from zenoss.protocols.services import ProtobufSerializer, ProtobufRestServiceClient
-from fixtures import protobuf_data, protobuf, empty_protobuf, queueschema
+from fixtures import protobuf, empty_protobuf, queueschema
 import BaseHTTPServer
 import threading
 
@@ -88,7 +88,7 @@ class ProtobufRestServiceClientTest(unittest.TestCase):
         thread.daemon = True
         thread.start()
 
-        self.client = ProtobufRestServiceClient('http://localhost:%d' % self.port, schema=queueschema)
+        self.client = ProtobufRestServiceClient('http://localhost:%d' % self.port, queueschema)
 
     def test_get_message(self):
         response, content = self.client.get('test_message')

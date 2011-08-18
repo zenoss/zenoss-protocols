@@ -11,8 +11,9 @@
 #
 ###########################################################################
 
+from zope.interface import implements
 from zope.dottedname.resolve import resolve
-from zenoss.protocols.data import queueschema
+from zenoss.protocols.interfaces import IContentType, IBinding, IQueue, IExchange, IQueueSchema
 import re
 import logging
 
@@ -28,9 +29,7 @@ __all__ = [
     'getNewProtobuf',
     'hydrateProtobuf',
     'getExchange',
-    'getExchanges',
     'getQueue',
-    'getQueues',
 ]
 
 class SchemaException(Exception):
@@ -38,6 +37,8 @@ class SchemaException(Exception):
 
 # create readonly-ish objects that represent the configuration
 class ContentType(object):
+    implements(IContentType)
+
     def __init__(self, identifier, python_class):
         self.identifier = identifier
         self._python_class = python_class
@@ -55,6 +56,8 @@ class ContentType(object):
 
 
 class Binding(object):
+    implements(IBinding)
+
     def __init__(self, exchange, routing_key, arguments=None):
         self._exchange = exchange
         self._routing_key = routing_key
@@ -74,6 +77,8 @@ class Binding(object):
 
 
 class Queue(object):
+    implements(IQueue)
+
     def __init__(self, identifier, name, durable, exclusive, auto_delete, description, arguments=None):
         self.identifier = identifier
         self._name = name
@@ -119,6 +124,8 @@ class Queue(object):
         return self._bindings[exchangeIdentifier]
 
 class Exchange(object):
+    implements(IExchange)
+
     def __init__(self, identifier, name, type, durable, auto_delete, description, content_types, arguments=None):
         self.identifier = identifier
         self._name = name
@@ -215,6 +222,8 @@ class BindingNode(object):
         self.arguments = arguments
 
 class Schema(object):
+    implements(IQueueSchema)
+
     def __init__(self, *schemas):
         self._content_types = {}
         self._queue_nodes = {}
@@ -324,35 +333,6 @@ class Schema(object):
         
         return queue
 
-    def getQueues(self, queueNames=None, replacements=None):
-        """
-        Get all queues or if supplied, all queues matching a list of `queue_names`.
-        
-        @throws KeyError
-        """
-        queues = []
-        if queueNames:
-            for name in queueNames:
-                queues.append(self.getQueue(name, replacements))
-        else:
-            for queueIdentifier in self._queue_nodes.keys():
-                try:
-                    queues.append(self.getQueue(queueIdentifier, replacements))
-                except MissingReplacementException:
-                    # Ignore missing replacements when returning all queues
-                    pass
-        return queues
-            
-    def getExchanges(self, replacements=None):
-        exchanges = []
-        for exchangeIdentifier in self._exchange_nodes.keys():
-            try:
-                exchanges.append(self.getExchange(exchangeIdentifier, replacements))
-            except MissingReplacementException:
-                # Ignore missing replacements when returning all exchanges
-                pass
-        return exchanges
-                  
     def getProtobuf(self, protobuf_name):
         """
         Get a protobuf class from the identifier supplied.
@@ -401,15 +381,3 @@ class Schema(object):
         proto = self.getNewProtobuf(protobuf_name)
         proto.ParseFromString(content)
         return proto
-
-
-# Load default schema on import
-schema = Schema(queueschema.SCHEMA)
-getContentType = schema.getContentType
-getExchange = schema.getExchange
-getExchanges = schema.getExchanges
-getQueue = schema.getQueue
-getQueues = schema.getQueues
-getProtobuf = schema.getProtobuf
-getNewProtobuf = schema.getNewProtobuf
-hydrateProtobuf = schema.hydrateProtobuf

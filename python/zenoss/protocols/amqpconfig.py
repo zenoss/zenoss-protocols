@@ -1,7 +1,7 @@
 ###########################################################################
 #
 # This program is part of Zenoss Core, an open source monitoring platform.
-# Copyright (C) 2010, Zenoss Inc.
+# Copyright (C) 2010-2011, Zenoss Inc.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 or (at your
@@ -12,17 +12,16 @@
 ###########################################################################
 
 from __future__ import absolute_import
-from collections import defaultdict
 import logging
-from zenoss.protocols import queueschema
-import warnings
-from twisted.internet.defer import returnValue, inlineCallbacks
-
+from zenoss.protocols.interfaces import IAMQPConnectionInfo
+from zope.interface import implements
 
 log = logging.getLogger('zen.protocols')
 
-# TODO the queue configuration and the schema are not related and should be separate objects
 class AMQPConfig(object):
+
+    implements(IAMQPConnectionInfo)
+
     """
     Class that encapsulates the configuration for
     all of the various queues that zenoss uses.
@@ -86,95 +85,6 @@ class AMQPConfig(object):
                 parser = optionMap[key].get('parser', str)
                 setattr(self, '_' + optionMap[key]['key'], parser(value))
 
-    def getContentType(self, identifier):
-        warnings.warn('Use zenoss.protocols.queueschema.getContentType() instead', DeprecationWarning)
-        return queueschema.getContentType(identifier)
-
-    def getExchange(self, identifier, replacements=None):
-        warnings.warn('Use zenoss.protocols.queueschema.getExchange() instead', DeprecationWarning)
-        return queueschema.getExchange(identifier, replacements)
-
-    def getQueue(self, identifier, replacements=None):
-        warnings.warn('Use zenoss.protocols.queueschema.getQueue() instead', DeprecationWarning)
-        return queueschema.getQueue(identifier, replacements)
-
-    def getNewProtobuf(self, identifier):
-        warnings.warn('Use zenoss.protocols.queueschema.getNewProtobuf() instead', DeprecationWarning)
-        return queueschema.getNewProtobuf(identifier)
-
-    def hydrateProtobuf(self, protobuf_name, content):
-        warnings.warn('Use zenoss.protocols.queueschema.hydrateProtobuf() instead', DeprecationWarning)
-        return queueschema.hydrateProtobuf(protobuf_name, content)
-
-    def declareQueues(self, channel, replacements=None):
-        """
-        Iterates over every queue defined and establishes the
-        binding and the queue.
-
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever
-        """
-        for queue in queueschema.getQueues(replacements=replacements):
-            self.declareQueue(channel, queue.identifier, replacements=replacements)
-
-    def declareExchanges(self, channel, replacements=None):
-        """
-        Declares every exchange.
-
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever
-        """
-        for exchange in queueschema.getExchanges(replacements=replacements):
-            self.declareExchange(channel, exchange.identifier, replacements=replacements)
-
-    def declareQueue(self, channel, queueIdentifier, replacements=None):
-        """
-        Creates the queue and binds it to the exchange using the schema
-        configuration.
-
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp server
-        @type  queueIdentifier: string
-        @param queueIdentifier: The identifier of the queue we wish to create
-        @type replacements: dict
-        @param replacements: Replacement values to substitute in queue/binding/exchange configuration.
-        """
-        queueConfig = queueschema.getQueue(queueIdentifier, replacements)
-        qname = queueConfig.name
-
-        result = channel.queue_declare(queue=qname,
-                                       durable=queueConfig.durable,
-                                       exclusive=queueConfig.exclusive,
-                                       auto_delete=queueConfig.auto_delete,
-                                       arguments=queueConfig.arguments)
-
-        for identifier, binding in queueConfig.bindings.iteritems():
-            log.debug("Creating queue %s with routing_key %s to exchange  %s" % (
-                qname, binding.routing_key, binding.exchange.name))
-            channel.queue_bind(queue=qname,
-                               exchange=binding.exchange.name,
-                               routing_key=binding.routing_key,
-                               arguments=binding.arguments)
-        return result
-
-    def declareExchange(self, channel, exchangeIdentifier, replacements=None):
-        """
-        Declares the exchange using the schema configuration.
-
-        @type  channel: AMQPChannel
-        @param channel: The connection to the amqp server
-        @type  exchangeIdentifier: string
-        @param exchangeIdentifier: The identifier of the exchange we wish to create
-        @type replacements: dict
-        @param replacements: Replacement values to substitute in queue/binding/exchange configuration.
-        """
-        exchangeConfig = queueschema.getExchange(exchangeIdentifier, replacements)
-        log.debug("Creating exchange: %s" % exchangeConfig.name)
-        return channel.exchange_declare(exchangeConfig.name, exchangeConfig.type,
-                                        durable=exchangeConfig.durable,
-                                        auto_delete=exchangeConfig.auto_delete,
-                                        arguments=exchangeConfig.arguments)
-
     @property
     def host(self):
         return self._host
@@ -217,107 +127,4 @@ class AMQPConfig(object):
 
         return parser
 
-class TwistedAMQPConfig(AMQPConfig):
-    
-    _overridden = ['declareQueues','declareExchanges', 'declareQueue','declareExchange']
-    
-    def __init__(self, delegateConfig):
-        self._delegate = delegateConfig
-    
-    @inlineCallbacks
-    def declareQueues(self, channel, replacements=None):
-        """
-        Iterates over every queue defined and establishes the
-        binding and the queue.
-        
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp server
-        @type replacements: dict
-        @param replacements: Replacement values to substitute in queue/binding/exchange configuration.
-        """
-        for queue in queueschema.getQueues(replacements=replacements):
-            yield self.declareQueue(channel, queue.identifier, replacements)
-
-    @inlineCallbacks
-    def declareExchanges(self, channel, replacements=None):
-        """
-        Declares every exchange.
-        
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever
-        @type replacements: dict
-        @param replacements: Replacement values to substitute in queue/binding/exchange configuration.
-        """
-        for exchange in queueschema.getExchanges(replacements=replacements):
-            yield self.declareExchange(channel, exchange.identifier, replacements)
-
-    @inlineCallbacks
-    def declareQueue(self, channel, queueIdentifier, replacements=None):
-        """
-        Creates the queue and binds it to the exchange using the schema
-        configuration.
-        
-        @type  channel: AQMPChannel
-        @param channel: The connection to the amqp sever
-        @type  queueIdentifier: string
-        @param queueIdentifier: The identifier of the queue we wish to create
-        @type replacements: dict
-        @param replacements: Replacement values to substitute in queue/binding/exchange configuration.
-        """
-        queueConfig = queueschema.getQueue(queueIdentifier, replacements)
-        qname = queueConfig.name
-        result = yield channel.queue_declare(queue=qname,
-                                             durable=queueConfig.durable,
-                                             exclusive=queueConfig.exclusive,
-                                             auto_delete=queueConfig.auto_delete,
-                                             arguments=queueConfig.arguments)
-
-        for identifier, binding in queueConfig.bindings.iteritems():
-            log.debug("Creating queue %s with routing_key %s to exchange  %s" % (queueConfig.name,
-                                                                                 binding.routing_key,
-                                                                                 binding.exchange.name))
-            yield channel.queue_bind(queue=qname,
-                                     exchange=binding.exchange.name,
-                                     routing_key=binding.routing_key,
-                                     arguments=binding.arguments)
-        returnValue( result )
-
-    @inlineCallbacks
-    def declareExchange(self, channel, exchangeIdentifier, replacements=None):
-        """
-        Creates the exchange using the schema configuration.
-        
-        @type  channel: AMQPChannel
-        @param channel: The connection to the amqp sever
-        @type  exchangeIdentifier: string
-        @param exchangeIdentifier: The identifier of the exchange we wish to create
-        """
-        exchangeConfig = queueschema.getExchange(exchangeIdentifier, replacements)
-        log.debug("Creating exchange: %s" % exchangeConfig.name)
-        # AMQP 0.9.1 (which txAMQP uses) has deprecated auto-delete on exchanges
-        result = yield channel.exchange_declare(exchange=exchangeConfig.name,
-                                                type=exchangeConfig.type,
-                                                durable=exchangeConfig.durable,
-                                                arguments=exchangeConfig.arguments)
-        returnValue(result)
-        
-    def __getattribute__(self,name):
-        if name in object.__getattribute__(self,'_overridden'):
-            return object.__getattribute__(self, name)
-        else:
-            delegate = object.__getattribute__(self,'_delegate')
-            return delegate.__getattribute__(name)
-
-
-_CONFIGURATION  = AMQPConfig()
-_TWISTEDCONFIG = TwistedAMQPConfig(_CONFIGURATION)
-def setAMQPConfiguration(config):
-    _CONFIGURATION.update(config)
-    return _CONFIGURATION
-
-def getAMQPConfiguration():
-    return _CONFIGURATION
-
-def getTwistedAMQPConfiguration():
-    return _TWISTEDCONFIG
 

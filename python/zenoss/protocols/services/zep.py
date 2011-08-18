@@ -11,15 +11,13 @@
 #
 ###########################################################################
 
-import json
-import time
 import logging
-from zenoss.protocols.services import ProtobufRestServiceClient, JsonRestServiceClient, ServiceConnectionError
-from zenoss.protocols.jsonformat import to_dict, from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery, EventDetailSet
+from zenoss.protocols.services import ProtobufRestServiceClient, ServiceConnectionError
+from zenoss.protocols.jsonformat import from_dict
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
-from datetime import datetime, timedelta, tzinfo
+from datetime import timedelta
 
 log = logging.getLogger('zepclient')
 
@@ -41,8 +39,9 @@ class ZepServiceClient(object):
     _base_uri = '/zeneventserver/api/1.0/events/'
     _timeFormat = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-    def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
+    def __init__(self, uri, queueSchema):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, queueSchema,
+                                                connection_error_class=ZepConnectionError)
 
     def getEventSummariesFromArchive(self, offset=0, limit=100, keys=None,
                                      sort=None, filter=None,
@@ -57,7 +56,7 @@ class ZepServiceClient(object):
         Return a list of event summaries, optionally matching an EventFilter.
 
         @param filter EventFilter
-        @param list keys List of keys to return
+        @param keys List of keys to return
         """
         request = self._buildRequest(offset, limit, sort, filter,
                                      exclusion_filter)
@@ -218,8 +217,9 @@ class ZepConfigClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/config/'
 
-    def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
+    def __init__(self, uri, queueSchema):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, queueSchema,
+                                                connection_error_class=ZepConnectionError)
 
     def defaultConfig(self, config):
         
@@ -270,13 +270,13 @@ class ZepConfigClient(object):
 
     def addIndexedDetails(self, detailItemSet):
         """
-        @type eventDetailItem: zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet
+        @type detailItemSet: zenoss.protocols.protobufs.zep_pb2.EventDetailItemSet
         """
         return self.client.post('index_details', body=detailItemSet)
 
     def updateIndexedDetail(self, item):
         """
-        @type eventDetailItem: zenoss.protocols.protobufs.zep_pb2.EventDetailItem
+        @type item: zenoss.protocols.protobufs.zep_pb2.EventDetailItem
         """
         log.debug("Updating a detail item: '%s'" % item.key)
         return self.client.put('index_details/%s' % item.key, body=item)
@@ -292,8 +292,9 @@ class ZepHeartbeatClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/heartbeats/'
 
-    def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
+    def __init__(self, uri, queueSchema):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, queueSchema,
+                                                connection_error_class=ZepConnectionError)
 
     def getHeartbeats(self, monitor=None):
         uri = monitor if monitor else ''

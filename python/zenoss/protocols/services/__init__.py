@@ -17,7 +17,6 @@ import urlparse
 import urllib
 import socket
 import errno
-from zenoss.protocols import queueschema
 
 class ServiceException(Exception):
     pass
@@ -36,8 +35,8 @@ class ServiceResponseError(ServiceException):
 class ServiceConnectionError(ServiceException):
     def __init__(self, message, error):
         """
-        @param str message The error message
-        @param Exception error The originating error (usually a socket.error)
+        @param message The error message
+        @param error The originating error (usually a socket.error)
         """
         self.error = error
         super(ServiceConnectionError, self).__init__(message)
@@ -161,8 +160,9 @@ class ProtobufSerializer(RestSerializer):
     _content_type = 'application/x-protobuf'
     _protobuf_header = 'X-Protobuf-FullName'
 
-    def __init__(self, protobuf_schema=None):
-        self._protobuf_schema = protobuf_schema or queueschema
+    def __init__(self, protobuf_schema):
+        super(RestSerializer, self).__init__()
+        self._protobuf_schema = protobuf_schema
 
     def _get_headers(self, protobuf):
         return {
@@ -192,9 +192,9 @@ class ProtobufRestServiceClient(RestServiceClient):
         'Accept' : ProtobufSerializer._content_type,
     }
 
-    def __init__(self, uri, schema=None, connection_error_class=ServiceConnectionError, **kwargs):
-        self._serializer = ProtobufSerializer(schema)
+    def __init__(self, uri, queueSchema, connection_error_class=ServiceConnectionError, **kwargs):
         super(ProtobufRestServiceClient, self).__init__(uri, connection_error_class=connection_error_class, **kwargs)
+        self._serializer = ProtobufSerializer(queueSchema)
 
 
 class JsonSerializer(RestSerializer):
@@ -212,6 +212,6 @@ class JsonSerializer(RestSerializer):
 
 class JsonRestServiceClient(RestServiceClient):
 
-    def __init__(self, uri, schema=None, connection_error_class=ServiceConnectionError, **kwargs):
-        self._serializer = JsonSerializer()
+    def __init__(self, uri, connection_error_class=ServiceConnectionError, **kwargs):
         super(JsonRestServiceClient, self).__init__(uri, connection_error_class=connection_error_class, **kwargs)
+        self._serializer = JsonSerializer()

@@ -21,8 +21,8 @@ from txamqp.queue import Closed
 from txamqp.protocol import AMQClient
 from txamqp.client import TwistedDelegate
 from txamqp.content import Content
-from zenoss.protocols.amqpconfig import getTwistedAMQPConfiguration
-
+from zope.component import getAdapter
+from zenoss.protocols.interfaces import IAMQPChannelAdapter
 
 log = logging.getLogger('zen.protocols.twisted')
 
@@ -53,13 +53,13 @@ class AMQProtocol(AMQClient):
         Hook called when the connection is made; we'll use this to perform
         exchange setup, etc.
         """
-        config = getTwistedAMQPConfiguration()
+        connectionInfo = self.factory.connectionInfo
         AMQClient.connectionMade(self)
         log.debug('Made initial connection to message broker')
         self._connected = False
         # Authenticate
-        yield self.start({'LOGIN':config.user, 'PASSWORD':config.password})
-        log.debug('Successfully authenticated as %s' % config.user)
+        yield self.start({'LOGIN':connectionInfo.user, 'PASSWORD':connectionInfo.password})
+        log.debug('Successfully authenticated as %s' % connectionInfo.user)
         # Get a channel
         self.chan = yield self.get_channel()
         self._connected = True
@@ -85,16 +85,16 @@ class AMQProtocol(AMQClient):
         returnValue(chan)
 
     @inlineCallbacks
-    def listen_to_queue(self, exchange, exchange_type, routing_key, queue_name, callback):
+    def listen_to_queue(self, queue, callback):
         """
         Get a queue and register a callback to be executed when a message is
         received, then begin listening.
         """
         if self.is_connected():
-            queue = yield self.get_queue(exchange, exchange_type, routing_key, queue_name)
-            log.debug('Listening to queue %s.%s' % (exchange, routing_key))
+            twisted_queue = yield self.get_queue(queue)
+            log.debug('Listening to queue %s' % queue.name)
             # Start the recursive call to listen for messages
-            yield self.processMessages(queue, callback)
+            yield self.processMessages(twisted_queue, callback)
 
     @inlineCallbacks
     def begin_listening(self):
@@ -103,31 +103,27 @@ class AMQProtocol(AMQClient):
         to them.
         """
         log.debug('Binding to %s queues' % len(self.factory.queues))
-        for exchange, exchange_type, routing_key, queue_name, cb in self.factory.queues:
-            yield self.listen_to_queue(exchange, exchange_type, routing_key, queue_name, cb)
+        for queue, cb in self.factory.queues:
+            yield self.listen_to_queue(queue, cb)
 
     @inlineCallbacks
-    def get_queue(self, exchange, exchange_type, routing_key, queue_name):
+    def get_queue(self, queue):
         """
         Perform all the setup to get a queue, then return it.
         """
-        yield self.create_queue(exchange, queue_name)
+        yield self.create_queue(queue)
 
         # Start consuming from the queue (this actually creates it)
-        yield self.chan.basic_consume(queue=queue_name,
-                                      consumer_tag=queue_name)
+        result = yield self.chan.basic_consume(queue=queue.name)
+
         # Go get the queue and return it
-        queue = yield self.queue(queue_name)
+        queue = yield self.queue(result[0]) # result[0] contains the consumer tag
         returnValue(queue)
 
     @inlineCallbacks
-    def create_queue(self, exchangeIdentifier, queueIdentifier):
-        # Declare the exchange
-        config = getTwistedAMQPConfiguration()
-        yield config.declareExchange(self.chan, exchangeIdentifier)
-
+    def create_queue(self, queue):
         # Declare the queue
-        yield config.declareQueue(self.chan, queueIdentifier)
+        yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
 
     @inlineCallbacks
     def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False):
@@ -142,9 +138,12 @@ class AMQProtocol(AMQClient):
                     name=msg.DESCRIPTOR.full_name
                     ),
                 }
-        config = getTwistedAMQPConfiguration()
+        
+        queueSchema = self.factory.queueSchema
+        exchangeConfig = queueSchema.getExchange(exchange)
+
         # Declare the exchange to which the message is being sent
-        yield config.declareExchange(self.chan, exchange)
+        yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
         # Wrap the message in our Content subclass
         content = PersistentMessage(body)
@@ -153,7 +152,6 @@ class AMQProtocol(AMQClient):
         content.properties['content-type'] = 'application/x-protobuf'
 
         # Publish away
-        exchangeConfig = config.getExchange(exchange)
         yield self.chan.basic_publish(exchange=exchangeConfig.name,
                                       routing_key=routing_key,
                                       content=content,
@@ -214,15 +212,16 @@ class AMQPFactory(ReconnectingClientFactory):
     """
     protocol = AMQProtocol
 
-    def __init__(self):
+    def __init__(self, amqpConnectionInfo, queueSchema):
         with open(pathjoin(dirname(__file__), 'amqp0-9-1.xml')) as f:
             self.spec = spec.load(f)
             log.debug('Loaded AMQP spec')
-        config = getTwistedAMQPConfiguration()
-        self.vhost = config.vhost
-        self.host = config.host
-        self.port = config.port
-        self.usessl = config.usessl
+        self.connectionInfo = amqpConnectionInfo
+        self.queueSchema = queueSchema
+        self.vhost = self.connectionInfo.vhost
+        self.host = self.connectionInfo.host
+        self.port = self.connectionInfo.port
+        self.usessl = self.connectionInfo.usessl
         self.delegate = TwistedDelegate()
         self.queues = []
         self.messages = []
@@ -250,21 +249,17 @@ class AMQPFactory(ReconnectingClientFactory):
         self.resetDelay()
         return self.p
 
-    def listen(self, exchange, exchange_type, routing_key, queue_name, callback):
+    def listen(self, queue, callback):
         """
         Listen to a queue.
 
-        @param exchange: The exchange to send to
-        @type exchange: str
-        @param exchange_type: The type of the exchange.
-        @type exchange_type: str
-        @param routing_key: The routing_key for the message
-        @type routing_key: str
+        @param queue: The queue to listen to.
+        @type queue: zenoss.protocols.queueschema.Queue
         @param callback: The function to be called when a message is received
         in this queue.
-        @type message: callable
+        @type callback: callable
         """
-        args = exchange, exchange_type, routing_key, queue_name, callback
+        args = queue, callback
         self.queues.append(args)
         if self.p is not None:
             self.p.listen_to_queue(*args)
@@ -277,7 +272,7 @@ class AMQPFactory(ReconnectingClientFactory):
         from that buffer.
 
         @param exchangeIdentifier: The exchange to send to
-        @type exchange: str
+        @type exchangeIdentifier: str
         @param routing_key: The routing_key for the message
         @type routing_key: str
         @param message: The message to send
@@ -312,21 +307,12 @@ class AMQPFactory(ReconnectingClientFactory):
     def channel(self):
         return self.p.chan
 
-    def createQueue(self, exchange, queueIdentifier):
-        def doCreateQueue(value):
-            return self.p.create_queue(exchange,  queueIdentifier)
+    def createQueue(self, queueIdentifier, replacements=None):
+        queue = self.queueSchema.getQueue(queueIdentifier, replacements)
         if self.p is not None:
-            return doCreateQueue(None)
+            return self.p.create_queue(queue)
         else:
+            def doCreateQueue(value):
+                return self.p.create_queue(queue)
             self._onConnectionMade.addCallback(doCreateQueue)
             return self._onConnectionMade
-
-
-def test():
-    def cb(m):
-        print "Received: %r" % m
-    amqp = AMQPFactory()
-    amqp.listen(exchange='zenoss.dependencies',
-                routing_key='graphchanges',
-                callback=cb)
-    reactor.run()

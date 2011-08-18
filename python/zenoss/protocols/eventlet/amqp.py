@@ -12,9 +12,10 @@
 ###########################################################################
 
 import logging
+from zope.component import getAdapter
+from zenoss.protocols import hydrateQueueMessage
+from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.queueschema import SchemaException
-from zenoss.protocols import queueschema, hydrateQueueMessage
-from zenoss.protocols.amqpconfig import getAMQPConfiguration
 
 from eventlet import patcher
 from eventlet.green import socket
@@ -41,12 +42,15 @@ class Publishable(object):
 
 
 class PubSub(object):
-    def __init__(self, connection, queueName):
+    def __init__(self, connection, queueSchema, queueName):
+        # Resolve the real queue name and not the identifier
+        if queueName:
+            queueName = queueSchema.getQueue(queueName).name
         self._connection = connection
         self._channel = None
+        self._queueSchema = queueSchema
         self._queueName = queueName
         self._run = False
-        self._bindings = {}
         self._exchanges = set()
 
     def registerExchange(self, exchange):
@@ -61,24 +65,13 @@ class PubSub(object):
     def _processMessage(self, message):
         raise NotImplementedError()
 
-    def bind(self, exchange, routingKeys):
-        if not isinstance(routingKeys, list):
-            routingKeys = list(routingKeys)
-
-        if exchange not in self._bindings:
-            self._bindings[exchange] = set([])
-
-        self._bindings[exchange].update(routingKeys)
-
     def _bind(self):
-        config = getAMQPConfiguration()
+        queueConfig = self._queueSchema.getQueue(self._queueName)
+        getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig)
 
         for outboundExchange in self._exchanges:
-            config.declareExchange(self.channel, outboundExchange)
-
-        for inboundExchange, routingKeys in self._bindings.iteritems():
-            config.declareExchange(self.channel, inboundExchange)
-            config.declareQueue(self.channel, self._queueName)
+            exchangeConfig = self._queueSchema.getExchange(outboundExchange)
+            getAdapter(self.channel, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
     @property
     def channel(self):
@@ -120,22 +113,12 @@ class PubSub(object):
 
 
 class ProtobufPubSub(PubSub):
-    def __init__(self, connection, queueName):
-        queue = None
-        if queueName:
-            queue = queueschema.getQueue(queueName)
-            queueName = queue.name
-
-        super(ProtobufPubSub, self).__init__(connection, queueName)
-
-        if queue:
-            for binding in queue.bindings.values():
-                self.bind(binding.exchange.name, binding.routing_key)
-
+    def __init__(self, connection, queueSchema, queueName):
+        super(ProtobufPubSub, self).__init__(connection, queueSchema, queueName)
         self._handlers = {}
 
     def registerHandler(self, contentType, handler):
-        fullName = queueschema.getContentType(contentType).protobuf_name
+        fullName = self._queueSchema.getContentType(contentType).protobuf_name
         self._handlers[fullName] = handler
 
     def buildMessage(self, obj, headers=None):
@@ -155,13 +138,13 @@ class ProtobufPubSub(PubSub):
     def publish(self, publishable):
 
         publishable.message = self.buildMessage(publishable.message)
-        publishable.exchange = queueschema.getExchange(publishable.exchange).name
+        publishable.exchange = self._queueSchema.getExchange(publishable.exchange).name
 
         return super(ProtobufPubSub, self).publish(publishable)
 
     def _processMessage(self, message):
         try:
-            proto = hydrateQueueMessage(message)
+            proto = hydrateQueueMessage(message, self._queueSchema)
 
             try:
                 handler = self._handlers[proto.DESCRIPTOR.full_name]
@@ -179,16 +162,15 @@ class ProtobufPubSub(PubSub):
             message.ack()
 
 
-def getProtobufPubSub(queue, connection=None):
+def getProtobufPubSub(amqpConnectionInfo, queueSchema, queue, connection=None):
     if connection is None:
-        config = getAMQPConfiguration()
         connection = Connection(
-            host = '%s:%d' % (config.host, config.port),
-            userid = config.user,
-            password = config.password,
-            ssl = config.usessl,
-            virtual_host = config.vhost
+            host = '%s:%d' % (amqpConnectionInfo.host, amqpConnectionInfo.port),
+            userid = amqpConnectionInfo.user,
+            password = amqpConnectionInfo.password,
+            ssl = amqpConnectionInfo.usessl,
+            virtual_host = amqpConnectionInfo.vhost
         )
-    pubsub = ProtobufPubSub(connection, queue)
+    pubsub = ProtobufPubSub(connection, queueSchema, queue)
     return pubsub
 

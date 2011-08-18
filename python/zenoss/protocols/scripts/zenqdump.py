@@ -13,17 +13,17 @@
 
 import logging
 import pkg_resources # Import this so zenoss.protocols will be found
-from zenoss.protocols.queueschema import schema, SchemaException
-from zenoss.protocols.amqpconfig import AMQPConfig, getAMQPConfiguration
+from zenoss.protocols.queueschema import Schema, SchemaException
+from zenoss.protocols.data.queueschema import SCHEMA
+from zenoss.protocols.amqpconfig import AMQPConfig
 from zenoss.protocols import hydrateQueueMessage
 from zenoss.protocols.amqp import Publisher
-from zenoss.protocols.scripts.zenqinit import Initializer, \
-    initLogging, addLoggingOptions
+from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions
 from zenoss.protocols.jsonformat import to_json
-from zenoss.protocols import queueschema
 from struct import pack, unpack
 from base64 import b64encode
 import select
+from amqplib.client_0_8.exceptions import AMQPException
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class FormatError(Exception):
     pass
 
 class Formatter(object):
-    def dump(self, message, queueName, stream):
+    def dump(self, message, schema, queueName, stream):
         raise NotImplementedError()
 
     def dumpHeader(self, key, value, stream):
@@ -41,30 +41,45 @@ class Formatter(object):
         for k, v in message.application_headers.iteritems():
             self.dumpHeader(k, v, stream)
 
+HEADER_CONTENT_TYPE = 'Content-Type'
+HEADER_CONTENT_LENGTH = 'Content-Length'
+HEADER_CONTENT_TRANSFER_ENCODING = 'Content-Transfer-Encoding'
+HEADER_QUEUE_NAME = 'X-Queue-Name'
+HEADER_EXCHANGE_NAME = 'X-Exchange-Name'
+HEADER_ROUTING_KEY = 'X-Routing-Key'
+HEADER_ORIGINAL_CONTENT_TYPE = 'X-Original-Content-Type'
+HEADER_PROTOBUF_FULL_NAME = 'X-Protobuf-FullName'
+
+CONTENT_TYPE_JSON = 'application/json'
+CONTENT_TYPE_PROTOBUF = 'application/x-protobuf'
 
 class JsonFormatter(Formatter):
     """
     Outputs HTTP style headers with information about the queue state of the message
     along with a JSON formatted message.
     """
-    def dump(self, message, queueName, stream):
+    def dump(self, message, schema, queueName, stream):
+        routing_key = message.delivery_info['routing_key']
+        exchange = message.delivery_info['exchange']
         try:
-            proto = hydrateQueueMessage(message)
+            proto = hydrateQueueMessage(message, schema)
         except SchemaException:
             log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
             return
 
         self.dumpHeaders(message, stream)
-        self.dumpHeader('X-Queue-Name', queueName, stream)
+        self.dumpHeader(HEADER_EXCHANGE_NAME, exchange, stream)
+        self.dumpHeader(HEADER_ROUTING_KEY, routing_key, stream)
+        self.dumpHeader(HEADER_QUEUE_NAME, queueName, stream)
 
         contentType = message.properties.get('content_type', None)
         if contentType:
-            self.dumpHeader('X-Original-Content-Type', contentType, stream)
+            self.dumpHeader(HEADER_ORIGINAL_CONTENT_TYPE, contentType, stream)
 
-        self.dumpHeader('Content-Type', 'application/json', stream)
+        self.dumpHeader(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON, stream)
 
-        data = to_json(proto)
-        self.dumpHeader('Content-Length', len(data), stream)
+        data = to_json(proto, indent=2)
+        self.dumpHeader(HEADER_CONTENT_LENGTH, len(data), stream)
 
         stream.write('\n')
         stream.write(data)
@@ -75,28 +90,30 @@ class ProtobufFormatter(Formatter):
     Outputs HTTP style headers with information about the queue state of the message
     along with a base64 encoded protobuf message.
     """
-    def dump(self, message, queueName, stream):
+    def dump(self, message, schema, queueName, stream):
+        routing_key = message.delivery_info['routing_key']
+        exchange = message.delivery_info['exchange']
         try:
             # Make sure we can read it in, then convert back to string
-            proto = hydrateQueueMessage(message)
+            proto = hydrateQueueMessage(message, schema)
         except SchemaException:
             log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
             return
 
-        proto = hydrateQueueMessage(message)
-
         self.dumpHeaders(message, stream)
-        self.dumpHeader('X-Queue-Name', queueName, stream)
+        self.dumpHeader(HEADER_EXCHANGE_NAME, exchange, stream)
+        self.dumpHeader(HEADER_ROUTING_KEY, routing_key, stream)
+        self.dumpHeader(HEADER_QUEUE_NAME, queueName, stream)
 
         contentType = message.properties.get('content_type', None)
-        if contentType != 'application/x-protobuf':
-            self.dumpHeader('X-Original-Content-Type', contentType, stream)
+        if contentType != CONTENT_TYPE_PROTOBUF:
+            self.dumpHeader(HEADER_ORIGINAL_CONTENT_TYPE, contentType, stream)
 
-        self.dumpHeader('Content-Type', 'application/x-protobuf', stream)
-        self.dumpHeader('Content-Transfer-Encoding', 'base64', stream)
+        self.dumpHeader(HEADER_CONTENT_TYPE, CONTENT_TYPE_PROTOBUF, stream)
+        self.dumpHeader(HEADER_CONTENT_TRANSFER_ENCODING, 'base64', stream)
 
         data = b64encode(proto.SerializeToString())
-        self.dumpHeader('Content-Length', len(data), stream)
+        self.dumpHeader(HEADER_CONTENT_LENGTH, len(data), stream)
 
         stream.write('\n')
         stream.write(data)
@@ -138,11 +155,11 @@ class ProtobufStreamFormatter(Formatter):
             return raw.decode(encoding)
         return raw
 
-    def dump(self, message, queueName, stream):
+    def dump(self, message, schema, queueName, stream):
         # Make sure we can read it in, then convert back to string
         routing_key = message.delivery_info['routing_key']
         exchange = message.delivery_info['exchange']
-        proto = hydrateQueueMessage(message)
+        proto = hydrateQueueMessage(message, schema)
         type = proto.DESCRIPTOR.full_name
 
         payload = proto.SerializeToString()
@@ -155,7 +172,7 @@ class ProtobufStreamFormatter(Formatter):
         stream.write(pack('>I%dsB' % size, size, payload, 0xce))
 
 
-    def read(self, stream):
+    def read(self, schema, stream):
         while True:
             r, w, x = select.select([stream], [], [])
             if r and r[0] == stream:
@@ -173,7 +190,7 @@ class ProtobufStreamFormatter(Formatter):
                 if ch != '\xce':
                     raise FormatError('Received 0x%02x while expecting 0xce' % ord(ch))
 
-                yield exchange, routing_key, queueschema.hydrateProtobuf(type, payload)
+                yield exchange, routing_key, schema.hydrateProtobuf(type, payload)
 
 
 _FORMATTERS = {
@@ -183,15 +200,13 @@ _FORMATTERS = {
 }
 
 class Dumper(object):
-    def __init__(self, stream, formatter, channel=None, acknowledge=False):
+    def __init__(self, stream, formatter, channel, schema, acknowledge=False, skip=False):
         self.acknowledge = acknowledge
         self.stream = stream
         self.formatter = formatter
-
-        if channel:
-            self.channel = channel
-        else:
-            self.channel = Publisher().getChannel()
+        self.skip = skip
+        self.channel = channel
+        self.schema = schema
 
     def dumpMessage(self, msg, queueName):
         """
@@ -199,51 +214,47 @@ class Dumper(object):
         """
         # display the protobuf
         try:
-            self.formatter.dump(msg, queueName, self.stream)
+            self.formatter.dump(msg, self.schema, queueName, self.stream)
         except FormatError as e:
             # just display the message body
             log.error('Could not format message body: %s' % e)
             log.debug(msg.body)
 
-        if self.acknowledge:
-            log.info('Acknowledging message %s' % msg.delivery_info['delivery_tag'])
-            self.channel.basic_ack(msg.delivery_info['delivery_tag'])
-
-    def dumpQueue(self, queueConfig, limit=None):
-        """
-        This binds the queue to the exchange and then attempts to read all
-        the messages off of the queue. The messages are never acknowledged
-        so they can be read multiple times
-        """
-        qname = queueConfig.name
-        msg = self.channel.basic_get(qname)
+    def dumpQueue(self, queueName, limit=None):
+        try:
+            msg = self.channel.basic_get(queueName)
+        except AMQPException, e:
+            log.error("%s (%s)", e.amqp_reply_text, e.amqp_reply_code)
+            return
         if msg:
             # read everything from the queue
-            log.info("Receiving messages from queue: %s", qname)
+            log.info("Receiving messages from queue: %s (%d available)", queueName,
+                     msg.delivery_info['message_count']+1)
             num = 0
             while msg:
                 num += 1
-                log.info('Dumping message %s' % msg.delivery_info['delivery_tag'])
-                self.dumpMessage(msg, qname)
+                if not self.skip:
+                    log.info('Dumping message %s' % msg.delivery_info['delivery_tag'])
+                    self.dumpMessage(msg, queueName)
+
+                if self.acknowledge:
+                    log.info('Acknowledging message %s' % msg.delivery_info['delivery_tag'])
+                    self.channel.basic_ack(msg.delivery_info['delivery_tag'])
 
                 if limit and num >= limit:
                     log.info('Matched dump limit of %d items' % limit)
                     return
 
-                msg = self.channel.basic_get(qname)
+                msg = self.channel.basic_get(queueName)
+        else:
+            log.info("Queue %s is empty", queueName)
 
-        log.info("Queue %s is empty", qname)
-
-    def dumpQueues(self, queueNames=None, limit=None):
+    def dumpQueues(self, queueNames, limit=None):
         """
-        This sets up the AMQP connection, declares the exchanges and then
-        proceeds to dump each queue
+        This dumps the specified queues.
         """
-        Initializer(self.channel).init()
-
-        # dump queues
-        for queueConfig in schema.getQueues(queueNames):
-            self.dumpQueue(queueConfig, limit)
+        for queueName in queueNames:
+            self.dumpQueue(queueName, limit)
 
 def usage():
     return """
@@ -253,7 +264,7 @@ def usage():
 
     Example:
 
-        %prog -u guest -p guest -H localhost -V / -Q '$RawZenEvents'
+        %prog -u guest -p guest -H localhost -V / zenoss.queues.zep.rawevents
     """
 
 def main():
@@ -261,40 +272,40 @@ def main():
     import sys
     parser = OptionParser(usage=usage())
 
-    parser.add_option('-Q', '--queues', type='string', dest='queues',
-                      help="Queue to connect to", action='append')
     parser.add_option("-A", '--ack', action="store_true", dest="acknowledge",
                        help="Acknowledge the message, acknowledging a message will remove it from the queue")
-
     parser.add_option('-F', '--format', type='string', dest='format', default='json',
                        help='Format to dump the messages in (%s)' % ', '.join(_FORMATTERS.keys()))
-
-    parser.add_option('-L', '--list', action='store_true', dest='list',
-                       help='List the availible queues')
-
     parser.add_option('-M', '--max', type='int', dest='max_items',
                        help='Maximum items to dump')
+    parser.add_option('-S', '--skip', action="store_true", dest="skip",
+                      help="Skip processing messages on the queue - use with --ack to clear a queue.")
 
     parser = AMQPConfig.addOptionsToParser(parser)
     parser = addLoggingOptions(parser)
 
     options, args = parser.parse_args()
+    if not args:
+        parser.error("Require one or more queues as arguments")
+    
+    if options.skip and not options.acknowledge:
+        parser.error("Option --skip must be used with --ack")
 
-    if options.list:
-        for queue in queueschema.getQueues():
-            print '%s - %s' % (queue.identifier, queue.name)
-        return
+    amqpConnectionInfo = AMQPConfig()
+    amqpConnectionInfo.update(options)
+    schema = Schema(SCHEMA) # TODO: Allow loading ZenPack schemas from command-line options
 
     try:
         formatter = _FORMATTERS[options.format.lower()]
     except KeyError:
         parser.error('Invalid format "%s"' % options.format)
 
-    getAMQPConfiguration().update(options)
     initLogging(options)
 
-    dumper = Dumper(acknowledge=options.acknowledge, stream=sys.stdout, formatter=formatter)
-    dumper.dumpQueues(queueNames=options.queues, limit=options.max_items)
+    publisher = Publisher(amqpConnectionInfo, schema)
+    dumper = Dumper(sys.stdout, formatter, publisher.getChannel(), schema, acknowledge=options.acknowledge,
+                    skip=options.skip)
+    dumper.dumpQueues(args, limit=options.max_items)
 
 if __name__ == "__main__":
     main()

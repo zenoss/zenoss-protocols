@@ -65,8 +65,8 @@ class Serializer(object):
 
 to_dict = Serializer()
 
-def to_json(message):
-    return dumps(to_dict(message))
+def to_json(message, indent=None):
+    return dumps(to_dict(message), indent=indent)
 
 class Deserializer(object):
     """

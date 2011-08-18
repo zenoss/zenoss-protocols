@@ -15,6 +15,8 @@ import unittest
 import pkg_resources # Import this so zenoss.protocols will be found
 from zenoss.protocols.services.triggers import TriggerServiceClient
 from zenoss.protocols.jsonformat import from_dict
+from zenoss.protocols.queueschema import Schema
+from zenoss.protocols.data.queueschema import SCHEMA
 from zenoss.protocols.protobufs.zep_pb2 import EventTrigger, EventTriggerSet, EventTriggerSubscriptionSet, RULE_TYPE_JYTHON
 import BaseHTTPServer
 import threading
@@ -123,8 +125,10 @@ class TriggerServiceTest(unittest.TestCase):
         thread.daemon = True
         thread.start()
 
+        self.schema = Schema(SCHEMA)
+
         # Connect the client to the random port
-        self.client = TriggerServiceClient('http://localhost:%d' % self.port)
+        self.client = TriggerServiceClient('http://localhost:%d' % self.port, self.schema)
 
     def test_get_triggers(self):
         response, content = self.client.getTriggers()

@@ -13,11 +13,12 @@
 
 import logging
 import pkg_resources # Import this so zenoss.protocols will be found
-from zenoss.protocols.amqpconfig import AMQPConfig, getAMQPConfiguration
+from zenoss.protocols.amqpconfig import AMQPConfig
+from zenoss.protocols.data.queueschema import SCHEMA
 from zenoss.protocols.eventlet.amqp import getProtobufPubSub, Publishable
+from zenoss.protocols.queueschema import Schema
 from zenoss.protocols.scripts.zenqdump import ProtobufStreamFormatter
-from zenoss.protocols.scripts.zenqinit import Initializer, \
-    initLogging, addLoggingOptions
+from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions
 from zenoss.protocols.jsonformat import to_json
 
 log = logging.getLogger(__name__)
@@ -27,18 +28,13 @@ _FORMATTERS = {
 }
 
 class Loader(object):
-    def __init__(self, stream, formatter, publisher=None):
+    def __init__(self, stream, formatter, schema, publisher):
         self.stream = stream
         self.formatter = formatter
-
-        if publisher:
-            self.publisher = publisher
-        else:
-            self.publisher = getProtobufPubSub(None)
+        self.schema = schema
+        self.publisher = publisher
 
     def load(self):
-        Initializer(self.publisher.channel).init()
-
         for i, (exchange, routingKey, proto) in enumerate(self.formatter.read(self.stream)):
             log.info('Publishing message %d to %s with routing key %s' % (i + 1, exchange, routingKey))
             log.debug('Message: %s' % to_json(proto))
@@ -79,10 +75,14 @@ def main():
     except KeyError:
         parser.error('Invalid format "%s"' % options.format)
 
-    getAMQPConfiguration().update(options)
     initLogging(options)
 
-    loader = Loader(stream=sys.stdin, formatter=formatter)
+    amqpConnectionInfo = AMQPConfig()
+    amqpConnectionInfo.update(options)
+    schema = Schema(SCHEMA) # TODO: Allow loading ZenPack schemas from command-line options
+    publisher = getProtobufPubSub(amqpConnectionInfo, schema, None)
+
+    loader = Loader(sys.stdin, formatter, schema, publisher)
 
     try:
         loader.load()
