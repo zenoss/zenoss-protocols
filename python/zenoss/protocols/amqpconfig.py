@@ -32,28 +32,23 @@ class AMQPConfig(object):
         dict(short_opt='V', long_opt='amqpvhost', type='string', key='vhost', default='/zenoss', help='Rabbitmq server virtual host'),
         dict(short_opt='u', long_opt='amqpuser', type='string', key='user', default='zenoss', help='User to connect as'),
         dict(short_opt='p', long_opt='amqppassword', type='string', key='password', default='zenoss', help='Password to connect with'),
-        dict(short_opt='s', long_opt='amqpusessl', type='int', key='usessl', default=False, help='User SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
+        dict(short_opt='s', long_opt='amqpusessl', action='store_true', key='usessl', default=False, help='Use SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
     ]
 
-    def __init__(self, **kwargs):
+    def __init__(self, amqphost='localhost', amqpport=5672, amqpvhost='/zenoss', amqpuser='zenoss',
+                 amqppassword='zenoss', amqpusessl=False):
         """
         Initialize with optional settings as keyword arguments.
         
         See AMQPConfig._options for list of valid options.
         """
-        self._host = None
-        self._port = None
-        self._vhost = None
-        self._user = None
-        self._password = None
-        self._usessl = None
+        self._host = amqphost
+        self._port = amqpport
+        self._vhost = amqpvhost
+        self._user = amqpuser
+        self._password = amqppassword
+        self._usessl = amqpusessl
         self._optionMap = None
-
-        defaults = dict([(o['key'], o['default']) for o in self._options])
-        if kwargs:
-            defaults.update(kwargs)
-
-        self.update(defaults)
 
     def _getOptionMap(self):
         """
@@ -118,11 +113,11 @@ class AMQPConfig(object):
             parser.add_option(
                 '-' + option['short_opt'],
                 '--' + option['long_opt'],
-                type=option['type'],
+                type=option.get('type'),
                 dest=option['long_opt'],
                 help=option['help'],
                 default=option['default'],
-                action='store',
+                action=option.get('action', 'store'),
             )
 
         return parser

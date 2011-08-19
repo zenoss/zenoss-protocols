@@ -126,18 +126,14 @@ class AMQProtocol(AMQClient):
         yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False):
+    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False, headers=None):
         body = msg
-        headers = {}
+        headers = headers if headers else {}
 
         # it is a protobuf
         if not isinstance(msg, basestring):
             body = msg.SerializeToString()
-            headers = {
-                'X-Protobuf-FullName':'{name}'.format(
-                    name=msg.DESCRIPTOR.full_name
-                    ),
-                }
+            headers['X-Protobuf-FullName'] = msg.DESCRIPTOR.full_name
         
         queueSchema = self.factory.queueSchema
         exchangeConfig = queueSchema.getExchange(exchange)
@@ -264,7 +260,7 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False):
+    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False, headers=None):
         """
         Send a C{message} to exchange C{exchange}.
 
@@ -276,9 +272,15 @@ class AMQPFactory(ReconnectingClientFactory):
         @param routing_key: The routing_key for the message
         @type routing_key: str
         @param message: The message to send
-        @type message:str
+        @type message: str
+        @param mandatory: Whether the mandatory bit should be set.
+        @type mandatory: bool
+        @param immediate: Whether the immediate bit should be set.
+        @type immediate: bool
+        @param headers: The message headers used when publishing the message.
+        @type headers: dict
         """
-        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate))
+        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate, headers))
         if self.p is not None:
             return self.p.send()
         else:
