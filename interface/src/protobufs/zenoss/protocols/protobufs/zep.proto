@@ -301,6 +301,7 @@ message EventSummaryUpdate {
     optional string current_user_name = 3;
 
     extensions 1000 to max;
+    // extensions 1000-1099 are reserved for the GOM zenpack
 }
 
 
