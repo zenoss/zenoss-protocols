@@ -297,13 +297,20 @@ class AMQPFactory(ReconnectingClientFactory):
         """
         Disconnect completely and call back our connectionLost Deferred.
         """
+        isConnected = (self.connector.state == 'connected')
         self.connector.disconnect()
         self.stopTrying()
-        shutdownDeferred = Deferred()
-        def connectionShut(result):
-            shutdownDeferred.callback("connection shut down")
-        self._onConnectionLost.addBoth(connectionShut)
-        return shutdownDeferred
+
+        # If we are connected, then wait for connection to be closed.
+        if isConnected:
+            shutdownDeferred = Deferred()
+            def connectionShut(result):
+                log.debug("Connection Shut: %s", result)
+                shutdownDeferred.callback("connection shut down")
+            self._onConnectionLost.addBoth(connectionShut)
+            return shutdownDeferred
+
+        return defer.succeed(None)
 
     @property
     def channel(self):
@@ -318,3 +325,11 @@ class AMQPFactory(ReconnectingClientFactory):
                 return self.p.create_queue(queue)
             self._onConnectionMade.addCallback(doCreateQueue)
             return self._onConnectionMade
+
+    def clientConnectionFailed(self, connector, reason):
+        log.debug('Client connection failed: %s', reason)
+        ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
+
+    def clientConnectionLost(self, connector, reason):
+        log.debug('Client connection lost: %s', reason)
+        ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
