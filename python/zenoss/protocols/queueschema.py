@@ -25,11 +25,6 @@ __all__ = [
     'Queue',
     'Exchange',
     'Schema',
-    'getContentType',
-    'getNewProtobuf',
-    'hydrateProtobuf',
-    'getExchange',
-    'getQueue',
 ]
 
 class SchemaException(Exception):
