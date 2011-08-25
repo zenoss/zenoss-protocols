@@ -303,3 +303,16 @@ class ZepHeartbeatClient(object):
     def deleteHeartbeats(self, monitor=None):
         uri = monitor if monitor else ''
         return self.client.delete(uri)
+
+class ZepEventTimeClient(object):
+
+    _base_uri = '/zeneventserver/api/1.0/eventtime/'
+
+    def __init__(self, uri):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
+
+    def getEventTimesSince(self, timestamp=0, limit=1000):
+        uri="since"
+        params = dict(time=timestamp,
+              limit=limit,)
+        return self.client.get(uri, params)

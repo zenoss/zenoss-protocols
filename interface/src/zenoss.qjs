@@ -83,6 +83,14 @@
         "$VMwareModelRequest" : {
             "java_class" : "org.zenoss.protobufs.modelrequest.Modelrequest$VMwareModelRequest",
             "python_class" : "zenoss.protocols.protobufs.modelrequest_pb2.VMwareModelRequest"
+        },
+        "$EventTimeSet" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventTimeSet",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTimeSet"
+        },
+        "$EventTime" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$EventTime",
+            "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTime"
         }
     },
     "exchanges" : {

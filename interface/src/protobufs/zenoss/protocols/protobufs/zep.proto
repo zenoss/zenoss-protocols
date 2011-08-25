@@ -478,6 +478,12 @@ message ZepConfig {
     // the default configuration, the maximum value is 1000 days.
     optional uint32 event_archive_purge_interval_days = 4 [default = 90];
 
+    // The number of days that event occurrence times are kept. By default
+    // they are kept in the for 7 days. The minimum value is 1 and the
+    // maximum value is determined by the range of event time partitions. With
+    // the default configuration, the maximum value is 7 days.
+    optional uint32 event_time_purge_interval_days = 5 [default = 7];
+
     extensions 1000 to max;
 }
 
@@ -500,4 +506,14 @@ message DaemonHeartbeat {
 
 message DaemonHeartbeatSet {
     repeated DaemonHeartbeat heartbeats = 1;
+}
+
+message EventTime {
+    optional string summary_uuid = 1;
+    optional uint64 processed_time = 2;
+    optional uint64 created_time = 3;
+}
+
+message EventTimeSet {
+    repeated EventTime event_times = 1;
 }
