@@ -347,11 +347,12 @@ message EventDetailItem {
         LONG = 4;
         DOUBLE = 5;
         IP_ADDRESS = 6;
+        // A slash-delimited path to a resource (event classes, locations, systems, groups, device classes).
+        PATH = 7;
     }
     required string key = 1;
     optional EventDetailType type = 2 [default = STRING];
     optional string name = 3;
-    // @TODO: add renderer, filter, field definition, etc.
 
     extensions 1000 to max;
 }
