@@ -308,8 +308,9 @@ class ZepEventTimeClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/eventtime/'
 
-    def __init__(self, uri):
-        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, connection_error_class=ZepConnectionError)
+    def __init__(self, uri, queueSchema):
+        self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, queueSchema,
+                                                connection_error_class=ZepConnectionError)
 
     def getEventTimesSince(self, timestamp=0, limit=1000):
         uri="since"

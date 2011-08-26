@@ -513,6 +513,7 @@ message EventTime {
     optional string summary_uuid = 1;
     optional uint64 processed_time = 2;
     optional uint64 created_time = 3;
+    optional uint64 first_seen_time = 4;
 }
 
 message EventTimeSet {
