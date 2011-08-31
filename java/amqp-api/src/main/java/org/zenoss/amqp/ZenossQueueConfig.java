@@ -30,7 +30,7 @@ public class ZenossQueueConfig {
         if (sZenossQueueConfig == null) {
             List<InputStream> streams = new ArrayList<InputStream>();
             try {
-                InputStream is = ZenossQueueConfig.class.getResourceAsStream("/org/zenoss/protobufs/zenoss.qjs");
+                InputStream is = ZenossQueueConfig.class.getResourceAsStream("/src/zenoss.qjs");
                 if (is != null) {
                     streams.add(is);
                 }

@@ -16,9 +16,9 @@
     <properties>
         <interface.dir>${basedir}/../../interface</interface.dir>
         <proto.src.dir>${interface.dir}/src/protobufs</proto.src.dir>
-        <proto.dest.dir>target/generated-sources/protobuf</proto.dest.dir>
+        <proto.dest.dir>${project.build.directory}/generated-sources/protobuf</proto.dest.dir>
         <proto.test.src.dir>src/test/proto</proto.test.src.dir>
-        <proto.test.dest.dir>target/test-generated-sources/protobuf</proto.test.dest.dir>
+        <proto.test.dest.dir>${project.build.directory}/test-generated-sources/protobuf</proto.test.dest.dir>
     </properties>
     <build>
         <plugins>
@@ -113,11 +113,12 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.outputDirectory}/org/zenoss/protobufs</outputDirectory>
+                            <outputDirectory>${project.build.outputDirectory}/src</outputDirectory>
                             <resources>
                                 <resource>
                                     <directory>${interface.dir}/src</directory>
                                     <includes>
+                                        <include>**/*.proto</include>
                                         <include>*.qjs</include>
                                     </includes>
                                 </resource>
