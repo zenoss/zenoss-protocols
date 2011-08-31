@@ -26,8 +26,10 @@ class EventSummaryAdapter(object):
                 value = det.value
                 if len(value) == 0:
                     value = ''
-                if len(value) == 1:
+                elif len(value) == 1:
                     value = value[0]
+                else:
+                    value = list(value)
                 self._details[name] = value
 
     @property
