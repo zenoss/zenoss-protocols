@@ -20,18 +20,6 @@
             "java_class" : "org.zenoss.protobufs.modelevents.Modelevents$ModelEventList",
             "python_class" : "zenoss.protocols.protobufs.modelevents_pb2.ModelEventList"
         },
-        "$StateEvent" : {
-            "java_class" : "org.zenoss.protobufs.stateevent.Stateevent$StateEvent",
-            "python_class" : "zenoss.protocols.protobufs.stateevent_pb2.StateEvent"
-        },
-        "$GraphChangeEvent" : {
-            "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeEvent",
-            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeEvent"
-        },
-        "$GraphChangeList" : {
-            "java_class" : "org.zenoss.protobufs.graph.Graph$GraphChangeList",
-            "python_class" : "zenoss.protocols.protobufs.graph_pb2.GraphChangeList"
-        },
         "$Signal" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$Signal",
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.Signal"
@@ -126,22 +114,6 @@
             "description" : "When a device, component, or service changes in Zenoss, a modelchange event is sent.",
             "content_types" : ["$ModelEventList"]
         },
-        "$StateChangeEvents" : {
-            "name" : "zenoss.events.statechange",
-            "type" : "direct",
-            "durable" : true,
-            "auto_delete" : false,
-            "description" : "After StateImp processes events, it creates state change events for zenevents that can change state.",
-            "content_types" : ["$StateEvent"]
-        },
-        "$ImpactChangeEvents" : {
-            "name" : "zenoss.events.impactchange",
-            "type" : "direct",
-            "durable" : true,
-            "auto_delete" : false,
-            "description" : "When a device, component, or service changes the impact of a service, an impactchange event is sent.",
-            "content_types" : ["$GraphChangeList"]
-        },
         "$Signals" : {
             "name" : "zenoss.signals",
             "type" : "direct",
@@ -225,45 +197,6 @@
                 {
                     "exchange" : "$ProcessedZenEvents",
                     "routing_key" : "zenoss.zenevent.#"
-                }
-            ]
-        },
-        "$DsaStateChange" : {
-            "name" : "zenoss.queues.dsa.statechange",
-            "durable" : true,
-            "exclusive" : false,
-            "auto_delete" : false,
-            "description" : "Queue for DSA to consume state change events.",
-            "bindings" : [
-                {
-                    "exchange" : "$StateChangeEvents",
-                    "routing_key" : "zenoss.event.statechange"
-                }
-            ]
-        },
-        "$ImpactModelChange" : {
-            "name" : "zenoss.queues.impact.modelchange",
-            "durable" : true,
-            "exclusive" : false,
-            "auto_delete" : false,
-            "description" : "Queue for ImpactImp to consume model change events.",
-            "bindings" : [
-                {
-                    "exchange" : "$ModelChangeEvents",
-                    "routing_key" : "zenoss.event.modelchange"
-                }
-            ]
-        },
-        "$DsaImpactChange" : {
-            "name" : "zenoss.queues.dsa.impactchange",
-            "durable" : true,
-            "exclusive" : false,
-            "auto_delete" : false,
-            "description" : "Queue for DSA to consume impact change events.",
-            "bindings" : [
-                {
-                    "exchange" : "$ImpactChangeEvents",
-                    "routing_key" : "zenoss.event.impactchange"
                 }
             ]
         },

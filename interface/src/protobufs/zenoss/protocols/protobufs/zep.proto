@@ -4,7 +4,6 @@
 
 import "zenoss/protocols/protobufs/messaging.proto";
 import "zenoss/protocols/protobufs/model.proto";
-import "zenoss/protocols/protobufs/states.proto";
 import "zenoss/protocols/protobufs/util.proto";
 
 package org.zenoss.protobufs.zep;

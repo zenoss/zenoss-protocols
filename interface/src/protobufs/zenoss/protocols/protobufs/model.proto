@@ -4,9 +4,6 @@
 
 package org.zenoss.protobufs.model;
 
-import "zenoss/protocols/protobufs/policy.proto";
-
-
 enum ModelElementType {
     DEVICE = 1;
     COMPONENT = 2;
@@ -30,6 +27,7 @@ message Component {
 
     extensions 1000 to max;
 }
+
 message Organizer {
     optional string uuid = 1;
     optional string title = 2;
@@ -42,7 +40,10 @@ message Service {
     optional string uuid = 1;
     optional string title = 2;
     repeated string impacts = 3;
-    repeated org.zenoss.protobufs.policy.Trigger triggers = 4;
+    // Triggers moved to an extension
+    //repeated com.zenoss.zenpacks.impact.protobufs.Trigger triggers = 4;
 
+    extensions 4 to 4; // Extension for triggers
     extensions 1000 to max;
+    // 1000-1999 reserved for ZenPacks.zenoss.Impact
 }
