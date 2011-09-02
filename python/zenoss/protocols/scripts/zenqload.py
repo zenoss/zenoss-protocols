@@ -35,7 +35,7 @@ class Loader(object):
         self.publisher = publisher
 
     def load(self):
-        for i, (exchange, routingKey, proto) in enumerate(self.formatter.read(self.stream)):
+        for i, (exchange, routingKey, proto) in enumerate(self.formatter.read(self.schema, self.stream)):
             log.info('Publishing message %d to %s with routing key %s' % (i + 1, exchange, routingKey))
             log.debug('Message: %s' % to_json(proto))
 
