@@ -89,7 +89,12 @@ class ZepServiceClient(object):
 
         return self.client.post('%s/notes' % uuid, body=note)
 
-    def _updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None):
+
+    def postNote(self, uuid, note):
+        return self.client.post('{0}/notes'.format(uuid), body=note)
+
+
+    def updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None):
         """
         @param update: EventSummaryUpdate protobuf
         @param event_filter: EventFilter protobuf
@@ -146,7 +151,7 @@ class ZepServiceClient(object):
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
-        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+        return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
 
     def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
@@ -155,7 +160,7 @@ class ZepServiceClient(object):
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
-        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+        return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
 
     def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
@@ -164,7 +169,7 @@ class ZepServiceClient(object):
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
-        return self._updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
+        return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
                                           limit=limit)
 
     def getEventTagSeverities(self, event_filter):
