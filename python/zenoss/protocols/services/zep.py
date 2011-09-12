@@ -123,7 +123,7 @@ class ZepServiceClient(object):
             # Clean up saved search
             if not response.HasField('next_request'):
                 self.deleteSavedSearch(search_uuid)
-            
+
         return status, response
 
     def getEventSummary(self, uuid):
@@ -227,7 +227,7 @@ class ZepConfigClient(object):
                                                 connection_error_class=ZepConnectionError)
 
     def defaultConfig(self, config):
-        
+
         defaults = {
             'event_age_disable_severity': {
                 'defaultValue': EventSeverity.SEVERITY_ERROR,
@@ -244,6 +244,10 @@ class ZepConfigClient(object):
             'event_archive_interval_minutes': {
                 'defaultValue': 4320,
                 'value': config.event_archive_interval_minutes
+            },
+            'event_age_severity_inclusive' : {
+                'defaultValue': False,
+                'value': config.event_age_severity_inclusive
             }
         }
         return defaults

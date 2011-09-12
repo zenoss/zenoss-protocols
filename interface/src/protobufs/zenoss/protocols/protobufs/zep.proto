@@ -212,7 +212,7 @@ message EventFilter {
     //  "host*" -> Matches all identifiers which start with 'host'.
     repeated string element_identifier = 9;
     repeated string element_sub_identifier = 10;
-    
+
     repeated string uuid = 11; // event summary uuid
 
     // All search terms support wildcard queries ('*' and '?'). Phrases are supported within a query by enclosing
@@ -227,7 +227,7 @@ message EventFilter {
 
     // operator is used for all fields on this filter. Repeateds are grouped and ORed.
     optional FilterOperator operator = 19 [default = AND];
-    
+
     repeated EventFilter subfilter = 20;
 
     // Searches on element_title and element_sub_title use the same behavior as searching on element_identifier and
@@ -483,6 +483,10 @@ message ZepConfig {
     // maximum value is determined by the range of event time partitions. With
     // the default configuration, the maximum value is 7 days.
     optional uint32 event_time_purge_interval_days = 5 [default = 7];
+
+    // If we want to include the selected severity as well as the
+    // severties below it when aging
+    optional bool event_age_severity_inclusive = 6 [default = false];
 
     extensions 1000 to max;
 }
