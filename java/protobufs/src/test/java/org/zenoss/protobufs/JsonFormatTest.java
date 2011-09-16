@@ -14,7 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.google.protobuf.ExtensionRegistry;
+import com.google.protobuf.UnknownFieldSet;
 import org.junit.Test;
+import org.zenoss.protobufs.test.JsonFormatProtos;
 import org.zenoss.protobufs.test.JsonFormatProtos.JsonFormatEnum;
 import org.zenoss.protobufs.test.JsonFormatProtos.JsonFormatMessage1;
 
@@ -22,7 +25,7 @@ import com.google.protobuf.ByteString;
 
 public class JsonFormatTest {
 
-    private JsonFormatMessage1 createMessage() {
+    private JsonFormatMessage1.Builder createMessageBuilder() {
         Random r = new Random();
         JsonFormatMessage1.Builder builder = JsonFormatMessage1.newBuilder();
         builder.setBoolField(true);
@@ -43,7 +46,11 @@ public class JsonFormatTest {
         builder.setStrField("String" + r.nextInt());
         builder.setUint32Field(r.nextInt());
         builder.setUint64Field(r.nextLong());
-        return builder.build();
+        return builder;
+    }
+
+    private JsonFormatMessage1 createMessage() {
+        return createMessageBuilder().build();
     }
 
     @Test
@@ -97,5 +104,24 @@ public class JsonFormatTest {
                 messages,
                 JsonFormat.mergeAllDelimitedFrom(json,
                         JsonFormatMessage1.getDefaultInstance()));
+    }
+
+    @Test
+    public void testExtensions() throws IOException {
+        JsonFormatMessage1.Builder message1Builder = createMessageBuilder();
+        message1Builder.setExtension(JsonFormatProtos.extField, "myvalue");
+        JsonFormatMessage1 message = message1Builder.build();
+
+        // Verify that encoding/decoding without an extension registry works
+        StringWriter sw = new StringWriter();
+        JsonFormat.writeTo(message, sw);
+        assertEquals(JsonFormatMessage1.newBuilder(message).clearExtension(JsonFormatProtos.extField).build(),
+                JsonFormat.merge(sw.toString(), JsonFormatMessage1.newBuilder()));
+
+        ExtensionRegistry registry = ExtensionRegistry.newInstance();
+        registry.add(JsonFormatProtos.extField);
+        JsonFormatMessage1 decodedWithExtension = (JsonFormatMessage1) JsonFormat.merge(sw.toString(),
+                JsonFormatMessage1.newBuilder(), registry);
+        assertEquals(message, decodedWithExtension);
     }
 }

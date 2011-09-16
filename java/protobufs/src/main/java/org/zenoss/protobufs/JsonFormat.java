@@ -10,6 +10,7 @@ import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import com.google.protobuf.ExtensionRegistry;
+import com.google.protobuf.ExtensionRegistry.ExtensionInfo;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 import org.codehaus.jackson.JsonEncoding;
@@ -263,19 +264,34 @@ public class JsonFormat {
                 throw new IOException("Expected FIELD_NAME, found: " + tok);
             }
             final String fieldName = jp.getCurrentName();
-            final FieldDescriptor fieldDesc = descriptor
-                    .findFieldByName(fieldName);
-            /* Advance to value token */
-            tok = jp.nextToken();
-            if (fieldDesc.isRepeated()) {
-                if (tok != JsonToken.START_ARRAY) {
-                    throw new IOException("Expected START_ARRAY, found: " + tok);
+            FieldDescriptor fieldDesc = descriptor.findFieldByName(fieldName);
+            if (fieldDesc == null) {
+                ExtensionInfo extensionInfo = registry.findExtensionByName(fieldName);
+                if (extensionInfo != null) {
+                    fieldDesc = extensionInfo.descriptor;
                 }
-                builder.setField(fieldDesc,
-                        readRepeatable(jp, builder, registry, fieldDesc));
-            } else {
-                builder.setField(fieldDesc,
-                        readValue(jp, builder, registry, fieldDesc));
+            }
+
+            if (fieldDesc != null) {
+                /* Advance to value token */
+                tok = jp.nextToken();
+                if (fieldDesc.isRepeated()) {
+                    if (tok != JsonToken.START_ARRAY) {
+                        throw new IOException("Expected START_ARRAY, found: " + tok);
+                    }
+                    builder.setField(fieldDesc,
+                            readRepeatable(jp, builder, registry, fieldDesc));
+                } else {
+                    builder.setField(fieldDesc,
+                            readValue(jp, builder, registry, fieldDesc));
+                }
+            }
+            else {
+                /* Skip unknown field type */
+                tok = jp.nextToken();
+                if (tok == JsonToken.START_ARRAY || tok == JsonToken.START_OBJECT) {
+                    jp.skipChildren();
+                }
             }
         }
         return builder.build();
@@ -449,7 +465,7 @@ public class JsonFormat {
             throws IOException {
         JsonFormatDelimitedDecoder decoder = null;
         try {
-            decoder = new JsonFormatDelimitedDecoder(is);
+            decoder = new JsonFormatDelimitedDecoder(is, registry);
             List<T> messages = new ArrayList<T>();
             Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
@@ -503,7 +519,7 @@ public class JsonFormat {
             throws IOException {
         JsonFormatDelimitedDecoder decoder = null;
         try {
-            decoder = new JsonFormatDelimitedDecoder(reader);
+            decoder = new JsonFormatDelimitedDecoder(reader, registry);
             List<T> messages = new ArrayList<T>();
             Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
@@ -556,7 +572,7 @@ public class JsonFormat {
             String json, T msg, ExtensionRegistry registry) throws IOException {
         JsonFormatDelimitedDecoder decoder = null;
         try {
-            decoder = new JsonFormatDelimitedDecoder(new StringReader(json));
+            decoder = new JsonFormatDelimitedDecoder(new StringReader(json), registry);
             List<T> messages = new ArrayList<T>();
             Message decoded;
             while ((decoded = decoder.mergeDelimitedFrom(msg)) != null) {
@@ -577,7 +593,13 @@ public class JsonFormat {
         for (Map.Entry<FieldDescriptor, Object> entry : fields.entrySet()) {
             FieldDescriptor key = entry.getKey();
             Object val = entry.getValue();
-            String name = key.getName();
+            final String name;
+            if (key.isExtension()) {
+                name = key.getFullName();
+            }
+            else {
+                name = key.getName();
+            }
             generator.writeFieldName(name);
             if (key.isRepeated()) {
                 List<?> valList = (List<?>) val;
@@ -665,10 +687,6 @@ public class JsonFormat {
         private final JsonParser parser;
         private final ExtensionRegistry registry;
 
-        public JsonFormatDelimitedDecoder(InputStream is) throws IOException {
-            this(is, ExtensionRegistry.getEmptyRegistry());
-        }
-
         public JsonFormatDelimitedDecoder(InputStream is,
                 ExtensionRegistry registry) throws IOException {
             if (is == null) {
@@ -680,10 +698,6 @@ public class JsonFormat {
             if (tok != JsonToken.START_ARRAY) {
                 throw new IOException("Expected START_ARRAY");
             }
-        }
-
-        public JsonFormatDelimitedDecoder(Reader reader) throws IOException {
-            this(reader, ExtensionRegistry.getEmptyRegistry());
         }
 
         public JsonFormatDelimitedDecoder(Reader reader,

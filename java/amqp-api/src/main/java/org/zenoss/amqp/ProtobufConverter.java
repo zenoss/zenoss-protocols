@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.protobuf.ExtensionRegistry;
 import org.zenoss.protobufs.ProtobufConstants;
 
 import com.google.protobuf.Descriptors.Descriptor;
@@ -24,6 +25,8 @@ import com.google.protobuf.Message;
 public class ProtobufConverter implements MessageConverter<Message> {
 
     private final Map<String, Message> messagesByFullName;
+    private volatile ExtensionRegistry extensionRegistry;
+
     /**
      * Creates a protobuf converter which knows how to encode/decode the
      * specified protobuf message types.
@@ -62,6 +65,10 @@ public class ProtobufConverter implements MessageConverter<Message> {
         }
     }
 
+    public void setExtensionRegistry(ExtensionRegistry extensionRegistry) {
+        this.extensionRegistry = extensionRegistry;
+    }
+
     @Override
     public Message fromBytes(byte[] bytes, MessageProperties properties)
             throws Exception {
@@ -78,7 +85,14 @@ public class ProtobufConverter implements MessageConverter<Message> {
         final String fullName = (String) fullNameObj;
         Message msg = messagesByFullName.get(fullName);
         if (msg != null) {
-            return msg.newBuilderForType().mergeFrom(bytes).build();
+            final Message decoded;
+            if (this.extensionRegistry == null) {
+                decoded = msg.newBuilderForType().mergeFrom(bytes).build();
+            }
+            else {
+                decoded = msg.newBuilderForType().mergeFrom(bytes, this.extensionRegistry).build();
+            }
+            return decoded;
         }
         throw new UnregisteredProtobufException(fullName);
     }

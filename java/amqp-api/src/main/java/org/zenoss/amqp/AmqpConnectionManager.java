@@ -3,6 +3,7 @@
  */
 package org.zenoss.amqp;
 
+import com.google.protobuf.ExtensionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ public class AmqpConnectionManager {
             new ConcurrentHashMap<String, Publisher<com.google.protobuf.Message>>();
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private volatile ExtensionRegistry extensionRegistry;
 
     /**
      * Creates an {@link AmqpConnectionManager} which will perform operations
@@ -70,6 +72,10 @@ public class AmqpConnectionManager {
         this.uri = uri;
         this.pool = Executors.newCachedThreadPool();
         this.ecs = new ExecutorCompletionService<Object>(this.pool);
+    }
+
+    public void setExtensionRegistry(ExtensionRegistry extensionRegistry) {
+        this.extensionRegistry = extensionRegistry;
     }
 
     private Channel openChannel() throws AmqpException {
@@ -442,8 +448,12 @@ public class AmqpConnectionManager {
                 channel.declareExchange(binding.getExchange());
                 channel.bindQueue(binding);
             }
+            final ProtobufConverter converter = new ProtobufConverter(this.config.getMessages());
+            if (manager.extensionRegistry != null) {
+                converter.setExtensionRegistry(manager.extensionRegistry);
+            }
             final Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
-                    new ProtobufConverter(this.config.getMessages()));
+                    converter);
             log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
             Message<com.google.protobuf.Message> message;
             try {

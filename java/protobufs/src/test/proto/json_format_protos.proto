@@ -26,6 +26,7 @@ message JsonFormatMessage1 {
     required sfixed64 sfixed64_field = 14;
     required bytes bytes_field = 15;
     required JsonFormatEnum enum_field = 16;
+    extensions 1000 to max;
 }
 
 message JsonFormatNested {
@@ -34,4 +35,8 @@ message JsonFormatNested {
 
 message JsonFormatRepeatedNested {
     repeated JsonFormatMessage1 message1_field = 1;
+}
+
+extend JsonFormatMessage1 {
+    optional string ext_field = 1000;
 }

@@ -56,10 +56,11 @@ class Serializer(object):
             except KeyError:
                 raise ParseError('Protobuf field "%s.%s" of type "%d" not supported.' % (message.__class__.__name__, field.name, field.type))
 
+            field_name = field.full_name if field.is_extension else field.name
             if field.label == FieldDescriptor.LABEL_REPEATED:
-                json[field.name] = [formatter(v) for v in value]
+                json[field_name] = [formatter(v) for v in value]
             else:
-                json[field.name] = formatter(value)
+                json[field_name] = formatter(value)
 
         return json
 
