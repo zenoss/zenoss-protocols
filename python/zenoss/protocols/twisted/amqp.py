@@ -53,23 +53,34 @@ class AMQProtocol(AMQClient):
         Hook called when the connection is made; we'll use this to perform
         exchange setup, etc.
         """
-        connectionInfo = self.factory.connectionInfo
-        AMQClient.connectionMade(self)
-        log.debug('Made initial connection to message broker')
-        self._connected = False
-        # Authenticate
-        yield self.start({'LOGIN':connectionInfo.user, 'PASSWORD':connectionInfo.password})
-        log.debug('Successfully authenticated as %s' % connectionInfo.user)
-        # Get a channel
-        self.chan = yield self.get_channel()
-        self._connected = True
-        # Initialize the queues
-        yield self.begin_listening()
-        # Call back our deferred
-        self.factory.onConnectionMade(self)
-        # Flush any messages that have been sent before now
-        yield self.send()
-        returnValue(None)
+        try:
+            connectionInfo = self.factory.connectionInfo
+            AMQClient.connectionMade(self)
+            log.debug('Made initial connection to message broker')
+            self._connected = False
+            # Authenticate
+            try:
+                yield self.start({'LOGIN':connectionInfo.user, 'PASSWORD':connectionInfo.password})
+                self.factory.onAuthenticated(True)
+                log.debug('Successfully authenticated as %s' % connectionInfo.user)
+            except Exception as e:
+                log.warn("Error authenticating to %s as %s" % (connectionInfo.host, connectionInfo.user))
+                self.factory.onAuthenticated(e.args[0])
+                return
+            # Get a channel
+            log.info("getting channel")
+            self.chan = yield self.get_channel()
+            self._connected = True
+            # Initialize the queues
+            log.info("begin listening")
+            yield self.begin_listening()
+            # Call back our deferred
+            self.factory.onConnectionMade(self)
+            # Flush any messages that have been sent before now
+            yield self.send()
+            returnValue(None)
+        except Exception:
+            log.exception()
 
     def is_connected(self):
         return self._connected
@@ -84,7 +95,7 @@ class AMQProtocol(AMQClient):
         log.debug('Channel opened')
         returnValue(chan)
 
-    @inlineCallbacks
+#    @inlineCallbacks
     def listen_to_queue(self, queue, callback):
         """
         Get a queue and register a callback to be executed when a message is
@@ -94,7 +105,7 @@ class AMQProtocol(AMQClient):
             twisted_queue = yield self.get_queue(queue)
             log.debug('Listening to queue %s' % queue.name)
             # Start the recursive call to listen for messages
-            yield self.processMessages(twisted_queue, callback)
+            reactor.callLater(0, self.processMessages, twisted_queue, callback)
 
     @inlineCallbacks
     def begin_listening(self):
@@ -225,14 +236,26 @@ class AMQPFactory(ReconnectingClientFactory):
         self._onInitialSend = Deferred()
         self._onConnectionMade = Deferred()
         self._onConnectionLost = Deferred()
+        self._onAuthenticated = Deferred()
+        self._onConnectionFailed = Deferred()
         self.connector = reactor.connectTCP(self.host, self.port, self)
+
+    def onAuthenticated(self, value):
+        d,self._onAuthenticated = self._onAuthenticated, Deferred()
+        d.callback(value)
 
     def onConnectionMade(self, value):
         d,self._onConnectionMade = self._onConnectionMade, Deferred()
         d.callback(value)
 
     def onConnectionLost(self, value):
+        log.debug('onConnectionLost %s' % value)
         d,self._onConnectionLost = self._onConnectionLost, Deferred()
+        d.callback(value)
+
+    def onConnectionFailed(self, value):
+        log.debug('onConnectionFailed %s' % value)
+        d,self._onConnectionFailed = self._onConnectionFailed, Deferred()
         d.callback(value)
 
     def onInitialSend(self, value):
@@ -328,6 +351,7 @@ class AMQPFactory(ReconnectingClientFactory):
 
     def clientConnectionFailed(self, connector, reason):
         log.debug('Client connection failed: %s', reason)
+        self.onConnectionFailed(reason)
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
     def clientConnectionLost(self, connector, reason):
