@@ -68,11 +68,9 @@ class AMQProtocol(AMQClient):
                 self.factory.onAuthenticated(e.args[0])
                 return
             # Get a channel
-            log.info("getting channel")
             self.chan = yield self.get_channel()
             self._connected = True
             # Initialize the queues
-            log.info("begin listening")
             yield self.begin_listening()
             # Call back our deferred
             self.factory.onConnectionMade(self)
@@ -95,7 +93,6 @@ class AMQProtocol(AMQClient):
         log.debug('Channel opened')
         returnValue(chan)
 
-#    @inlineCallbacks
     def listen_to_queue(self, queue, callback):
         """
         Get a queue and register a callback to be executed when a message is
