@@ -93,6 +93,7 @@ class AMQProtocol(AMQClient):
         log.debug('Channel opened')
         returnValue(chan)
 
+    @inlineCallbacks
     def listen_to_queue(self, queue, callback):
         """
         Get a queue and register a callback to be executed when a message is
@@ -101,8 +102,9 @@ class AMQProtocol(AMQClient):
         if self.is_connected():
             twisted_queue = yield self.get_queue(queue)
             log.debug('Listening to queue %s' % queue.name)
-            # Start the recursive call to listen for messages
-            reactor.callLater(0, self.processMessages, twisted_queue, callback)
+            # Start the recursive call to listen for messages. Not yielding on this because
+            # we don't want to block while waiting for the first message.
+            self.processMessages(twisted_queue, callback)
 
     @inlineCallbacks
     def begin_listening(self):
