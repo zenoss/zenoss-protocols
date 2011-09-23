@@ -16,6 +16,8 @@ import pkg_resources
 import logging
 from twisted.internet.defer import returnValue, inlineCallbacks
 from amqplib.client_0_8.channel import Channel as AMQPLibChannel
+from amqplib.client_0_8.connection import Connection as AMQPConnection
+from amqplib.client_0_8.exceptions import AMQPChannelException
 from txamqp.protocol import AMQChannel as TwistedAMQChannel
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zope.interface import implements
@@ -58,6 +60,20 @@ class AMQPLibChannelAdapter(object):
                                              auto_delete=exchange.auto_delete,
                                              arguments=exchange.arguments)
 
+    def deleteQueue(self, queue):
+        try:
+            log.debug("Deleting queue: %s", queue.name)
+            self.channel.queue_purge(queue.name)
+
+            log.debug('Deleting queue: %s', queue.name)
+            self.channel.queue_delete(queue.name)
+        except AMQPChannelException, e:
+            # if the queue doesn't exist, don't worry about it.
+            if e.amqp_reply_code == 404:
+                log.debug('Queue %s did not exist', queue.name)
+            else:
+                raise
+
 class TwistedChannelAdapter(object):
 
     implements(IAMQPChannelAdapter)
@@ -95,6 +111,49 @@ class TwistedChannelAdapter(object):
                                                      durable=exchange.durable,
                                                      arguments=exchange.arguments)
         returnValue(result)
+
+    def deleteQueue(self, queue):
+        raise NotImplementedError("deleteQueue not implemented")
+
+class AMQPUtil(object):
+
+    def getConnection(self, amqpConnectionInfo):
+        conn = AMQPConnection(host="%s:%s" % (amqpConnectionInfo.host, amqpConnectionInfo.port),
+                              userid=amqpConnectionInfo.user,
+                              password=amqpConnectionInfo.password,
+                              virtual_host=amqpConnectionInfo.vhost,
+                              ssl=amqpConnectionInfo.usessl)
+        return conn
+
+    def getChannel(self, connectionInfo=None, connection=None):
+        """
+        Return a tuple of (channel, connection)
+        """
+        if connection:
+            amqpConnection = connection
+        elif connectionInfo:
+            amqpConnection = self.getConnection(connectionInfo)
+        else:
+            raise Exception("connectionInfo or connection must be passed in")
+        channel = amqpConnection.channel()
+        return (channel, amqpConnection)
+
+#TODO create a util for creating txamqp factories and channels
+#class TXAMQPUtil(object):
+#
+#    @inlineCallbacks
+#    def createFactory(self, connectionInfo, queueSchema):
+#        factory = AMQPFactory(connectionInfo, queueSchema)
+#        yield factory._onConnectionMade
+#        returnValue(factory)
+#
+#    @inlineCallbacks
+#    def getChannel(self, connectionInfo, queueSchema):
+#        factory = yield self.connectFactory(connectionInfo, queueSchema)
+#        channel = yield factory.get_channel()
+#        returnValue(channel)
+
+
 
 def registerAdapters():
     from zope.component import provideAdapter

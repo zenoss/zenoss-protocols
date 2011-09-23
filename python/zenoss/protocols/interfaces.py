@@ -152,3 +152,12 @@ class IAMQPChannelAdapter(Interface):
         @type  exchange: IExchange
         @param exchange: The exchange we wish to create.
         """
+
+    def deleteQueue(queue):
+        """
+        Deletes and purges the queue).
+
+        @type  queue: IQueue
+        @param queue: The queue we wish to delete.
+        @param queue: The queue we wish to delete.
+        """
