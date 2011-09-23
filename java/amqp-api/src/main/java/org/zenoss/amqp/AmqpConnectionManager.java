@@ -183,8 +183,9 @@ public class AmqpConnectionManager {
      */
     public void publish(ExchangeConfiguration config, String routingKey,
             com.google.protobuf.Message message) throws AmqpException {
-        Publisher<com.google.protobuf.Message> pub = this.getPublisher(config);
+        Publisher<com.google.protobuf.Message> pub;
         try {
+            pub = this.getPublisher(config);
             pub.publish(message, routingKey);
         } catch (AmqpException e) {
             // Reconnect and try one more time. If we fail the second time throw
