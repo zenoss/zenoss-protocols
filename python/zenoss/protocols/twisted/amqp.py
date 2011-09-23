@@ -185,6 +185,12 @@ class AMQProtocol(AMQClient):
         """
         self.chan.basic_ack(delivery_tag=message.delivery_tag, multiple=False)
 
+    def reject(self, message, requeue=False):
+        """
+        Rejects a message and optionally requeues it.
+        """
+        self.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
+
     @inlineCallbacks
     def processMessages(self, queue, callback):
         """
@@ -314,6 +320,12 @@ class AMQPFactory(ReconnectingClientFactory):
         Acknowledges a message so it is removed from the queue
         """
         self.p.acknowledge(message)
+
+    def reject(self, message, requeue=False):
+        """
+        Rejects a message and optionally requeues it.
+        """
+        self.p.reject(message, requeue=requeue)
 
     def shutdown(self):
         """
