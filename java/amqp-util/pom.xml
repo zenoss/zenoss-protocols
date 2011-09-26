@@ -6,12 +6,12 @@
     <parent>
         <artifactId>protocols</artifactId>
         <groupId>org.zenoss</groupId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <groupId>org.zenoss</groupId>
     <artifactId>amqp-util</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <name>Zenoss AMQP Utilities</name>
     <packaging>jar</packaging>
     <url>http://maven.apache.org</url>
@@ -45,7 +45,7 @@
         <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>amqp-api</artifactId>
-            <version>1.1-SNAPSHOT</version>
+            <version>1.2-SNAPSHOT</version>
             <scope>compile</scope>
             <exclusions>
                 <exclusion>

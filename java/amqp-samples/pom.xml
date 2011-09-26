@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.zenoss</groupId>
         <artifactId>protocols</artifactId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.2-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -12,19 +12,19 @@
     <artifactId>amqp-samples</artifactId>
     <packaging>jar</packaging>
     <name>Zenoss AMQP Client Samples</name>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <dependencies>
         <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>amqp-api</artifactId>
-            <version>1.1-SNAPSHOT</version>
+            <version>1.2-SNAPSHOT</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>protobufs</artifactId>
-            <version>1.1-SNAPSHOT</version>
+            <version>1.2-SNAPSHOT</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
