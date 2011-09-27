@@ -57,7 +57,7 @@ message EventNote {
     optional uint64 created_time = 4;
     required string message = 5;
     extensions 1000 to max;
-    // extensions 1000-1099 reserver for GOM zenpack
+    // extensions 1000-1099 reserved for GOM zenpack
 }
 
 enum EventSeverity {
