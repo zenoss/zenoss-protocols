@@ -78,7 +78,7 @@ class AMQProtocol(AMQClient):
             yield self.send()
             returnValue(None)
         except Exception:
-            log.exception()
+            log.exception("Unable to connect")
 
     def is_connected(self):
         return self._connected
@@ -136,7 +136,8 @@ class AMQProtocol(AMQClient):
         yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False, headers=None):
+    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False, headers=None,
+                     declareExchange=True):
         body = msg
         headers = headers if headers else {}
 
@@ -148,8 +149,9 @@ class AMQProtocol(AMQClient):
         queueSchema = self.factory.queueSchema
         exchangeConfig = queueSchema.getExchange(exchange)
 
-        # Declare the exchange to which the message is being sent
-        yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
+        if declareExchange:
+            # Declare the exchange to which the message is being sent
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
         # Wrap the message in our Content subclass
         content = PersistentMessage(body)
@@ -288,7 +290,8 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False, headers=None):
+    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False, headers=None,
+             declareExchange=True):
         """
         Send a C{message} to exchange C{exchange}.
 
@@ -308,7 +311,7 @@ class AMQPFactory(ReconnectingClientFactory):
         @param headers: The message headers used when publishing the message.
         @type headers: dict
         """
-        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate, headers))
+        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate, headers, declareExchange))
         if self.p is not None:
             return self.p.send()
         else:
