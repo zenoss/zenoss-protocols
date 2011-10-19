@@ -102,7 +102,7 @@ public class MessagePropertiesBuilder {
         private String contentType;
         private String contentEncoding;
         private Map<String, Object> headers = new HashMap<String, Object>();
-        private MessageDeliveryMode deliveryMode = MessageDeliveryMode.NON_PERSISTENT;
+        private MessageDeliveryMode deliveryMode = MessageDeliveryMode.PERSISTENT;
         private int priority = 0;
         private String correlationId;
         private String replyTo;

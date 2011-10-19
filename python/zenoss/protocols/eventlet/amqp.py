@@ -132,7 +132,8 @@ class ProtobufPubSub(PubSub):
         return amqp.Message(
             body=obj.SerializeToString(),
             content_type='application/x-protobuf',
-            application_headers=msg_headers
+            application_headers=msg_headers,
+            delivery_mode=2 # Persist
         )
 
     def publish(self, publishable):

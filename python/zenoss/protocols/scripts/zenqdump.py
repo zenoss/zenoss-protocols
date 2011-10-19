@@ -27,6 +27,23 @@ from amqplib.client_0_8.exceptions import AMQPException
 
 log = logging.getLogger(__name__)
 
+HEADER_CONTENT_TYPE = 'Content-Type'
+HEADER_CONTENT_LENGTH = 'Content-Length'
+HEADER_CONTENT_TRANSFER_ENCODING = 'Content-Transfer-Encoding'
+HEADER_QUEUE_NAME = 'X-Queue-Name'
+HEADER_EXCHANGE_NAME = 'X-Exchange-Name'
+HEADER_ROUTING_KEY = 'X-Routing-Key'
+HEADER_DELIVERY_MODE = 'X-Delivery-Mode'
+HEADER_PRIORITY = 'X-Priority'
+HEADER_REDELIVERED = 'X-Redelivered'
+HEADER_MESSAGE_COUNT = 'X-Message-Count'
+HEADER_DELIVERY_TAG = 'X-Delivery-Tag'
+HEADER_ORIGINAL_CONTENT_TYPE = 'X-Original-Content-Type'
+HEADER_PROTOBUF_FULL_NAME = 'X-Protobuf-FullName'
+
+CONTENT_TYPE_JSON = 'application/json'
+CONTENT_TYPE_PROTOBUF = 'application/x-protobuf'
+
 class FormatError(Exception):
     pass
 
@@ -41,17 +58,35 @@ class Formatter(object):
         for k, v in message.application_headers.iteritems():
             self.dumpHeader(k, v, stream)
 
-HEADER_CONTENT_TYPE = 'Content-Type'
-HEADER_CONTENT_LENGTH = 'Content-Length'
-HEADER_CONTENT_TRANSFER_ENCODING = 'Content-Transfer-Encoding'
-HEADER_QUEUE_NAME = 'X-Queue-Name'
-HEADER_EXCHANGE_NAME = 'X-Exchange-Name'
-HEADER_ROUTING_KEY = 'X-Routing-Key'
-HEADER_ORIGINAL_CONTENT_TYPE = 'X-Original-Content-Type'
-HEADER_PROTOBUF_FULL_NAME = 'X-Protobuf-FullName'
+    def dumpCommonHeaders(self, message, stream):
+        routing_key = message.delivery_info['routing_key']
+        exchange = message.delivery_info['exchange']
+        self.dumpHeader(HEADER_EXCHANGE_NAME, exchange, stream)
+        self.dumpHeader(HEADER_ROUTING_KEY, routing_key, stream)
 
-CONTENT_TYPE_JSON = 'application/json'
-CONTENT_TYPE_PROTOBUF = 'application/x-protobuf'
+        message_count = message.delivery_info.get('message_count')
+        if message_count is not None:
+            self.dumpHeader(HEADER_MESSAGE_COUNT, message_count, stream)
+
+        redelivered = message.delivery_info.get('redelivered')
+        if redelivered is not None:
+            self.dumpHeader(HEADER_REDELIVERED, redelivered, stream)
+
+        delivery_tag = message.delivery_info.get('delivery_tag')
+        if delivery_tag is not None:
+            self.dumpHeader(HEADER_DELIVERY_TAG, delivery_tag, stream)
+
+        contentType = message.properties.get('content_type')
+        if contentType is not None:
+            self.dumpHeader(HEADER_ORIGINAL_CONTENT_TYPE, contentType, stream)
+
+        delivery_mode = message.properties.get('delivery_mode')
+        if delivery_mode is not None:
+            self.dumpHeader(HEADER_DELIVERY_MODE, delivery_mode, stream)
+
+        priority = message.properties.get('priority')
+        if priority is not None:
+            self.dumpHeader(HEADER_PRIORITY, priority, stream)
 
 class JsonFormatter(Formatter):
     """
@@ -59,8 +94,6 @@ class JsonFormatter(Formatter):
     along with a JSON formatted message.
     """
     def dump(self, message, schema, queueName, stream):
-        routing_key = message.delivery_info['routing_key']
-        exchange = message.delivery_info['exchange']
         try:
             proto = hydrateQueueMessage(message, schema)
         except SchemaException:
@@ -68,14 +101,8 @@ class JsonFormatter(Formatter):
             return
 
         self.dumpHeaders(message, stream)
-        self.dumpHeader(HEADER_EXCHANGE_NAME, exchange, stream)
-        self.dumpHeader(HEADER_ROUTING_KEY, routing_key, stream)
         self.dumpHeader(HEADER_QUEUE_NAME, queueName, stream)
-
-        contentType = message.properties.get('content_type', None)
-        if contentType:
-            self.dumpHeader(HEADER_ORIGINAL_CONTENT_TYPE, contentType, stream)
-
+        self.dumpCommonHeaders(message, stream)
         self.dumpHeader(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON, stream)
 
         data = to_json(proto, indent=2)
@@ -91,8 +118,6 @@ class ProtobufFormatter(Formatter):
     along with a base64 encoded protobuf message.
     """
     def dump(self, message, schema, queueName, stream):
-        routing_key = message.delivery_info['routing_key']
-        exchange = message.delivery_info['exchange']
         try:
             # Make sure we can read it in, then convert back to string
             proto = hydrateQueueMessage(message, schema)
@@ -101,13 +126,8 @@ class ProtobufFormatter(Formatter):
             return
 
         self.dumpHeaders(message, stream)
-        self.dumpHeader(HEADER_EXCHANGE_NAME, exchange, stream)
-        self.dumpHeader(HEADER_ROUTING_KEY, routing_key, stream)
         self.dumpHeader(HEADER_QUEUE_NAME, queueName, stream)
-
-        contentType = message.properties.get('content_type', None)
-        if contentType != CONTENT_TYPE_PROTOBUF:
-            self.dumpHeader(HEADER_ORIGINAL_CONTENT_TYPE, contentType, stream)
+        self.dumpCommonHeaders(message, stream)
 
         self.dumpHeader(HEADER_CONTENT_TYPE, CONTENT_TYPE_PROTOBUF, stream)
         self.dumpHeader(HEADER_CONTENT_TRANSFER_ENCODING, 'base64', stream)
