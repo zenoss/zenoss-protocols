@@ -99,7 +99,8 @@ class Publisher(object):
         self._exchanges = {}
         self._queues = set()
 
-    def publish(self, exchange, routing_key, obj, headers=None, mandatory=False, immediate=False):
+    def publish(self, exchange, routing_key, obj, headers=None, mandatory=False,
+                immediate=False, declareExchange=True):
         """
         Blocking method for publishing items to the queue
 
@@ -116,6 +117,8 @@ class Publisher(object):
         for i in range(2):
             try:
                 channel = self.getChannel()
+                # We don't use declareExchange - we already have a caching
+                # mechanism to prevent declaring an exchange with each call.
                 exchangeConfig = self.useExchange(exchange)
                 log.debug('Publishing with routing key %s to exchange %s' % (routing_key, exchangeConfig.name))
                 channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory, immediate=immediate)

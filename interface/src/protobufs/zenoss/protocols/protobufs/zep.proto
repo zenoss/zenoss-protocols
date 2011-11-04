@@ -115,6 +115,7 @@ message Event {
     optional EventStatus status = 22 [default = STATUS_NEW];
     optional bool apply_transforms = 23 [default = true];
     extensions 1000 to max;
+    // extensions 1000-1099 are reserved for the GOM zenpack
 }
 
 // Represents an event that is sent to ZEP for processing.
