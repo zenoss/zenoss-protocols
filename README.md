@@ -1,7 +1,8 @@
 Zenoss Protocols
 ================
 
-Zenoss's [Protobuf](http://code.google.com/apis/protocolbuffers/) interfaces for communicating with ZEP and DSA.
+Zenoss's [Protobuf](http://code.google.com/apis/protocolbuffers/) interfaces
+for communicating with ZEP and Impact.
 
 Python Build
 ------------
@@ -13,9 +14,8 @@ Java Build
 ----------
 
     cd java
-    mvn package
+    mvn install
     
 Helpful documents:
 
 - [Language Guide](http://code.google.com/apis/protocolbuffers/docs/proto.html)
-- [Java netty and protobuf](http://docs.jboss.org/netty/3.2/guide/html/architecture.html#d0e1967)

@@ -7,7 +7,7 @@
         <artifactId>protocols</artifactId>
         <groupId>org.zenoss</groupId>
         <version>1.2-SNAPSHOT</version>
-        <relativePath>../..</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>org.zenoss</groupId>
     <artifactId>amqp-util</artifactId>

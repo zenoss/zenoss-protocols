@@ -8,10 +8,10 @@
     <packaging>pom</packaging>
     <name>Zenoss Protocols</name>
     <modules>
-        <module>java/protobufs</module>
-        <module>java/amqp-api</module>
-        <module>java/amqp-util</module>
-        <module>java/amqp-samples</module>
+        <module>protobufs</module>
+        <module>amqp-api</module>
+        <module>amqp-util</module>
+        <module>amqp-samples</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
