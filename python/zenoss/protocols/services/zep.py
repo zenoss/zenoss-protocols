@@ -265,7 +265,7 @@ class ZepConfigClient(object):
 
     def setConfigValue(self, name, value):
         # zep expects every config item to be a string
-        return self.client.post(name, value)
+        return self.client.put(name, value)
 
     def removeConfigValue(self, name):
         return self.client.delete(name)
