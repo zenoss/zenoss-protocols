@@ -489,6 +489,12 @@ message ZepConfig {
     // severties below it when aging
     optional bool event_age_severity_inclusive = 6 [default = false];
 
+    // The maximum size of an event that will be processed in bytes.
+    // Events that are too large will be logged and dropped.
+    // Events that will *become* too big will have their details overwritten
+    // with new details.
+    optional uint64 event_max_size_bytes = 7 [default = 32768];
+
     extensions 1000 to max;
 }
 

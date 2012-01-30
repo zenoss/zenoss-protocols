@@ -248,6 +248,10 @@ class ZepConfigClient(object):
             'event_age_severity_inclusive' : {
                 'defaultValue': False,
                 'value': config.event_age_severity_inclusive
+            },
+            'event_max_size_bytes' : {
+                'defaultValue': 32768,
+                'value': config.event_max_size_bytes
             }
         }
         return defaults
