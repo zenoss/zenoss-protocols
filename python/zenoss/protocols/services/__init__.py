@@ -117,7 +117,7 @@ class RestServiceClient(object):
         except socket.timeout as e:
             raise self._connection_error_class('Timed out connecting to service.', e)
         except socket.error as e:
-            if e.errno == errno.ECONNREFUSED:
+            if e.errno == errno.ECONNREFUSED or e.errno == errno.EINVAL:
                 raise self._connection_error_class('Could not connect to service.', e)
             else:
                 raise
