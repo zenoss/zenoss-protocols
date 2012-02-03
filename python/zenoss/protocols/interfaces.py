@@ -130,6 +130,7 @@ class IAMQPConnectionInfo(Interface):
     user = Attribute("AMQP username")
     password = Attribute("AMQP password")
     usessl = Attribute("AMQP SSL (True/False)")
+    amqpconnectionheartbeat = Attribute("AMQP Connection Heart Beat in Seconds")
 
 class IAMQPChannelAdapter(Interface):
     """

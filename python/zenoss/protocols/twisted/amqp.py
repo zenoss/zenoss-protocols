@@ -246,6 +246,7 @@ class AMQPFactory(ReconnectingClientFactory):
         self._onAuthenticated = Deferred()
         self._onConnectionFailed = Deferred()
         self.connector = reactor.connectTCP(self.host, self.port, self)
+        self.heartbeat = self.connectionInfo.amqpconnectionheartbeat
 
     def onAuthenticated(self, value):
         d,self._onAuthenticated = self._onAuthenticated, Deferred()
@@ -270,7 +271,7 @@ class AMQPFactory(ReconnectingClientFactory):
         d.callback(value)
 
     def buildProtocol(self, addr):
-        self.p = self.protocol(self.delegate, self.vhost, self.spec)
+        self.p = self.protocol(self.delegate, self.vhost, self.spec, self.heartbeat)
         self.p.factory = self
         self.resetDelay()
         return self.p
