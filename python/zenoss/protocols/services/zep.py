@@ -14,7 +14,7 @@
 import logging
 from zenoss.protocols.services import ProtobufRestServiceClient, ServiceConnectionError
 from zenoss.protocols.jsonformat import from_dict
-from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery
+from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, EventSummaryUpdate, EventSort, EventSummaryUpdateRequest, EventSummaryRequest, EventQuery, ZepConfig
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import timedelta
@@ -227,33 +227,10 @@ class ZepConfigClient(object):
                                                 connection_error_class=ZepConnectionError)
 
     def defaultConfig(self, config):
-
-        defaults = {
-            'event_age_disable_severity': {
-                'defaultValue': EventSeverity.SEVERITY_ERROR,
-                'value': config.event_age_disable_severity
-            },
-            'event_age_interval_minutes': {
-                'defaultValue': 4 * 60,
-                'value': config.event_age_interval_minutes,
-            },
-            'event_archive_purge_interval_days': {
-                'defaultValue': 90,
-                'value': config.event_archive_purge_interval_days
-            },
-            'event_archive_interval_minutes': {
-                'defaultValue': 4320,
-                'value': config.event_archive_interval_minutes
-            },
-            'event_age_severity_inclusive' : {
-                'defaultValue': False,
-                'value': config.event_age_severity_inclusive
-            },
-            'event_max_size_bytes' : {
-                'defaultValue': 32768,
-                'value': config.event_max_size_bytes
-            }
-        }
+        defaults = {}
+        for field in ZepConfig.DESCRIPTOR.fields:
+            defaults[field.name] = dict(defaultValue=field.default_value, 
+                                        value=getattr(config, field.name))
         return defaults
 
     def getConfig(self):
