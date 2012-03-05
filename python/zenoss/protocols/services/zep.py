@@ -94,14 +94,15 @@ class ZepServiceClient(object):
         return self.client.post('{0}/notes'.format(uuid), body=note)
 
 
-    def updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None):
+    def updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None, timeout=None):
         """
         @param update: EventSummaryUpdate protobuf
         @param event_filter: EventFilter protobuf
         @param exclusion_filter: EventFilter protobuf
         @param limit: integer
+        @param timeout: integer
         """
-        search_uuid = self.createSavedSearch(event_filter=event_filter, exclusion_filter=exclusion_filter)
+        search_uuid = self.createSavedSearch(event_filter=event_filter, exclusion_filter=exclusion_filter, timeout=timeout)
         updateRequest = EventSummaryUpdateRequest()
         updateRequest.event_query_uuid = search_uuid
         updateRequest.update_fields.MergeFrom(update)
@@ -229,7 +230,7 @@ class ZepConfigClient(object):
     def defaultConfig(self, config):
         defaults = {}
         for field in ZepConfig.DESCRIPTOR.fields:
-            defaults[field.name] = dict(defaultValue=field.default_value, 
+            defaults[field.name] = dict(defaultValue=field.default_value,
                                         value=getattr(config, field.name))
         return defaults
 
