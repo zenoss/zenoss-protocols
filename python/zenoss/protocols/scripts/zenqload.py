@@ -18,7 +18,7 @@ from zenoss.protocols.data.queueschema import SCHEMA
 from zenoss.protocols.eventlet.amqp import getProtobufPubSub, Publishable
 from zenoss.protocols.queueschema import Schema
 from zenoss.protocols.scripts.zenqdump import ProtobufStreamFormatter
-from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions
+from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions, get_zenpack_schemas
 from zenoss.protocols.jsonformat import to_json
 
 log = logging.getLogger(__name__)
@@ -70,6 +70,9 @@ def main():
 
     options, args = parser.parse_args()
 
+    schemas = [SCHEMA]
+    schemas.extend(get_zenpack_schemas())
+
     try:
         formatter = _FORMATTERS[options.format.lower()]
     except KeyError:
@@ -79,7 +82,7 @@ def main():
 
     amqpConnectionInfo = AMQPConfig()
     amqpConnectionInfo.update(options)
-    schema = Schema(SCHEMA) # TODO: Allow loading ZenPack schemas from command-line options
+    schema = Schema(*schemas)
     publisher = getProtobufPubSub(amqpConnectionInfo, schema, None)
 
     loader = Loader(sys.stdin, formatter, schema, publisher)

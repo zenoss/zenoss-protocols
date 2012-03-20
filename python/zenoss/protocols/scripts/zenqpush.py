@@ -21,7 +21,7 @@ from zenoss.protocols.data.queueschema import SCHEMA
 from zenoss.protocols.queueschema import Schema
 from zenoss.protocols.amqp import Publisher
 from zenoss.protocols.exceptions import PublishException
-from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions
+from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions, get_zenpack_schemas
 from google.protobuf.text_format import MessageToString
 from amqplib.client_0_8.exceptions import AMQPException
 
@@ -87,9 +87,12 @@ def main():
     elif not options.routingKey:
         parser.error('You must supply a routing key.')
 
+    schemas = [SCHEMA]
+    schemas.extend(get_zenpack_schemas())
+
     amqpConnectionInfo = AMQPConfig()
     amqpConnectionInfo.update(options)
-    schema = Schema(SCHEMA) # TODO: Allow loading ZenPack schemas from command-line options
+    schema = Schema(*schemas)
     publisher = Publisher(amqpConnectionInfo, schema)
     
     initLogging(options)

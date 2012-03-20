@@ -18,7 +18,7 @@ from zenoss.protocols.data.queueschema import SCHEMA
 from zenoss.protocols.amqpconfig import AMQPConfig
 from zenoss.protocols import hydrateQueueMessage
 from zenoss.protocols.amqp import Publisher
-from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions
+from zenoss.protocols.scripts.scriptutils import initLogging, addLoggingOptions, get_zenpack_schemas
 from zenoss.protocols.jsonformat import to_json
 from struct import pack, unpack
 from base64 import b64encode
@@ -311,9 +311,12 @@ def main():
     if options.skip and not options.acknowledge:
         parser.error("Option --skip must be used with --ack")
 
+    schemas = [SCHEMA]
+    schemas.extend(get_zenpack_schemas())
+
     amqpConnectionInfo = AMQPConfig()
     amqpConnectionInfo.update(options)
-    schema = Schema(SCHEMA) # TODO: Allow loading ZenPack schemas from command-line options
+    schema = Schema(*schemas)
 
     try:
         formatter = _FORMATTERS[options.format.lower()]
