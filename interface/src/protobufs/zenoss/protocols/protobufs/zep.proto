@@ -235,6 +235,7 @@ message EventFilter {
     // element_sub_identifier above.
     repeated string element_title = 21;
     repeated string element_sub_title = 22;
+    repeated string event_key = 23;
     extensions 1000 to max;
 }
 
@@ -259,6 +260,7 @@ message EventSort {
         DETAIL = 17; // detail key must be set, specified below.
         ELEMENT_TITLE = 18;
         ELEMENT_SUB_TITLE = 19;
+        EVENT_KEY = 20;
     }
 
     enum Direction {
