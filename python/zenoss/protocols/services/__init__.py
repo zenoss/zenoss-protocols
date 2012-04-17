@@ -1,7 +1,7 @@
 ###########################################################################
 #
 # This program is part of Zenoss Core, an open source monitoring platform.
-# Copyright (C) 2010, Zenoss Inc.
+# Copyright (C) 2010-2012, Zenoss Inc.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 or (at your
@@ -17,6 +17,13 @@ import urlparse
 import urllib
 import socket
 import errno
+from urllib3 import connection_from_url
+from urllib3.exceptions import TimeoutError, MaxRetryError
+import logging
+from time import time
+from threading import RLock
+
+log = logging.getLogger('zen.protocols.services')
 
 class ServiceException(Exception):
     pass
@@ -67,15 +74,22 @@ class RestRequest(object):
 class RestServiceClient(object):
     _default_headers = {}
     _serializer = UrlEncodedSerializer()
+    _pools = {}
+    _rlock = RLock()
 
     def __init__(self, uri, timeout=60, connection_error_class=ServiceConnectionError):
         self._connection_error_class = connection_error_class
         self._uri_parts = urlparse.urlsplit(uri, allow_fragments=False)
         self.default_params = urlparse.parse_qs(self._uri_parts.query)
+        self._default_timeout = timeout
 
-        self.http = httplib2.Http(timeout=timeout)
-        if self._uri_parts.username or self._uri_parts.password:
-            self.http.add_credentials(self._uri_parts.username, self._uri_parts.password)
+        pool_key = (self._uri_parts.scheme, self._uri_parts.hostname, self._uri_parts.port)
+        with RestServiceClient._rlock:
+            self._pool = RestServiceClient._pools.get(pool_key)
+            if not self._pool:
+                log.debug("Creating new HTTP connection pool to: %s", uri)
+                self._pool = connection_from_url(uri)
+                RestServiceClient._pools[pool_key] = self._pool
 
     def _cleanParams(self, params):
         """
@@ -113,14 +127,25 @@ class RestServiceClient(object):
 
     def _executeRequest(self, request):
         try:
-            response, content = self.http.request(request.uri, method=request.method, headers=request.headers, body=request.body)
-        except socket.timeout as e:
+            start_time = time()
+            urllib3_response = self._pool.urlopen(request.method, request.uri, body=request.body,
+                headers=request.headers, timeout=self._default_timeout, retries=0)
+            # Convert response from urllib3 to httpLib2 for compatibility with existing callers
+            response = httplib2.Response(urllib3_response.headers)
+            content = urllib3_response.data
+            elapsed_time = time() - start_time
+            log.debug("Elapsed time calling %s: %s", request.uri, elapsed_time)
+        except (socket.timeout, TimeoutError) as e:
             raise self._connection_error_class('Timed out connecting to service.', e)
         except socket.error as e:
             if e.errno == errno.ECONNREFUSED or e.errno == errno.EINVAL:
                 raise self._connection_error_class('Could not connect to service.', e)
             else:
                 raise
+        except MaxRetryError as e:
+            # urllib3 raises this when it cannot establish a connection
+            raise self._connection_error_class('Could not connect to service.', e)
+
 
         if not (response.status >= 200 and response.status <= 299):
             raise ServiceResponseError(response.reason, response.status, request, response, content)

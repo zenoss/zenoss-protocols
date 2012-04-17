@@ -18,6 +18,7 @@ setup(
         'Twisted',
         'amqplib',
         'txamqp',
+        'urllib3>=1.3',
     ],
     include_package_data=True,
     # in the zenoss namespace
