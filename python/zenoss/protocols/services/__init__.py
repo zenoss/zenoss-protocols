@@ -130,8 +130,14 @@ class RestServiceClient(object):
             start_time = time()
             urllib3_response = self._pool.urlopen(request.method, request.uri, body=request.body,
                 headers=request.headers, timeout=self._default_timeout, retries=0)
+
             # Convert response from urllib3 to httpLib2 for compatibility with existing callers
             response = httplib2.Response(urllib3_response.headers)
+            response['status'] = str(urllib3_response.status)
+            response.status = urllib3_response.status
+            response.reason = urllib3_response.reason
+            response.version = urllib3_response.version
+
             content = urllib3_response.data
             elapsed_time = time() - start_time
             log.debug("Elapsed time calling %s: %s", request.uri, elapsed_time)
