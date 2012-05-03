@@ -236,6 +236,8 @@ message EventFilter {
     repeated string element_title = 21;
     repeated string element_sub_title = 22;
     repeated string event_key = 23;
+    repeated string event_class_key = 24;
+    repeated string event_group = 25;
     extensions 1000 to max;
 }
 
@@ -261,6 +263,8 @@ message EventSort {
         ELEMENT_TITLE = 18;
         ELEMENT_SUB_TITLE = 19;
         EVENT_KEY = 20;
+        EVENT_CLASS_KEY = 21;
+        EVENT_GROUP = 22;
     }
 
     enum Direction {
