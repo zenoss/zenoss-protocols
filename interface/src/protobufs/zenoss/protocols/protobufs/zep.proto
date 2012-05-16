@@ -2,7 +2,6 @@
 //# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
-import "zenoss/protocols/protobufs/messaging.proto";
 import "zenoss/protocols/protobufs/model.proto";
 import "zenoss/protocols/protobufs/util.proto";
 
