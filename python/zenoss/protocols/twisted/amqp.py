@@ -94,13 +94,13 @@ class AMQProtocol(AMQClient):
         returnValue(chan)
 
     @inlineCallbacks
-    def listen_to_queue(self, queue, callback):
+    def listen_to_queue(self, queue, callback, exclusive=False):
         """
         Get a queue and register a callback to be executed when a message is
         received, then begin listening.
         """
         if self.is_connected():
-            twisted_queue = yield self.get_queue(queue)
+            twisted_queue = yield self.get_queue(queue, exclusive)
             log.debug('Listening to queue %s' % queue.name)
             # Start the recursive call to listen for messages. Not yielding on this because
             # we don't want to block while waiting for the first message.
@@ -113,18 +113,18 @@ class AMQProtocol(AMQClient):
         to them.
         """
         log.debug('Binding to %s queues' % len(self.factory.queues))
-        for queue, cb in self.factory.queues:
-            yield self.listen_to_queue(queue, cb)
+        for queue, cb, exclusive in self.factory.queues:
+            yield self.listen_to_queue(queue, cb, exclusive)
 
     @inlineCallbacks
-    def get_queue(self, queue):
+    def get_queue(self, queue, exclusive=False):
         """
         Perform all the setup to get a queue, then return it.
         """
         yield self.create_queue(queue)
 
         # Start consuming from the queue (this actually creates it)
-        result = yield self.chan.basic_consume(queue=queue.name)
+        result = yield self.chan.basic_consume(queue=queue.name, exclusive=exclusive)
 
         # Go get the queue and return it
         queue = yield self.queue(result[0]) # result[0] contains the consumer tag
@@ -276,7 +276,7 @@ class AMQPFactory(ReconnectingClientFactory):
         self.resetDelay()
         return self.p
 
-    def listen(self, queue, callback):
+    def listen(self, queue, callback, exclusive=False):
         """
         Listen to a queue.
 
@@ -286,7 +286,7 @@ class AMQPFactory(ReconnectingClientFactory):
         in this queue.
         @type callback: callable
         """
-        args = queue, callback
+        args = queue, callback, exclusive
         self.queues.append(args)
         if self.p is not None:
             self.p.listen_to_queue(*args)
