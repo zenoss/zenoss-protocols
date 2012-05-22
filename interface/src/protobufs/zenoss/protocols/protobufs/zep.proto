@@ -497,7 +497,8 @@ message ZepConfig {
     // The maximum size of an event that will be processed in bytes.
     // Events that are too large will be logged and dropped.
     // Events that will *become* too big will have their details overwritten
-    // with new details.
+    // with new details. The minimum value is 8192, the maximum value
+    // is 102400.
     optional uint64 event_max_size_bytes = 7 [default = 32768];
 
     // The default indexing interval of the event summary (in milliseconds).
