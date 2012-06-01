@@ -237,6 +237,7 @@ message EventFilter {
     repeated string event_key = 23;
     repeated string event_class_key = 24;
     repeated string event_group = 25;
+    repeated string message = 26;
     extensions 1000 to max;
 }
 
