@@ -181,17 +181,17 @@ class AMQProtocol(AMQClient):
             return d
         return self.factory._onInitialSend
 
-    def acknowledge(self, message):
+    def acknowledge(self, message, multiple=False):
         """
         Acknowledges a message
         """
-        self.chan.basic_ack(delivery_tag=message.delivery_tag, multiple=False)
+        return self.chan.basic_ack(delivery_tag=message.delivery_tag, multiple=multiple)
 
     def reject(self, message, requeue=False):
         """
         Rejects a message and optionally requeues it.
         """
-        self.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
+        return self.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
 
     @inlineCallbacks
     def processMessages(self, queue, callback):
@@ -240,34 +240,41 @@ class AMQPFactory(ReconnectingClientFactory):
         self.queues = []
         self.messages = []
         self.p = None
-        self._onInitialSend = Deferred()
-        self._onConnectionMade = Deferred()
-        self._onConnectionLost = Deferred()
-        self._onAuthenticated = Deferred()
-        self._onConnectionFailed = Deferred()
+        self._onInitialSend = self._createDeferred()
+        self._onConnectionMade = self._createDeferred()
+        self._onConnectionLost = self._createDeferred()
+        self._onAuthenticated = self._createDeferred()
+        self._onConnectionFailed = self._createDeferred()
         self.connector = reactor.connectTCP(self.host, self.port, self)
         self.heartbeat = self.connectionInfo.amqpconnectionheartbeat
 
+    def _defaultErrback(self, reason):
+        log.debug('Error: %s', reason)
+
+    def _createDeferred(self):
+        d = Deferred()
+        return d.addErrback(self._defaultErrback)
+
     def onAuthenticated(self, value):
-        d,self._onAuthenticated = self._onAuthenticated, Deferred()
+        d,self._onAuthenticated = self._onAuthenticated, self._createDeferred()
         d.callback(value)
 
     def onConnectionMade(self, value):
-        d,self._onConnectionMade = self._onConnectionMade, Deferred()
+        d,self._onConnectionMade = self._onConnectionMade, self._createDeferred()
         d.callback(value)
 
     def onConnectionLost(self, value):
         log.debug('onConnectionLost %s' % value)
-        d,self._onConnectionLost = self._onConnectionLost, Deferred()
+        d,self._onConnectionLost = self._onConnectionLost, self._createDeferred()
         d.callback(value)
 
     def onConnectionFailed(self, value):
         log.debug('onConnectionFailed %s' % value)
-        d,self._onConnectionFailed = self._onConnectionFailed, Deferred()
+        d,self._onConnectionFailed = self._onConnectionFailed, self._createDeferred()
         d.callback(value)
 
     def onInitialSend(self, value):
-        d,self._onInitialSend = self._onInitialSend, Deferred()
+        d,self._onInitialSend = self._onInitialSend, self._createDeferred()
         d.callback(value)
 
     def buildProtocol(self, addr):
@@ -323,13 +330,13 @@ class AMQPFactory(ReconnectingClientFactory):
         """
         Acknowledges a message so it is removed from the queue
         """
-        self.p.acknowledge(message)
+        return self.p.acknowledge(message)
 
     def reject(self, message, requeue=False):
         """
         Rejects a message and optionally requeues it.
         """
-        self.p.reject(message, requeue=requeue)
+        return self.p.reject(message, requeue=requeue)
 
     def shutdown(self):
         """
