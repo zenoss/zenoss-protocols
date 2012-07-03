@@ -21,13 +21,19 @@ from eventlet import patcher
 from eventlet.green import socket
 amqp = patcher.import_patched('amqplib.client_0_8', socket=socket)
 import eventlet
-eventlet.monkey_patch(socket=True, time=True)
 
 __doc__ = """
 An eventlet based AMQP publisher/subscriber (consumer).
 """
 
 log = logging.getLogger("zenoss.protocols.eventlet.amqp")
+
+def register_eventlet():
+    """
+    Registers eventlet to patch the standard socket and time modules. This
+    should be called during startup of any daemon using eventlet.
+    """
+    eventlet.monkey_patch(socket=True, time=True)
 
 class Connection(amqp.Connection):
     pass
