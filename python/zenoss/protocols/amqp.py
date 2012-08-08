@@ -7,19 +7,23 @@
 # 
 ##############################################################################
 
-
+import errno
 import logging
+import socket
 from amqplib.client_0_8.connection import Connection
 from amqplib.client_0_8.basic_message import Message
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
-from zenoss.protocols.exceptions import PublishException, NoRouteException, NoConsumersException
+from zenoss.protocols.exceptions import (
+        PublishException, NoRouteException, NoConsumersException,
+        ConnectionError
+    )
 from zope.component import getAdapter
-import socket
 
 REPLY_CODE_NO_ROUTE = 312
 REPLY_CODE_NO_CONSUMERS = 313
 
 log = logging.getLogger('zen.%s' % __name__)
+
 
 class Publisher(object):
     """
@@ -31,6 +35,7 @@ class Publisher(object):
         publish(exchange, routing_key, obj)
 
     """
+
     def __init__(self, amqpConnectionInfo, queueSchema):
         self._connection = None
         self._channel = None
@@ -50,16 +55,23 @@ class Publisher(object):
         """
         Lazily initialize the connection
         """
-        if not self._connection:
-            self._connection = Connection(host='%s:%d' % (self._connectionInfo.host, self._connectionInfo.port),
-                                          userid=self._connectionInfo.user,
-                                          password=self._connectionInfo.password,
-                                          virtual_host=self._connectionInfo.vhost,
-                                          ssl=self._connectionInfo.usessl)
-            log.debug("Connecting to RabbitMQ...")
-        if not self._channel:
-            self._channel = self._connection.connection.channel()
-
+        try:
+            if not self._connection:
+                self._connection = Connection(host='%s:%d' % (self._connectionInfo.host, self._connectionInfo.port),
+                                              userid=self._connectionInfo.user,
+                                              password=self._connectionInfo.password,
+                                              virtual_host=self._connectionInfo.vhost,
+                                              ssl=self._connectionInfo.usessl)
+                log.debug("Connecting to RabbitMQ...")
+            if not self._channel:
+                self._channel = self._connection.connection.channel()
+        except socket.error as exc:
+            # A connection refusal usually means RabbitMQ is down or
+            # otherwise inaccessable, so convert exception to
+            # ConnectionError and raise it.
+            if exc.errno == errno.ECONNREFUSED:
+                raise ConnectionError("Could not connect to RabbitMQ", exc)
+            raise
         return self._channel
 
     def useExchange(self, exchange):
@@ -69,25 +81,22 @@ class Publisher(object):
         if exchange not in self._exchanges:
             exchangeConfig = self._schema.getExchange(exchange)
             self._exchanges[exchange] = exchangeConfig
-
             try:
                 channel = self.getChannel()
                 getAdapter(channel, IAMQPChannelAdapter).declareExchange(exchangeConfig)
             except Exception as e:
-                log.exception(e)
+                log.critical("Could not use exchange %s: %s", exchange, e)
                 raise
-
         return self._exchanges[exchange]
 
     def close(self):
         try:
             if self._channel:
                 self._channel.close()
-
             if self._connection:
                 self._connection.close()
         except Exception as e:
-            log.info("error closing publisher %s" % e)
+            log.info("Error closing RabbitMQ connection: %s", e)
         finally:
             self._reset()
 
@@ -112,13 +121,14 @@ class Publisher(object):
         """
         msg = self.buildMessage(obj, headers)
 
+        lastexc = None
         for i in range(2):
             try:
                 channel = self.getChannel()
                 # We don't use declareExchange - we already have a caching
                 # mechanism to prevent declaring an exchange with each call.
                 exchangeConfig = self.useExchange(exchange)
-                log.debug('Publishing with routing key %s to exchange %s' % (routing_key, exchangeConfig.name))
+                log.debug('Publishing with routing key %s to exchange %s', routing_key, exchangeConfig.name)
                 channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory, immediate=immediate)
                 if mandatory or immediate:
                     self._channel.close()
@@ -131,29 +141,31 @@ class Publisher(object):
                             raise NoConsumersException(reply_code, reply_text, exchange, routing_key)
                         raise PublishException(reply_code, reply_text, exchange, routing_key)
                 break
-            except socket.error as e:
-                log.info("amqp connection was closed %s" % e)
+            except socket.error as exc:
+                log.info("RabbitMQ connection was closed: %s", exc)
+                lastexc = exc
                 self._reset()
         else:
-            raise Exception("Could not publish message. Connection may be down")
+            raise Exception("Could not publish message to RabbitMQ: %s" % lastexc)
 
     def createQueue(self, queueIdentifier, replacements=None):
         if queueIdentifier not in self._queues:
             queue = self._schema.getQueue(queueIdentifier, replacements)
+            lastexc = None
             for i in range(2):
                 try:
                     channel = self.getChannel()
                     getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
                     self._queues.add(queueIdentifier)
                     break
-                except socket.error as e:
-                    log.info("AMQP connection was closed %s" % e)
+                except socket.error as exc:
+                    lastexc = exc
                     self._reset()
                 except Exception as e:
                     log.exception(e)
                     raise
             else:
-                raise Exception("Could not create queue. Connection may be down")
+                raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
 
     def buildMessage(self, obj, headers=None):
         msg_headers = {

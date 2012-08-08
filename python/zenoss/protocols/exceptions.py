@@ -8,6 +8,25 @@
 ##############################################################################
 
 
+class ConnectionError(IOError):
+    """
+    Exception raised when the connection to the queue server fails.
+    """
+
+    def __init__(self, message, exc):
+        """
+        Initialize an instance of ConnectionError.
+
+        @param message {str} Relevant error message.
+        @param exc {socket.error} Exception object.
+        """
+        super(ConnectionError, self).__init__(exc.errno, exc.strerror)
+        self.message = message
+
+    def __str__(self):
+        return "%s: [%s] %s" % (self.message, self.errno, self.strerror)
+
+
 class PublishException(Exception):
     """
     Generic exception sent when a message is published to a queue with
