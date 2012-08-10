@@ -119,11 +119,15 @@ public class AmqpConnectionManager {
         this.workers.put(uuid, worker);
         // If we're already running throw it in the pool
         if (this.connection != null) {
+            boolean succeeded = false;
             try {
                 worker.setFuture(this.ecs.submit(worker));
+                succeeded = true;
             } finally {
                 /* In case of error, don't keep around reference to worker */
-                this.workers.remove(uuid);
+                if (!succeeded) {
+                    this.workers.remove(uuid);
+                }
             }
         }
         return uuid;
