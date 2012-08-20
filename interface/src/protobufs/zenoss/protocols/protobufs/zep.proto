@@ -1,5 +1,5 @@
 //##########################################################################
-//# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
+//# Copyright (C) 2010-2012, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
 import "zenoss/protocols/protobufs/model.proto";
@@ -113,6 +113,10 @@ message Event {
     optional string summary_uuid = 21;
     optional EventStatus status = 22 [default = STATUS_NEW];
     optional bool apply_transforms = 23 [default = true];
+    // The incoming event count (if event was de-duped at the collector).
+    optional uint32 count = 24 [default = 1];
+    // The first seen time (if event was de-duped at the collector).
+    optional uint64 first_seen_time = 25;
     extensions 1000 to max;
     // extensions 1000-1099 are reserved for the GOM zenpack
 }
