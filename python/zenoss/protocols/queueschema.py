@@ -24,6 +24,9 @@ __all__ = [
     'Schema',
 ]
 
+_TRUTHYSTRINGS = frozenset(["1", "true", "yes", "y"])
+
+
 class SchemaException(Exception):
     pass
 
@@ -119,7 +122,8 @@ class Exchange(object):
     implements(IExchange)
 
     def __init__(self, identifier, name, type, durable, auto_delete,
-                 description, content_types, arguments=None, delivery_mode=2):
+                 description, content_types, arguments=None, delivery_mode=2,
+                 compression=False):
         self.identifier = identifier
         self._name = name
         self._type = type
@@ -129,6 +133,7 @@ class Exchange(object):
         self._content_types = content_types
         self._arguments = arguments
         self._delivery_mode = delivery_mode
+        self._compression = compression
 
     @property
     def name(self):
@@ -161,6 +166,10 @@ class Exchange(object):
     @property
     def delivery_mode(self):
         return self._delivery_mode
+
+    @property
+    def compression(self):
+        return self._compression
 
 
 _REPLACEMENT_PATTERN = re.compile(r'\{([^}]+)\}')
@@ -318,7 +327,9 @@ class Schema(object):
             exchange_node = self._exchange_nodes[name]
         else:
             exchange_node = self._exchange_nodes_by_name[name]
-        
+
+        compression = self._getExchangeProperty(exchange_node, 'compression', 
+                                                'false').lower() in _TRUTHYSTRINGS
         return Exchange(exchange_node.identifier,
                         substitute_replacements(exchange_node.name, replacements),
                         exchange_node.type,
@@ -327,7 +338,9 @@ class Schema(object):
                         exchange_node.description,
                         [self._content_types[content_type_id] for content_type_id in exchange_node.content_type_ids],
                         substitute_replacements_in_arguments(exchange_node.arguments, replacements),
-                        int(self._getExchangeProperty(exchange_node.identifier, 'delivery_mode', 2)))
+                        int(self._getExchangeProperty(exchange_node.identifier, 'delivery_mode', 2)),
+                        compression
+                       )
             
     def getQueue(self, name, replacements=None):
         if isinstance(name, Queue):

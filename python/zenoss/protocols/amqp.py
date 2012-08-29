@@ -6,7 +6,7 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 # 
 ##############################################################################
-
+import zlib
 import errno
 import logging
 import socket
@@ -128,7 +128,8 @@ class Publisher(object):
         # mechanism to prevent declaring an exchange with each call.
         exchangeConfig = self.useExchange(exchange)
 
-        msg = self.buildMessage(obj, headers, delivery_mode=exchangeConfig.delivery_mode)
+        msg = self.buildMessage(obj, headers, delivery_mode=exchangeConfig.delivery_mode,
+                               compression=exchangeConfig.compression)
 
         lastexc = None
         for i in range(2):
@@ -192,17 +193,28 @@ class Publisher(object):
             else:
                 raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
 
-    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT):
+    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
+                     compression=False):
+
+        body = obj.SerializeToString()
+
         msg_headers = {
             'X-Protobuf-FullName' : obj.DESCRIPTOR.full_name
         }
+
+        msg_properties = {}
+
+        if compression:
+            body = zlib.compress(body)
+            msg_properties['content_encoding'] = 'deflate'
 
         if headers:
             msg_headers.update(headers)
 
         return Message(
-            body=obj.SerializeToString(),
+            body=body,
             content_type='application/x-protobuf',
             application_headers=msg_headers,
-            delivery_mode=delivery_mode
-        )
+            delivery_mode=delivery_mode,
+            **msg_properties)
+

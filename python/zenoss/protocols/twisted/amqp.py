@@ -7,8 +7,8 @@
 # 
 ##############################################################################
 
-
 import logging
+import zlib
 from os.path import join as pathjoin, dirname
 from twisted.internet import reactor
 from twisted.internet.protocol import ReconnectingClientFactory
@@ -165,11 +165,17 @@ class AMQProtocol(AMQClient):
             # Declare the exchange to which the message is being sent
             yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
+        if exchangeConfig.compression:
+            body = zlib.compress(body)
+
         content = Content(body)
         content['delivery_mode'] = exchangeConfig.delivery_mode
         # set the headers to our protobuf type, hopefully this works
         content.properties['headers'] = headers
         content.properties['content-type'] = 'application/x-protobuf'
+
+        if exchangeConfig.compression:
+            content.properties['content-encoding'] = 'deflate'
 
         # Publish away
         yield self.chan.basic_publish(exchange=exchangeConfig.name,
@@ -221,6 +227,12 @@ class AMQProtocol(AMQClient):
 
     @inlineCallbacks
     def _doCallback(self, queue, callback, message):
+        if message.content.properties.get('content-encoding', None) == 'deflate':
+            try:
+                message.content.body = zlib.decompress(message.content.body)
+            except zlib.error as e:
+                log.exception("Unable to decode event.")
+
         yield defer.maybeDeferred(callback, message)
         self.processMessages(queue, callback)
 

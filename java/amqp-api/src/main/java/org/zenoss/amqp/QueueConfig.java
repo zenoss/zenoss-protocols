@@ -10,6 +10,7 @@
 
 package org.zenoss.amqp;
 
+import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonNode;
@@ -48,6 +49,7 @@ import java.util.regex.Pattern;
  */
 public class QueueConfig {
     private static final Logger logger = LoggerFactory.getLogger(QueueConfig.class);
+    private static final Set truthyStrings = Sets.newHashSet("1", "true", "yes", "y");
 
     /**
      * Contains parsed configuration for an exchange from QJS file.
@@ -396,6 +398,8 @@ public class QueueConfig {
      *                          the configuration.
      * @return The exchange configuration, or null if not found.
      */
+
+
     public ExchangeConfiguration getExchange(String identifier, Map<String, String> replacementValues) {
         ExchangeNode exchangeNode = this.exchangesById.get(identifier);
         if (exchangeNode == null) {
@@ -409,8 +413,11 @@ public class QueueConfig {
         MessageDeliveryMode deliveryMode = MessageDeliveryMode.fromMode(
                 Integer.parseInt(properties.getExchangeProperty(identifier, "delivery_mode", "2")));
 
+        String rawCompression = properties.getExchangeProperty(identifier, "compression", "false");
+        boolean compression = truthyStrings.contains(rawCompression.toLowerCase());
+
         Exchange exchange = new Exchange(name, exchangeNode.type, exchangeNode.durable,
-                exchangeNode.autoDelete, arguments, deliveryMode);
+                exchangeNode.autoDelete, arguments, deliveryMode, compression);
         List<Message> messages = new ArrayList<Message>(exchangeNode.contentTypeIds.size());
         for (String messageId : exchangeNode.contentTypeIds) {
             messages.add(loadMessageFromContentTypeId(messageId));

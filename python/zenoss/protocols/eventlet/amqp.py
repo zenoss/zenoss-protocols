@@ -6,8 +6,7 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 # 
 ##############################################################################
-
-
+import zlib
 import logging
 from zope.component import getAdapter
 from zenoss.protocols import hydrateQueueMessage
@@ -19,6 +18,11 @@ from eventlet import patcher
 from eventlet.green import socket
 amqp = patcher.import_patched('amqplib.client_0_8', socket=socket)
 import eventlet
+
+
+DELIVERY_NONPERSISTENT = 1
+DELIVERY_PERSISTENT = 2
+
 
 __doc__ = """
 An eventlet based AMQP publisher/subscriber (consumer).
@@ -63,6 +67,10 @@ class PubSub(object):
     def _onMessage(self, message):
         message.ack = lambda: self.channel.basic_ack(message.delivery_tag)
         message.reject = lambda requeue=True: self.channel.basic_reject(message.delivery_tag, requeue)
+
+        if message.properties.get('content_encoding', None) == 'deflate':
+            message.body = zlib.decompress(message.body)
+
         for publishable in self._processMessage(message):
             self.publish(publishable)
 
@@ -145,25 +153,39 @@ class ProtobufPubSub(PubSub):
         fullName = self._queueSchema.getContentType(contentType).protobuf_name
         self._handlers[fullName] = handler
 
-    def buildMessage(self, obj, headers=None):
+    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
+                     compression=False):
+
+        body = obj.SerializeToString()
+
         msg_headers = {
             'X-Protobuf-FullName' : obj.DESCRIPTOR.full_name
         }
+
+        msg_properties = {}
+
+        if compression:
+            body = zlib.compress(body)
+            msg_properties['content_encoding'] = 'deflate'
 
         if headers:
             msg_headers.update(headers)
 
         return amqp.Message(
-            body=obj.SerializeToString(),
+            body=body,
             content_type='application/x-protobuf',
             application_headers=msg_headers,
-            delivery_mode=2 # Persist
-        )
+            delivery_mode=delivery_mode,
+            **msg_properties)
+
 
     def publish(self, publishable):
 
-        publishable.message = self.buildMessage(publishable.message)
-        publishable.exchange = self._queueSchema.getExchange(publishable.exchange).name
+        exchangeConfig = self._queueSchema.getExchange(publishable.exchange)
+        publishable.message = self.buildMessage(publishable.message,
+                                               delivery_mode=exchangeConfig.delivery_mode,
+                                               compression=exchangeConfig.compression)
+        publishable.exchange = exchangeConfig.name
 
         return super(ProtobufPubSub, self).publish(publishable)
 

@@ -51,3 +51,4 @@ def hydrateQueueMessage(message, queueSchema):
         raise InvalidQueueMessage("Message does not have a valid protobuf full name")
 
     return queueSchema.hydrateProtobuf(fullName, message.body)
+

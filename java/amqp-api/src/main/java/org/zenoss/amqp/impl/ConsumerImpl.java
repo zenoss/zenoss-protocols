@@ -1,10 +1,10 @@
 /*****************************************************************************
- * 
+ *
  * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
- * 
+ *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
- * 
+ *
  ****************************************************************************/
 
 
@@ -23,10 +23,36 @@ import org.zenoss.amqp.MessageEnvelope;
 import org.zenoss.amqp.MessageProperties;
 import org.zenoss.amqp.Queue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 class ConsumerImpl<T> implements Consumer<T> {
+
+    private static byte[] decompressBody(byte[] compressed) {
+        final Inflater decompressor = new Inflater();
+        decompressor.setInput(compressed);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(compressed.length);
+        byte[] buf = new byte[1024];
+        try {
+            while (true) {
+                int count = decompressor.inflate(buf);
+                if (count == 0 && decompressor.finished()) {
+                    break;
+                } else if (count == 0) {
+                    throw new RuntimeException("Bad data");
+                } else {
+                    bos.write(buf, 0, count);
+                }
+            }
+        } catch (DataFormatException e) {
+            throw new RuntimeException(e);
+        }
+        decompressor.end();
+        return bos.toByteArray();
+    }
 
     private final ChannelImpl channel;
     private final Queue queue;
@@ -40,7 +66,7 @@ class ConsumerImpl<T> implements Consumer<T> {
     }
 
     ConsumerImpl(ChannelImpl channel, Queue queue, boolean noAck,
-            MessageConverter<T> converter) {
+                 MessageConverter<T> converter) {
         this.channel = channel;
         this.queue = queue;
         this.noAck = noAck;
@@ -82,27 +108,34 @@ class ConsumerImpl<T> implements Consumer<T> {
         }
     }
 
+
     @SuppressWarnings("unchecked")
     private Message<T> createMessage(Delivery delivery) throws AmqpException {
         final T body;
+        final byte[] rawBody;
         final MessageProperties properties = new BasicPropertiesWrapper(
                 delivery.getProperties());
         final MessageEnvelope envelope = new EnvelopeWrapper(
                 delivery.getEnvelope());
+        if ("deflate".equals(properties.getContentEncoding())) {
+            rawBody = decompressBody(delivery.getBody());
+        } else {
+            rawBody = delivery.getBody();
+        }
         if (converter == null) {
-            body = (T) delivery.getBody();
+            body = (T) rawBody;
         } else {
             try {
-                body = converter.fromBytes(delivery.getBody(), properties);
+                body = converter.fromBytes(rawBody, properties);
             } catch (Exception e) {
                 /* Throw exception with original received message on failure */
                 throw new MessageDecoderException(DefaultMessage.newMessage(
-                        delivery.getBody(), properties, envelope), e);
+                        rawBody, properties, envelope), e);
             }
             /* Throw exception if we failed to convert the message */
             if (body == null) {
                 throw new MessageDecoderException(DefaultMessage.newMessage(
-                        delivery.getBody(), properties, envelope));
+                        rawBody, properties, envelope));
             }
         }
         return DefaultMessage.newMessage(body, properties, envelope);

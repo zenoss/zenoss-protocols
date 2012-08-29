@@ -86,6 +86,7 @@ public class Exchange {
     private final Type type;
     private final boolean durable;
     private final boolean autoDelete;
+    private final boolean compressed;
     private final MessageDeliveryMode deliveryMode;
     private final Map<String, Object> arguments;
 
@@ -155,6 +156,35 @@ public class Exchange {
      */
     public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments, MessageDeliveryMode deliveryMode)
             throws NullPointerException {
+        this(name, type, durable, autoDelete, arguments, deliveryMode, false);
+    }
+    
+    /**
+     * Create an exchange with the specified name, type, durable, autoDelete,
+     * and optional arguments.
+     *
+     * @param name
+     *            The name of the exchange.
+     * @param type
+     *            The type of the exchange.
+     * @param durable
+     *            If the exchange should persist following a restart.
+     * @param autoDelete
+     *            If the exchange should automatically be deleted when no longer
+     *            in use.
+     * @param arguments
+     *            Optional arguments used when defining the exchange.
+     * @param deliveryMode
+     *            The delivery mode of messages published to this exchange (persistent/nonpersistent)
+     * @param compressed
+     *            Whether to compress messages before sending
+     * @throws NullPointerException
+     *             If the exchange name or type is null.
+     */
+    public Exchange(String name, Type type, boolean durable, boolean autoDelete, 
+                    Map<String, Object> arguments, MessageDeliveryMode deliveryMode, 
+                    boolean compressed)
+            throws NullPointerException {
         if (name == null || type == null) {
             throw new NullPointerException();
         }
@@ -163,6 +193,7 @@ public class Exchange {
         this.durable = durable;
         this.autoDelete = autoDelete;
         this.deliveryMode = deliveryMode;
+        this.compressed = compressed;
         if (arguments == null || arguments.isEmpty()) {
             this.arguments = Collections.emptyMap();
         } else {
@@ -212,6 +243,10 @@ public class Exchange {
 
     public MessageDeliveryMode getDeliveryMode() {
         return deliveryMode;
+    }
+
+    public boolean shouldCompress() {
+        return compressed;
     }
 
     /**

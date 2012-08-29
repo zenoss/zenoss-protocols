@@ -1,23 +1,43 @@
 /*****************************************************************************
- * 
+ *
  * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
- * 
+ *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
- * 
+ *
  ****************************************************************************/
 
 
 package org.zenoss.amqp.impl;
 
 import com.rabbitmq.client.AMQP.BasicProperties;
-import org.zenoss.amqp.*;
+import org.zenoss.amqp.AmqpException;
+import org.zenoss.amqp.Channel;
+import org.zenoss.amqp.Exchange;
+import org.zenoss.amqp.MessageConverter;
+import org.zenoss.amqp.MessageProperties;
+import org.zenoss.amqp.MessagePropertiesBuilder;
+import org.zenoss.amqp.Publisher;
+
+import java.io.IOException;
+import java.util.zip.Deflater;
 
 class PublisherImpl<T> implements Publisher<T> {
+
+    private static byte[] compressData(byte[] data) throws IOException {
+        final Deflater compressor = new Deflater();
+        byte[] output = new byte[data.length];
+        compressor.setInput(data);
+        compressor.finish();
+        compressor.deflate(output);
+        compressor.end();
+        return output;
+    }
 
     protected final ChannelImpl channel;
     protected final Exchange exchange;
     protected final MessageConverter<T> converter;
+
 
     PublisherImpl(ChannelImpl channel, Exchange exchange) {
         this(channel, exchange, null);
@@ -43,14 +63,20 @@ class PublisherImpl<T> implements Publisher<T> {
         }
 
         propertiesBuilder.setDeliveryMode(exchange.getDeliveryMode());
-                
+
         try {
-            final byte[] rawBody;
+            byte[] rawBody;
             if (converter != null) {
                 rawBody = this.converter.toBytes(body, propertiesBuilder);
             } else {
                 rawBody = (byte[]) body;
             }
+
+            if (exchange.shouldCompress()) {
+                rawBody = compressData(rawBody);
+                propertiesBuilder.setContentEncoding("deflate");
+            }
+
             synchronized (this.channel) {
                 this.channel.getWrapped().basicPublish(exchange.getName(),
                         routingKey, convertProperties(propertiesBuilder.build()),
