@@ -10,7 +10,8 @@
 
 import pkg_resources # Import this so zenoss.protocols will be found
 import unittest
-from fixtures import queueschema, protobuf
+from copy import deepcopy
+from fixtures import queueschema, protobuf, explicit_properties, default_properties
 from zenoss.protocols.queueschema import MissingReplacementException
 
 class TestQueueConfig(unittest.TestCase):
@@ -19,7 +20,7 @@ class TestQueueConfig(unittest.TestCase):
         """
         Sets up the queue config
         """
-        self.queueConfig = queueschema
+        self.queueConfig = deepcopy(queueschema)
 
     def tearDown(self):
         self.queueConfig = None
@@ -109,6 +110,35 @@ class TestQueueConfig(unittest.TestCase):
         }
         self.assertEqual(binding_arguments, binding.arguments)
         self._compareReplacementExchange(binding.exchange, replacements)
+
+    def testExplicitProperties(self):
+        self.queueConfig.loadProperties(explicit_properties)
+
+        exchange = self.queueConfig.getExchange('$ExplicitPropertiesExchange')
+        self.assertEqual(1, exchange.delivery_mode)
+
+        queue = self.queueConfig.getQueue('$ExplicitPropertiesQueue')
+
+        self.assertEqual(54321, queue.arguments.get('x-message-ttl'))
+        self.assertEqual(11235, queue.arguments.get('x-expires'))
+
+    def testDefaultProperties(self):
+        self.queueConfig.loadProperties(default_properties)
+
+        exchange = self.queueConfig.getExchange('$DefaultPropertiesExchange')
+        self.assertEqual(1, exchange.delivery_mode)
+
+        exchange = self.queueConfig.getExchange('$ExplicitPropertiesExchange')
+        self.assertEqual(2, exchange.delivery_mode)
+
+        queue = self.queueConfig.getQueue('$DefaultPropertiesQueue')
+        self.assertEqual(54321, queue.arguments.get('x-message-ttl'))
+        self.assertEqual(11235, queue.arguments.get('x-expires'))
+
+        queue = self.queueConfig.getQueue('$ExplicitPropertiesQueue')
+        self.assertEqual(12345, queue.arguments.get('x-message-ttl'))
+        self.assertEqual(81321, queue.arguments.get('x-expires'))
+
 
 def test_suite():
     suite = unittest.TestSuite()

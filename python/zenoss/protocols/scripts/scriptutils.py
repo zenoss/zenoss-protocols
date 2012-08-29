@@ -6,8 +6,6 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 # 
 ##############################################################################
-
-
 import logging
 import sys
 import pkg_resources

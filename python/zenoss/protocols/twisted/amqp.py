@@ -21,17 +21,9 @@ from txamqp.client import TwistedDelegate
 from txamqp.content import Content
 from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
+from zenoss.protocols.exceptions import ChannelClosedError
 
 log = logging.getLogger('zen.protocols.twisted')
-
-
-class PersistentMessage(Content):
-    """
-    Simple wrapper for C{Content} that sets delivery_mode to persistent.
-    """
-    def __init__(self, *args, **kwargs):
-        Content.__init__(self, *args, **kwargs)
-        self['delivery_mode'] = 2
 
 
 class AMQProtocol(AMQClient):
@@ -44,6 +36,7 @@ class AMQProtocol(AMQClient):
     things on the factory and ask it for that information.
     """
     _connected = False
+    _counter = 2
 
     @inlineCallbacks
     def connectionMade(self):
@@ -70,6 +63,7 @@ class AMQProtocol(AMQClient):
             self._connected = True
             # Initialize the queues
             yield self.begin_listening()
+
             # Call back our deferred
             self.factory.onConnectionMade(self)
             # Flush any messages that have been sent before now
@@ -86,7 +80,8 @@ class AMQProtocol(AMQClient):
         """
         Get a channel.
         """
-        chan = yield self.channel(2)
+        chan = yield self.channel(self._counter)
+        self._counter += 1
         yield chan.channel_open()
         log.debug('Channel opened')
         returnValue(chan)
@@ -131,7 +126,26 @@ class AMQProtocol(AMQClient):
     @inlineCallbacks
     def create_queue(self, queue):
         # Declare the queue
-        yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
+        try:
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
+        except ChannelClosedError as e:
+            # Here we handle the case where we redeclare a queue 
+            # with different properties. When this happens, Rabbit
+            # both returns an error and closes the channel. We
+            # need to detect this and reopen the channel, since
+            # the existing queue will work fine (although it will
+            # not use the modified config).
+            if e.replyCode == 406:
+                # PRECONDITION_FAILED -- properties changed
+                # Remove the channel and allow it to be reopened
+                log.warn(("Attempted to redeclare queue {0} with "
+                        "different arguments. You will need to "
+                        "delete the queue to pick up the new "
+                        "configuration.").format(queue.name))
+                log.debug(e)
+                self.chan = yield self.get_channel()
+            else:
+                raise
 
     @inlineCallbacks
     def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False, headers=None,
@@ -151,8 +165,8 @@ class AMQProtocol(AMQClient):
             # Declare the exchange to which the message is being sent
             yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
-        # Wrap the message in our Content subclass
-        content = PersistentMessage(body)
+        content = Content(body)
+        content['delivery_mode'] = exchangeConfig.delivery_mode
         # set the headers to our protobuf type, hopefully this works
         content.properties['headers'] = headers
         content.properties['content-type'] = 'application/x-protobuf'

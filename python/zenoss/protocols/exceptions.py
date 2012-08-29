@@ -7,6 +7,9 @@
 # 
 ##############################################################################
 
+from txamqp.client import Closed
+from amqplib.client_0_8.exceptions import AMQPChannelException
+
 
 class ConnectionError(IOError):
     """
@@ -25,6 +28,26 @@ class ConnectionError(IOError):
 
     def __str__(self):
         return "%s: [%s] %s" % (self.message, self.errno, self.strerror)
+
+
+
+class ChannelClosedError(IOError):
+    """
+    Wraps txamqp/amqplib exceptions
+    """
+    _replyCode = None
+
+    def __init__(self, exc):
+        super(ChannelClosedError, self).__init__(exc)
+        if isinstance(exc, Closed):
+            self._replyCode = exc.args[0].fields[0]
+        elif isinstance(exc, AMQPChannelException):
+            self._replyCode = exc.amqp_reply_code
+
+    @property
+    def replyCode(self):
+        return self._replyCode
+
 
 
 class PublishException(Exception):

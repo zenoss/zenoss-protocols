@@ -36,6 +36,7 @@ setup(
             'zenqdump = zenoss.protocols.scripts.zenqdump:main',
             'zenqpush = zenoss.protocols.scripts.zenqpush:main',
             'zenqload = zenoss.protocols.scripts.zenqload:main',
+            'zenqdelete = zenoss.protocols.scripts.zenqdelete:main',
         ]
     },
     test_suite = "tests.suite.test_all"

@@ -1,16 +1,20 @@
 /*****************************************************************************
- * 
+ *
  * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
- * 
+ *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
- * 
+ *
  ****************************************************************************/
 
 
 package org.zenoss.amqp;
 
 import com.google.protobuf.ExtensionRegistry;
+import com.rabbitmq.client.Method;
+import com.rabbitmq.client.ShutdownSignalException;
+import com.rabbitmq.client.impl.AMQCommand;
+import com.rabbitmq.client.impl.AMQImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +60,8 @@ public class AmqpConnectionManager {
      * Creates an {@link AmqpConnectionManager} which will perform operations
      * against the specified AMQP server. The connection timeout is set to the
      * default retry interval of {@link #DEFAULT_RETRY_INTERVAL}.
-     * 
-     * @param uri
-     *            The AMQP server uri.
+     *
+     * @param uri The AMQP server uri.
      */
     public AmqpConnectionManager(AmqpServerUri uri) {
         this(uri, DEFAULT_RETRY_INTERVAL);
@@ -68,11 +71,9 @@ public class AmqpConnectionManager {
      * Creates an {@link AmqpConnectionManager} which performs operations
      * against the specified AMQP server with the specified connection retry
      * interval.
-     * 
-     * @param uri
-     *            The AMQP server uri.
-     * @param retry
-     *            The connection retry interval.
+     *
+     * @param uri   The AMQP server uri.
+     * @param retry The connection retry interval.
      */
     public AmqpConnectionManager(AmqpServerUri uri, long retry) {
         this.retry = retry;
@@ -101,13 +102,11 @@ public class AmqpConnectionManager {
 
     /**
      * Adds a queue listener for the specified queue configuration.
-     * 
-     * @param config
-     *            Queue configuration which contains the queue and queue
-     *            bindings.
-     * @param listener
-     *            Queue listener which is called when messages are consumed from
-     *            the queue.
+     *
+     * @param config   Queue configuration which contains the queue and queue
+     *                 bindings.
+     * @param listener Queue listener which is called when messages are consumed from
+     *                 the queue.
      * @return Unique identifier for this listener (used to disable it with {@link #removeListener(String)}.
      */
     public String addListener(QueueConfiguration config, QueueListener listener) {
@@ -148,8 +147,7 @@ public class AmqpConnectionManager {
                 getFuture(future);
             }
             worker.reset();
-        }
-        else {
+        } else {
             log.info("Unknown listener: {}", listenerId);
         }
     }
@@ -180,20 +178,16 @@ public class AmqpConnectionManager {
     /**
      * Publishes the message to the specified exchange with the given routing
      * key. If the exchange does not exist it is created.
-     * 
-     * @param config
-     *            The configuration for the exchange (including the exchange and
-     *            the types of protobuf messages which can be published to the
-     *            exchange).
-     * @param routingKey
-     *            The routing key to be used for the message.
-     * @param message
-     *            The message to publish.
-     * @throws AmqpException
-     *             If the message cannot be published to the exchange.
+     *
+     * @param config     The configuration for the exchange (including the exchange and
+     *                   the types of protobuf messages which can be published to the
+     *                   exchange).
+     * @param routingKey The routing key to be used for the message.
+     * @param message    The message to publish.
+     * @throws AmqpException If the message cannot be published to the exchange.
      */
     public void publish(ExchangeConfiguration config, String routingKey,
-            com.google.protobuf.Message message) throws AmqpException {
+                        com.google.protobuf.Message message) throws AmqpException {
         Publisher<com.google.protobuf.Message> pub;
         try {
             pub = this.getPublisher(config);
@@ -214,13 +208,11 @@ public class AmqpConnectionManager {
 
     /**
      * Creates a batch publisher for the specified exchange.
-     * 
-     * @param config
-     *            Exchange configuration.
+     *
+     * @param config Exchange configuration.
      * @return A batch publisher for the exchange. It must be closed with
      *         {@link BatchPublisher#close()} when it is no longer needed.
-     * @throws AmqpException
-     *             If an exception occurs.
+     * @throws AmqpException If an exception occurs.
      */
     public BatchPublisher<com.google.protobuf.Message> createBatchPublisher(
             ExchangeConfiguration config) throws AmqpException {
@@ -304,8 +296,7 @@ public class AmqpConnectionManager {
                         worker.setFuture(this.ecs.submit(worker));
                     }
                 }
-            }
-            else {
+            } else {
                 this.workers.remove(worker.getWorkerId());
             }
         }
@@ -453,9 +444,42 @@ public class AmqpConnectionManager {
             if (this.shutdown) {
                 throw new IllegalStateException("This worker has already been shut down");
             }
-            final Channel channel = manager.openChannel();
+            Channel channel = manager.openChannel();
             this.listener.configureChannel(channel);
-            channel.declareQueue(config.getQueue());
+            try {
+                channel.declareQueue(config.getQueue());
+            } catch (AmqpException e) {
+                /**
+                 * Here we handle the case where we redeclare a queue with different properties.
+                 * When this happens, Rabbit both returns an error and closes the channel. We need
+                 * to detect this and reopen the channel, since the existing queue will work fine
+                 * (although it will not use the modified config).
+                 */
+                Throwable t = e;
+                while (t != null) {
+                    t = t.getCause();
+                    if (t instanceof ShutdownSignalException) {
+                        Object reason = ((ShutdownSignalException) t).getReason();
+                        if (reason instanceof AMQCommand) {
+                            Method method = ((AMQCommand) reason).getMethod();
+                            if (method instanceof AMQImpl.Channel.Close) {
+                                int replyCode = ((AMQImpl.Channel.Close) method).getReplyCode();
+                                if (replyCode == 406) {
+                                    // PRECONDITION_FAILED -- properties changed. Reopen the channel.
+                                    log.warn("Attempted to redeclare queue {} with different arguments. You will " +
+                                            "need to delete the queue to pick up the new configuration.",
+                                            config.getQueue().getName());
+                                    log.debug("Queue declare exception", e);
+                                    channel = manager.openChannel();
+                                    this.listener.configureChannel(channel);
+                                    break;
+                                }
+                            }
+                        }
+                        throw e;
+                    }
+                }
+            }
             for (Binding binding : config.getBindings()) {
                 channel.declareExchange(binding.getExchange());
                 channel.bindQueue(binding);

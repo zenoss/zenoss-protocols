@@ -19,10 +19,14 @@ import static org.junit.Assert.*;
  */
 public class QueueConfigTest {
 
+    private static InputStream resourceStream(String resourcePath) throws IOException {
+        return QueueConfigTest.class.getResourceAsStream(resourcePath);
+    }
+
     private QueueConfig loadQueueConfig(String resourcePath) throws IOException {
         InputStream is = null;
         try {
-            is = QueueConfigTest.class.getResourceAsStream(resourcePath);
+            is = resourceStream(resourcePath);
             return new QueueConfig(is);
         } finally {
             if (is != null) {
@@ -30,6 +34,7 @@ public class QueueConfigTest {
             }
         }
     }
+
 
     @Test
     public void testReadArguments() throws IOException {
@@ -135,5 +140,75 @@ public class QueueConfigTest {
         assertEquals(1, exchange.getArguments().size());
         assertEquals("my argument " + replacements.get("exchange_value"),
                 exchange.getArguments().get("arg_" + replacements.get("exchange_name")));
+    }
+    
+    @Test
+    public void testExplicitMessagingProperties() throws Exception {
+        QueueConfig queueConfig = loadQueueConfig("/sample.qjs");
+        InputStream is = null;
+        try {
+            is = resourceStream("/sample.messaging.conf");
+            queueConfig.loadProperties(is);
+        } finally {
+            if (is != null) {
+                is.close();
+            }
+        }
+        
+        ExchangeConfiguration configuration = queueConfig.getExchange("$ExplicitPropertiesExchange");
+        Exchange exchange = configuration.getExchange();
+        
+        assertEquals(MessageDeliveryMode.NON_PERSISTENT, exchange.getDeliveryMode());
+
+        QueueConfiguration queueConfiguration = queueConfig.getQueue("$ExplicitPropertiesQueue");
+        Queue queue = queueConfiguration.getQueue();
+
+        Map<String, Object> arguments = queue.getArguments();
+
+        Object ttl = arguments.get("x-message-ttl");
+        Object expires = arguments.get("x-expires");
+
+        assertEquals(54321, ttl);
+        assertEquals(11235, expires);
+
+    }
+
+    @Test
+    public void testDefaultMessagingProperties() throws Exception {
+        QueueConfig queueConfig = loadQueueConfig("/sample.qjs");
+        InputStream is = null;
+        try {
+            is = resourceStream("/sample.messaging.default.conf");
+            queueConfig.loadProperties(is);
+        } finally {
+            if (is != null) {
+                is.close();
+            }
+        }
+
+        ExchangeConfiguration configuration = queueConfig.getExchange("$DefaultPropertiesExchange");
+        Exchange exchange = configuration.getExchange();
+        assertEquals(MessageDeliveryMode.NON_PERSISTENT, exchange.getDeliveryMode());
+
+        configuration = queueConfig.getExchange("$ExplicitPropertiesExchange");
+        exchange = configuration.getExchange();
+        assertEquals(MessageDeliveryMode.PERSISTENT, exchange.getDeliveryMode());
+
+        QueueConfiguration queueConfiguration = queueConfig.getQueue("$DefaultPropertiesQueue");
+        Queue queue = queueConfiguration.getQueue();
+        Map<String, Object> arguments = queue.getArguments();
+        Object ttl = arguments.get("x-message-ttl");
+        Object expires = arguments.get("x-expires");
+        assertEquals(54321, ttl);
+        assertEquals(11235, expires);
+
+        queueConfiguration = queueConfig.getQueue("$ExplicitPropertiesQueue");
+        queue = queueConfiguration.getQueue();
+        arguments = queue.getArguments();
+        ttl = arguments.get("x-message-ttl");
+        expires = arguments.get("x-expires");
+        assertEquals(12345, ttl);
+        assertEquals(81321, expires);
+
     }
 }

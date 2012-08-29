@@ -98,6 +98,22 @@ mock_schema = """\
                     "value": "my argument {exchange_value}"
                 }
             }
+        },
+        "$ExplicitPropertiesExchange": {
+            "name": "zenoss.exchanges.explicit",
+            "type": "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample properties exchange.",
+            "content_types" : []
+        },
+        "$DefaultPropertiesExchange": {
+            "name": "zenoss.exchanges.default",
+            "type": "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample properties exchange.",
+            "content_types" : []
         }
     },
     "queues": {
@@ -161,10 +177,40 @@ mock_schema = """\
                     }
                 }
             ]
+        },
+        "$ExplicitPropertiesQueue": {
+            "name" : "zenoss.queues.properties",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Propertied queue."
+        },
+        "$DefaultPropertiesQueue": {
+            "name" : "zenoss.queues.properties",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Propertied queue."
         }
     }
 }
 """
 
+explicit_properties = {
+    'exchange.$ExplicitPropertiesExchange.delivery_mode': '1',
+    'queue.$ExplicitPropertiesQueue.x-message-ttl': '54321',
+    'queue.$ExplicitPropertiesQueue.x-expires': '11235'
+}
+
+default_properties = {
+    'exchange.default.delivery_mode': '1',
+    'exchange.$ExplicitPropertiesExchange.delivery_mode': '2',
+    'queue.default.x-message-ttl':'54321',
+    'queue.default.x-expires':'11235',
+    'queue.$ExplicitPropertiesQueue.x-message-ttl':'12345',
+    'queue.$ExplicitPropertiesQueue.x-expires':'81321'
+}
+
 from json import loads
 queueschema = Schema(loads(mock_schema))
+

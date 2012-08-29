@@ -41,6 +41,9 @@ class PublisherImpl<T> implements Publisher<T> {
         if (propertiesBuilder == null) {
             propertiesBuilder = MessagePropertiesBuilder.newBuilder();
         }
+
+        propertiesBuilder.setDeliveryMode(exchange.getDeliveryMode());
+                
         try {
             final byte[] rawBody;
             if (converter != null) {

@@ -118,7 +118,8 @@ class Queue(object):
 class Exchange(object):
     implements(IExchange)
 
-    def __init__(self, identifier, name, type, durable, auto_delete, description, content_types, arguments=None):
+    def __init__(self, identifier, name, type, durable, auto_delete,
+                 description, content_types, arguments=None, delivery_mode=2):
         self.identifier = identifier
         self._name = name
         self._type = type
@@ -127,6 +128,7 @@ class Exchange(object):
         self._description = description
         self._content_types = content_types
         self._arguments = arguments
+        self._delivery_mode = delivery_mode
 
     @property
     def name(self):
@@ -156,7 +158,13 @@ class Exchange(object):
     def arguments(self):
         return self._arguments
 
+    @property
+    def delivery_mode(self):
+        return self._delivery_mode
+
+
 _REPLACEMENT_PATTERN = re.compile(r'\{([^}]+)\}')
+
 
 class MissingReplacementException(Exception):
     pass
@@ -213,6 +221,7 @@ class BindingNode(object):
         self.routing_key = routing_key
         self.arguments = arguments
 
+
 class Schema(object):
     implements(IQueueSchema)
 
@@ -223,8 +232,26 @@ class Schema(object):
         self._protobuf_full_name_to_class = None
         self._queue_nodes_by_name = {}
         self._exchange_nodes_by_name = {}
+        self._properties = {}
         for schema in schemas:
             self._load(schema)
+
+    def loadProperties(self, parsed):
+        self._properties.update(parsed)
+
+    def _getProperty(self, type_, identifier, key, default=None):
+        locs = locals()
+        return self._properties.get(
+            "{type_}.{identifier}.{key}".format(**locs),
+            self._properties.get(
+                "{type_}.default.{key}".format(**locs),
+                default))
+
+    def _getExchangeProperty(self, identifier, key, default=None):
+        return self._getProperty("exchange", identifier, key, default)
+
+    def _getQueueProperty(self, identifier, key, default=None):
+        return self._getProperty("queue", identifier, key, default)
 
     def _load(self, schema):
         for identifier, contentConfig in schema.get('content_types', {}).iteritems():
@@ -299,7 +326,8 @@ class Schema(object):
                         exchange_node.auto_delete,
                         exchange_node.description,
                         [self._content_types[content_type_id] for content_type_id in exchange_node.content_type_ids],
-                        substitute_replacements_in_arguments(exchange_node.arguments, replacements))
+                        substitute_replacements_in_arguments(exchange_node.arguments, replacements),
+                        int(self._getExchangeProperty(exchange_node.identifier, 'delivery_mode', 2)))
             
     def getQueue(self, name, replacements=None):
         if isinstance(name, Queue):
@@ -310,13 +338,25 @@ class Schema(object):
         else:        
             queue_node = self._queue_nodes_by_name[name]
 
+        arguments = substitute_replacements_in_arguments(queue_node.arguments,
+                                                         replacements)
+
+        ttl = self._getQueueProperty(queue_node.identifier, 'x-message-ttl', None)
+        if ttl is not None:
+            arguments['x-message-ttl'] = int(ttl)
+
+        expires = self._getQueueProperty(queue_node.identifier, 'x-expires', None)
+        if expires is not None:
+            arguments['x-expires'] = int(expires)
+
         queue = Queue(queue_node.identifier,
                       substitute_replacements(queue_node.name, replacements),
                       queue_node.durable,
                       queue_node.exclusive,
                       queue_node.auto_delete,
                       queue_node.description,
-                      substitute_replacements_in_arguments(queue_node.arguments, replacements))
+                      arguments)
+
         for binding_node in queue_node.binding_nodes:
             binding = Binding(self.getExchange(binding_node.exchange_identifier, replacements),
                               substitute_replacements(binding_node.routing_key, replacements),

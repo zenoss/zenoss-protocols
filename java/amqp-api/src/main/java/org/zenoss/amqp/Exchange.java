@@ -86,12 +86,36 @@ public class Exchange {
     private final Type type;
     private final boolean durable;
     private final boolean autoDelete;
+    private final MessageDeliveryMode deliveryMode;
     private final Map<String, Object> arguments;
 
     /**
      * Create an exchange with the specified name, type, durable, and autoDelete
      * settings.
      * 
+     * @param name
+     *            The name of the exchange.
+     * @param type
+     *            The type of the exchange.
+     * @param durable
+     *            If the exchange should persist following a restart.
+     * @param autoDelete
+     *            If the exchange should automatically be deleted when no longer
+     *            in use.
+     * @param arguments
+     *            Optional arguments used when defining the exchange.
+     * @throws NullPointerException
+     *             If the exchange name or type is null.
+     */
+    public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments)
+            throws NullPointerException {
+        this(name, type, durable, autoDelete, arguments, MessageDeliveryMode.PERSISTENT);
+    }
+
+    /**
+     * Create an exchange with the specified name, type, durable, and autoDelete
+     * settings.
+     *
      * @param name
      *            The name of the exchange.
      * @param type
@@ -124,10 +148,12 @@ public class Exchange {
      *            in use.
      * @param arguments
      *            Optional arguments used when defining the exchange.
+     * @param deliveryMode
+     *            The delivery mode of messages published to this exchange (persistent/nonpersistent)
      * @throws NullPointerException
      *             If the exchange name or type is null.
      */
-    public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments)
+    public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments, MessageDeliveryMode deliveryMode)
             throws NullPointerException {
         if (name == null || type == null) {
             throw new NullPointerException();
@@ -136,6 +162,7 @@ public class Exchange {
         this.type = type;
         this.durable = durable;
         this.autoDelete = autoDelete;
+        this.deliveryMode = deliveryMode;
         if (arguments == null || arguments.isEmpty()) {
             this.arguments = Collections.emptyMap();
         } else {
@@ -183,6 +210,10 @@ public class Exchange {
         return autoDelete;
     }
 
+    public MessageDeliveryMode getDeliveryMode() {
+        return deliveryMode;
+    }
+
     /**
      * Returns an immutable map of arguments used to create the exchange.
      * 
@@ -191,6 +222,7 @@ public class Exchange {
     public Map<String, Object> getArguments() {
         return arguments;
     }
+    
 
     @Override
     public String toString() {

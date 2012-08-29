@@ -1,19 +1,21 @@
 /*****************************************************************************
- * 
+ *
  * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
- * 
+ *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
- * 
+ *
  ****************************************************************************/
 
 
 package org.zenoss.amqp;
 
 import org.zenoss.utils.ZenPacks;
+import org.zenoss.utils.Zenoss;
 import org.zenoss.utils.ZenossException;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,6 +60,23 @@ public class ZenossQueueConfig {
                         }
                     }
                 }
+            }
+            try {
+                InputStream msgConfStream = null;
+                File confFile = new File(Zenoss.zenPath("etc", "messaging.conf"));
+                try {
+                    if (confFile.isFile()) {
+                        msgConfStream = new BufferedInputStream(
+                                new FileInputStream(confFile));
+                        sZenossQueueConfig.loadProperties(msgConfStream);
+                    }
+                } finally {
+                    if (msgConfStream != null) {
+                        msgConfStream.close();
+                    }
+                }
+            } catch (ZenossException ignored) {
+                // Everybody gots problems, yo. Nothing to feel bad about. Accept them and move on.
             }
         }
         return sZenossQueueConfig;

@@ -16,9 +16,11 @@ from amqplib.client_0_8.channel import Channel as AMQPLibChannel
 from amqplib.client_0_8.connection import Connection as AMQPConnection
 from amqplib.client_0_8.exceptions import AMQPChannelException
 from txamqp.protocol import AMQChannel as TwistedAMQChannel
+from txamqp.client import Closed
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zope.interface import implements
 from zope.component import adapts
+from .exceptions import ChannelClosedError
 
 log = logging.getLogger('zen.protocols')
 
@@ -32,11 +34,15 @@ class AMQPLibChannelAdapter(object):
 
     def declareQueue(self, queue):
         log.debug("Creating queue: %s", queue.name)
-        result = self.channel.queue_declare(queue=queue.name,
-                                            durable=queue.durable,
-                                            exclusive=queue.exclusive,
-                                            auto_delete=queue.auto_delete,
-                                            arguments=queue.arguments)
+        log.debug("Using arguments: %r", queue.arguments)
+        try:
+            result = self.channel.queue_declare(queue=queue.name,
+                                                durable=queue.durable,
+                                                exclusive=queue.exclusive,
+                                                auto_delete=queue.auto_delete,
+                                                arguments=queue.arguments)
+        except AMQPChannelException as e:
+            raise ChannelClosedError(e)
 
         for identifier, binding in queue.bindings.iteritems():
             self.declareExchange(binding.exchange)
@@ -82,11 +88,15 @@ class TwistedChannelAdapter(object):
     @inlineCallbacks
     def declareQueue(self, queue):
         log.debug("Creating queue: %s", queue.name)
-        result = yield self.channel.queue_declare(queue=queue.name,
-                                                  durable=queue.durable,
-                                                  exclusive=queue.exclusive,
-                                                  auto_delete=queue.auto_delete,
-                                                  arguments=queue.arguments)
+        log.debug("Using arguments: %r", queue.arguments)
+        try:
+            result = yield self.channel.queue_declare(queue=queue.name,
+                                                      durable=queue.durable,
+                                                      exclusive=queue.exclusive,
+                                                      auto_delete=queue.auto_delete,
+                                                      arguments=queue.arguments)
+        except Closed as e:
+            raise ChannelClosedError(e)
 
         for identifier, binding in queue.bindings.iteritems():
             yield self.declareExchange(binding.exchange)

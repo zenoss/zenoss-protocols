@@ -18,6 +18,11 @@ from zenoss.protocols.exceptions import (
         ConnectionError
     )
 from zope.component import getAdapter
+from .exceptions import ChannelClosedError
+
+
+DELIVERY_NONPERSISTENT = 1
+DELIVERY_PERSISTENT = 2
 
 REPLY_CODE_NO_ROUTE = 312
 REPLY_CODE_NO_CONSUMERS = 313
@@ -119,15 +124,16 @@ class Publisher(object):
         @param routing_key: The routing key with which to publish `msg`.
         @type routing_key: str
         """
-        msg = self.buildMessage(obj, headers)
+        # We don't use declareExchange - we already have a caching
+        # mechanism to prevent declaring an exchange with each call.
+        exchangeConfig = self.useExchange(exchange)
+
+        msg = self.buildMessage(obj, headers, delivery_mode=exchangeConfig.delivery_mode)
 
         lastexc = None
         for i in range(2):
             try:
                 channel = self.getChannel()
-                # We don't use declareExchange - we already have a caching
-                # mechanism to prevent declaring an exchange with each call.
-                exchangeConfig = self.useExchange(exchange)
                 log.debug('Publishing with routing key %s to exchange %s', routing_key, exchangeConfig.name)
                 channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory, immediate=immediate)
                 if mandatory or immediate:
@@ -155,7 +161,26 @@ class Publisher(object):
             for i in range(2):
                 try:
                     channel = self.getChannel()
-                    getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
+                    try:
+                        getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
+                    except ChannelClosedError as e:
+                        # Here we handle the case where we redeclare a queue 
+                        # with different properties. When this happens, Rabbit
+                        # both returns an error and closes the channel. We
+                        # need to detect this and reopen the channel, since
+                        # the existing queue will work fine (although it will
+                        # not use the modified config).
+                        if e.replyCode == 406:
+                            # PRECONDITION_FAILED -- properties changed
+                            # Remove the channel and allow it to be reopened
+                            log.warn(("Attempted to redeclare queue {0} with "
+                                    "different arguments. You will need to "
+                                    "delete the queue to pick up the new "
+                                    "configuration.").format(queue.name))
+                            log.debug(e)
+                            self._channel = None
+                        else:
+                            raise
                     self._queues.add(queueIdentifier)
                     break
                 except socket.error as exc:
@@ -167,7 +192,7 @@ class Publisher(object):
             else:
                 raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
 
-    def buildMessage(self, obj, headers=None):
+    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT):
         msg_headers = {
             'X-Protobuf-FullName' : obj.DESCRIPTOR.full_name
         }
@@ -179,5 +204,5 @@ class Publisher(object):
             body=obj.SerializeToString(),
             content_type='application/x-protobuf',
             application_headers=msg_headers,
-            delivery_mode=2 # Persist
+            delivery_mode=delivery_mode
         )

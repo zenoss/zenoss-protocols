@@ -1,10 +1,10 @@
 /*****************************************************************************
- * 
+ *
  * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
- * 
+ *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
- * 
+ *
  ****************************************************************************/
 
 
@@ -60,7 +60,7 @@ public class QueueConfig {
         private boolean autoDelete;
         private String description;
         private Set<String> contentTypeIds = new LinkedHashSet<String>();
-        private Map<String,Object> arguments;
+        private Map<String, Object> arguments;
 
         @Override
         public String toString() {
@@ -83,7 +83,7 @@ public class QueueConfig {
     private static class BindingNode {
         private String exchangeIdentifier;
         private String routingKey;
-        private Map<String,Object> arguments;
+        private Map<String, Object> arguments;
 
         @Override
         public String toString() {
@@ -105,7 +105,7 @@ public class QueueConfig {
         private boolean exclusive;
         private boolean autoDelete;
         private String description;
-        private Map<String,Object> arguments;
+        private Map<String, Object> arguments;
         private List<BindingNode> bindingNodes = new ArrayList<BindingNode>();
 
         @Override
@@ -124,14 +124,14 @@ public class QueueConfig {
     }
 
     private final Map<String, String> contentTypeIdToJavaClass = new LinkedHashMap<String, String>();
-    private final Map<String, ExchangeNode> exchangesById = new LinkedHashMap<String,ExchangeNode>();
+    private final Map<String, ExchangeNode> exchangesById = new LinkedHashMap<String, ExchangeNode>();
     private final Map<String, QueueNode> queuesById = new LinkedHashMap<String, QueueNode>();
+    private final MessagingProperties properties = new MessagingProperties();
 
     /**
      * Creates a queue configuration from the specified file.
-     * 
-     * @param file
-     *            File to read the queue configuration from.
+     *
+     * @param file File to read the queue configuration from.
      * @throws IOException If an error occurs parsing the file.
      */
     public QueueConfig(File file) throws IOException {
@@ -148,7 +148,7 @@ public class QueueConfig {
 
     /**
      * Creates a queue configuration from the specified input stream.
-     * 
+     *
      * @param inputStream Input stream the contents of which should be parsed
      * @throws IOException If an error occurs parsing the input streams.
      */
@@ -166,6 +166,10 @@ public class QueueConfig {
         for (InputStream is : inputStreams) {
             load(is);
         }
+    }
+
+    public void loadProperties(InputStream is) throws IOException {
+        properties.load(is);
     }
 
     protected void load(InputStream is) throws IOException {
@@ -202,7 +206,7 @@ public class QueueConfig {
             throw new IOException("Content types not a JSON object");
         }
         ObjectNode contentTypes = (ObjectNode) contentTypesNode;
-        for (Iterator<Map.Entry<String, JsonNode>> it = contentTypes.getFields(); it.hasNext();) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = contentTypes.getFields(); it.hasNext(); ) {
             Map.Entry<String, JsonNode> entry = it.next();
             String contentTypeId = entry.getKey();
             JsonNode contentType = entry.getValue();
@@ -216,7 +220,8 @@ public class QueueConfig {
         if (cl != null) {
             try {
                 return cl.loadClass(className);
-            } catch (ClassNotFoundException cnfe) {}
+            } catch (ClassNotFoundException cnfe) {
+            }
         }
         return Class.forName(className);
     }
@@ -240,7 +245,7 @@ public class QueueConfig {
             throw new IOException("Exchanges not a JSON object");
         }
         ObjectNode exchangesObject = (ObjectNode) node;
-        for (Iterator<Map.Entry<String, JsonNode>> it = exchangesObject.getFields(); it.hasNext();) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = exchangesObject.getFields(); it.hasNext(); ) {
             final Map.Entry<String, JsonNode> entry = it.next();
 
             final ExchangeNode exchangeNode = new ExchangeNode();
@@ -282,7 +287,7 @@ public class QueueConfig {
             throw new IOException("Queues not a JSON object");
         }
         ObjectNode queuesObject = (ObjectNode) node;
-        for (Iterator<Map.Entry<String, JsonNode>> it = queuesObject.getFields(); it.hasNext();) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = queuesObject.getFields(); it.hasNext(); ) {
             Map.Entry<String, JsonNode> entry = it.next();
             QueueNode queue = new QueueNode();
             queue.identifier = entry.getKey();
@@ -315,9 +320,8 @@ public class QueueConfig {
 
     /**
      * Returns the queue configuration with the specified identifier.
-     * 
-     * @param identifier
-     *            Identifier for queue configuration (i.e. $RawZenEvents).
+     *
+     * @param identifier Identifier for queue configuration (i.e. $RawZenEvents).
      * @return The queue configuration, or null if not found.
      */
     public QueueConfiguration getQueue(String identifier) {
@@ -328,12 +332,12 @@ public class QueueConfig {
      * Returns the queue configuration with the specified identifier with all replacement values
      * substituted in the configuration with the specified values.
      *
-     * @param identifier Identifier for the queue configuration (i.e. $RawZenEvents).
+     * @param identifier        Identifier for the queue configuration (i.e. $RawZenEvents).
      * @param replacementValues A map containing all of the replacement variables to be substituted in
      *                          the configuration.
      * @return The queue configuration, or null if not found.
      */
-    public QueueConfiguration getQueue(String identifier, Map<String,String> replacementValues) {
+    public QueueConfiguration getQueue(String identifier, Map<String, String> replacementValues) {
         QueueNode queueNode = this.queuesById.get(identifier);
         if (queueNode == null) {
             logger.warn("Unknown queue: {}", identifier);
@@ -342,16 +346,26 @@ public class QueueConfig {
 
         // Replace name and arguments with replacement values
         String name = substituteReplacements(queueNode.name, replacementValues);
-        Map<String,Object> arguments = substituteReplacementsInArguments(queueNode.arguments, replacementValues);
+        Map<String, Object> arguments = substituteReplacementsInArguments(queueNode.arguments, replacementValues);
+
+        String ttl = properties.getQueueProperty(identifier, "x-message-ttl", null);
+        if (ttl != null) {
+            arguments.put("x-message-ttl", Integer.parseInt(ttl));
+        }
+
+        String expires = properties.getQueueProperty(identifier, "x-expires", null);
+        if (expires != null) {
+            arguments.put("x-expires", Integer.parseInt(expires));
+        }
 
         // Create new queue with replacements
         Queue queue = new Queue(name, queueNode.durable, queueNode.exclusive, queueNode.autoDelete, arguments);
 
-        Map<String,Message> messagesById = new LinkedHashMap<String, Message>();
+        Map<String, Message> messagesById = new LinkedHashMap<String, Message>();
         List<Binding> replacedBindings = new ArrayList<Binding>(queueNode.bindingNodes.size());
         for (BindingNode bindingNode : queueNode.bindingNodes) {
             String routingKey = substituteReplacements(bindingNode.routingKey, replacementValues);
-            Map<String,Object> bindingArguments = substituteReplacementsInArguments(bindingNode.arguments,
+            Map<String, Object> bindingArguments = substituteReplacementsInArguments(bindingNode.arguments,
                     replacementValues);
             ExchangeConfiguration exchange = getExchange(bindingNode.exchangeIdentifier, replacementValues);
             for (Message message : exchange.getMessages()) {
@@ -365,9 +379,8 @@ public class QueueConfig {
 
     /**
      * Returns the exchange configuration with the specified identifier.
-     * 
-     * @param identifier
-     *            Identifier for exchange configuration (i.e. $RawZenEvents).
+     *
+     * @param identifier Identifier for exchange configuration (i.e. $RawZenEvents).
      * @return The exchange configuration, or null if not found.
      */
     public ExchangeConfiguration getExchange(String identifier) {
@@ -378,12 +391,12 @@ public class QueueConfig {
      * Returns the exchange configuration with the specified identifier with all replacement values
      * substituted in the configuration with the specified values.
      *
-     * @param identifier Identifier for the exchange configuration (i.e. $RawZenEvents).
+     * @param identifier        Identifier for the exchange configuration (i.e. $RawZenEvents).
      * @param replacementValues A map containing all of the replacement variables to be substituted in
      *                          the configuration.
      * @return The exchange configuration, or null if not found.
      */
-    public ExchangeConfiguration getExchange(String identifier, Map<String,String> replacementValues) {
+    public ExchangeConfiguration getExchange(String identifier, Map<String, String> replacementValues) {
         ExchangeNode exchangeNode = this.exchangesById.get(identifier);
         if (exchangeNode == null) {
             logger.warn("Unknown exchange: {}", identifier);
@@ -391,10 +404,13 @@ public class QueueConfig {
         }
 
         String name = substituteReplacements(exchangeNode.name, replacementValues);
-        Map<String,Object> arguments = substituteReplacementsInArguments(exchangeNode.arguments, replacementValues);
+        Map<String, Object> arguments = substituteReplacementsInArguments(exchangeNode.arguments, replacementValues);
 
-        Exchange exchange = new Exchange(name, exchangeNode.type, exchangeNode.durable, exchangeNode.autoDelete,
-                arguments);
+        MessageDeliveryMode deliveryMode = MessageDeliveryMode.fromMode(
+                Integer.parseInt(properties.getExchangeProperty(identifier, "delivery_mode", "2")));
+
+        Exchange exchange = new Exchange(name, exchangeNode.type, exchangeNode.durable,
+                exchangeNode.autoDelete, arguments, deliveryMode);
         List<Message> messages = new ArrayList<Message>(exchangeNode.contentTypeIds.size());
         for (String messageId : exchangeNode.contentTypeIds) {
             messages.add(loadMessageFromContentTypeId(messageId));
@@ -403,7 +419,7 @@ public class QueueConfig {
     }
 
     private static boolean getJsonBoolean(JsonNode parent, String key,
-            boolean defaultValue) {
+                                          boolean defaultValue) {
         boolean value = defaultValue;
         JsonNode node = parent.get(key);
         if (node != null) {
@@ -430,15 +446,15 @@ public class QueueConfig {
      * @return A map of String->object converted from the JSON objects.
      * @throws IOException If an error occurs.
      */
-    private static Map<String,Object> convertObjectNodeToMap(JsonNode node) throws IOException {
+    private static Map<String, Object> convertObjectNodeToMap(JsonNode node) throws IOException {
         if (node == null || !node.isObject()) {
             return Collections.emptyMap();
         }
         final ObjectNode objectNode = (ObjectNode) node;
-        final Map<String,Object> map = new HashMap<String, Object>();
+        final Map<String, Object> map = new HashMap<String, Object>();
         final Iterator<Map.Entry<String, JsonNode>> it = objectNode.getFields();
         while (it.hasNext()) {
-            final Map.Entry<String,JsonNode> entry = it.next();
+            final Map.Entry<String, JsonNode> entry = it.next();
             final String key = entry.getKey();
             final JsonNode value = entry.getValue();
             if (!value.isObject()) {
@@ -464,44 +480,45 @@ public class QueueConfig {
         for (Iterator<JsonNode> it = arrayNode.getElements(); it.hasNext(); ) {
             final JsonNode node = it.next();
             if (!node.isObject()) {
-                throw new IllegalArgumentException("Invalid node: "+ node);
+                throw new IllegalArgumentException("Invalid node: " + node);
             }
-            list.add(convertObjectNode((ObjectNode)node));
+            list.add(convertObjectNode((ObjectNode) node));
         }
         return list;
     }
 
     /**
      * Converts argument values to the appropriate Java type. The supported types are:
-     *
+     * <p/>
      * <ul>
-     *     <li>type: "boolean" = Boolean, value: true/false</li>
-     *     <li>type: "byte" = Byte, value: byte</li>
-     *     <li>type: "byte[]" = byte[], value: base-64 encoded string</li>
-     *     <li>type: "short" = Short, value: short</li>
-     *     <li>type: "int" = Integer, value: int</li>
-     *     <li>type: "long" = Long, value: long</li>
-     *     <li>type: "float" = Float, value: float</li>
-     *     <li>type: "double" = Double, value: double</li>
-     *     <li>type: "decimal" = BigDecimal, value: "decimal" or decimal</li>
-     *     <li>type: "string" = String, value: "string"</li>
-     *     <li>type: "array" = List, value: JSON array of JSON objects</li>
-     *     <li>type: "timestamp" = Date, value: timestamp (long integer)</li>
-     *     <li>type: "table" = Map, value: JSON object of JSON objects</li>
+     * <li>type: "boolean" = Boolean, value: true/false</li>
+     * <li>type: "byte" = Byte, value: byte</li>
+     * <li>type: "byte[]" = byte[], value: base-64 encoded string</li>
+     * <li>type: "short" = Short, value: short</li>
+     * <li>type: "int" = Integer, value: int</li>
+     * <li>type: "long" = Long, value: long</li>
+     * <li>type: "float" = Float, value: float</li>
+     * <li>type: "double" = Double, value: double</li>
+     * <li>type: "decimal" = BigDecimal, value: "decimal" or decimal</li>
+     * <li>type: "string" = String, value: "string"</li>
+     * <li>type: "array" = List, value: JSON array of JSON objects</li>
+     * <li>type: "timestamp" = Date, value: timestamp (long integer)</li>
+     * <li>type: "table" = Map, value: JSON object of JSON objects</li>
      * </ul>
-     *
+     * <p/>
      * <p>If the type is not specified, type coercion is attempted for the following
      * values:</p>
-     *
+     * <p/>
      * <ul>
-     *     <li>JSON boolean</li>
-     *     <li>JSON int (will convert to Integer if within range, otherwise Long)</li>
-     *     <li>JSON float (will convert to Float if within range, otherwise Double)</li>
-     *     <li>JSON array</li>
-     *     <li>JSON object</li>
-     *     <li>JSON decimal</li>
-     *     <li>JSON string</li>
+     * <li>JSON boolean</li>
+     * <li>JSON int (will convert to Integer if within range, otherwise Long)</li>
+     * <li>JSON float (will convert to Float if within range, otherwise Double)</li>
+     * <li>JSON array</li>
+     * <li>JSON object</li>
+     * <li>JSON decimal</li>
+     * <li>JSON string</li>
      * </ul>
+     *
      * @param node A JSON object with 'type' and 'value' optional attributes.
      * @return The value of the node coerced to the appropriate Java type.
      * @throws IOException If an exception occurs parsing the node.
@@ -509,7 +526,7 @@ public class QueueConfig {
     private static Object convertObjectNode(ObjectNode node) throws IOException {
         final JsonNode typeNode = node.get("type");
         final JsonNode valueNode = node.get("value");
-        
+
         // No value
         if (valueNode == null) {
             return null;
@@ -519,91 +536,65 @@ public class QueueConfig {
         final String type = (typeNode != null) ? typeNode.getTextValue() : null;
         if ("boolean".equals(type)) {
             converted = valueNode.getBooleanValue();
-        }
-        else if ("byte".equals(type)) {
-            converted = (byte)valueNode.getIntValue();
-        }
-        else if ("byte[]".equals(type)) {
+        } else if ("byte".equals(type)) {
+            converted = (byte) valueNode.getIntValue();
+        } else if ("byte[]".equals(type)) {
             converted = valueNode.getBinaryValue();
-        }
-        else if ("short".equals(type)) {
+        } else if ("short".equals(type)) {
             converted = (short) valueNode.getIntValue();
-        }
-        else if ("int".equals(type)) {
+        } else if ("int".equals(type)) {
             converted = valueNode.getIntValue();
-        }
-        else if ("long".equals(type)) {
+        } else if ("long".equals(type)) {
             converted = valueNode.getLongValue();
-        }
-        else if ("float".equals(type)) {
-            converted = (float)valueNode.getDoubleValue();
-        }
-        else if ("double".equals(type)) {
+        } else if ("float".equals(type)) {
+            converted = (float) valueNode.getDoubleValue();
+        } else if ("double".equals(type)) {
             converted = valueNode.getDoubleValue();
-        }
-        else if ("decimal".equals(type)) {
+        } else if ("decimal".equals(type)) {
             if (valueNode.isTextual()) {
                 converted = new BigDecimal(valueNode.getTextValue());
-            }
-            else {
+            } else {
                 converted = valueNode.getDecimalValue();
             }
-        }
-        else if ("string".equals(type)) {
+        } else if ("string".equals(type)) {
             converted = valueNode.getTextValue();
-        }
-        else if ("array".equals(type)) {
+        } else if ("array".equals(type)) {
             converted = convertArrayNodeToList((ArrayNode) valueNode);
-        }
-        else if ("timestamp".equals(type)) {
+        } else if ("timestamp".equals(type)) {
             converted = new Date(valueNode.getLongValue());
-        }
-        else if ("table".equals(type)) {
+        } else if ("table".equals(type)) {
             converted = convertObjectNodeToMap(valueNode);
-        }
-        else if (type == null) {
+        } else if (type == null) {
             // Coerce type
             if (valueNode.isNull()) {
                 converted = null;
-            }
-            else if (valueNode.isBoolean()) {
+            } else if (valueNode.isBoolean()) {
                 converted = valueNode.getBooleanValue();
-            }
-            else if (valueNode.isInt()) {
+            } else if (valueNode.isInt()) {
                 converted = valueNode.getIntValue();
-            }
-            else if (valueNode.isLong()) {
+            } else if (valueNode.isLong()) {
                 converted = valueNode.getLongValue();
-            }
-            else if (valueNode.isDouble()) {
+            } else if (valueNode.isDouble()) {
                 double dVal = valueNode.getDoubleValue();
                 if (dVal >= Float.MIN_VALUE && dVal <= Float.MAX_VALUE) {
                     converted = (float) dVal;
-                }
-                else {
+                } else {
                     converted = dVal;
                 }
-            }
-            else if (valueNode.isBinary()) {
+            } else if (valueNode.isBinary()) {
                 converted = valueNode.getBinaryValue();
-            }
-            else if (valueNode.isArray()) {
-                converted = convertArrayNodeToList((ArrayNode)valueNode);
-            }
-            else if (valueNode.isObject()) {
+            } else if (valueNode.isArray()) {
+                converted = convertArrayNodeToList((ArrayNode) valueNode);
+            } else if (valueNode.isObject()) {
                 converted = convertObjectNodeToMap(valueNode);
-            }
-            else if (valueNode.isBigDecimal()) {
+            } else if (valueNode.isBigDecimal()) {
                 converted = valueNode.getDecimalValue();
-            }
-            else if (valueNode.isTextual()) {
+            } else if (valueNode.isTextual()) {
                 converted = valueNode.getTextValue();
-            }
-            else {
+            } else {
                 throw new IllegalArgumentException("Unable to coerce type: " + node);
             }
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("Invalid type: " + type);
         }
         return converted;
@@ -615,15 +606,15 @@ public class QueueConfig {
      * Substitutes replacement strings in the name or value of the arguments with values found in the
      * replacement values map.
      *
-     * @param arguments A map of arguments (may contain strings to be replaced in either the name or value).
+     * @param arguments         A map of arguments (may contain strings to be replaced in either the name or value).
      * @param replacementValues A map of values to be replaced in the arguments.
      * @return The arguments with all replacement strings substituted with values found in the replacement
      *         values map.
      */
-    private static Map<String,Object> substituteReplacementsInArguments(Map<String,Object> arguments,
-                                                                        Map<String,String> replacementValues) {
-        Map<String,Object> replaced = new HashMap<String, Object>(arguments.size());
-        for (Map.Entry<String,Object> entry : arguments.entrySet()) {
+    private static Map<String, Object> substituteReplacementsInArguments(Map<String, Object> arguments,
+                                                                         Map<String, String> replacementValues) {
+        Map<String, Object> replaced = new HashMap<String, Object>(arguments.size());
+        for (Map.Entry<String, Object> entry : arguments.entrySet()) {
             String argName = substituteReplacements(entry.getKey(), replacementValues);
             Object argValue = entry.getValue();
             if (argValue instanceof String) {
@@ -639,11 +630,11 @@ public class QueueConfig {
      * example, a string containing <code>my {value}</code> when passed a map of "value" -> "name" will return
      * <code>my name</code>.
      *
-     * @param template A template which may contain values to be substituted from the replacement values map.
+     * @param template          A template which may contain values to be substituted from the replacement values map.
      * @param replacementValues A map of values to be replaced in the template.
      * @return A string with all of the replacement strings substituted with values from the replacement values map.
      */
-    private static String substituteReplacements(String template, Map<String,String> replacementValues) {
+    private static String substituteReplacements(String template, Map<String, String> replacementValues) {
         // Bypass costly string replacement if we don't contain replacement character
         if (template.indexOf('{') == -1 || template.indexOf('}') == -1) {
             return template;
@@ -653,7 +644,7 @@ public class QueueConfig {
         while (matcher.find()) {
             final String replacementName = matcher.group(1);
             if (!replacementValues.containsKey(replacementName)) {
-                throw new IllegalArgumentException("Missing replacement for: "+ replacementName);
+                throw new IllegalArgumentException("Missing replacement for: " + replacementName);
             }
             matcher.appendReplacement(sb, replacementValues.get(replacementName));
         }

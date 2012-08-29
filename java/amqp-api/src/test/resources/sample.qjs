@@ -129,6 +129,22 @@
                     "value": "my argument {exchange_value}"
                 }
             }
+        },
+        "$ExplicitPropertiesExchange": {
+            "name": "zenoss.exchanges.explicit",
+            "type": "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample properties exchange.",
+            "content_types" : []
+        },
+        "$DefaultPropertiesExchange": {
+            "name": "zenoss.exchanges.default",
+            "type": "topic",
+            "durable" : true,
+            "auto_delete" : false,
+            "description" : "Sample properties exchange.",
+            "content_types" : []
         }
     },
     "queues" : {
@@ -157,6 +173,20 @@
                     }
                 }
             ]
+        },
+        "$ExplicitPropertiesQueue": {
+            "name" : "zenoss.queues.properties",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Propertied queue."
+        },
+        "$DefaultPropertiesQueue": {
+            "name" : "zenoss.queues.properties",
+            "durable" : true,
+            "exclusive" : false,
+            "auto_delete" : false,
+            "description" : "Propertied queue."
         }
     }
 }
