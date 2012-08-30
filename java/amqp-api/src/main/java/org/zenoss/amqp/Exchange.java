@@ -82,11 +82,19 @@ public class Exchange {
         }
     }
 
+    /**
+     * Types of compression available
+     */
+    public enum Compression {
+        NONE,
+        DEFLATE
+    }
+
     private final String name;
     private final Type type;
     private final boolean durable;
     private final boolean autoDelete;
-    private final boolean compressed;
+    private final Compression compression;
     private final MessageDeliveryMode deliveryMode;
     private final Map<String, Object> arguments;
 
@@ -156,7 +164,7 @@ public class Exchange {
      */
     public Exchange(String name, Type type, boolean durable, boolean autoDelete, Map<String, Object> arguments, MessageDeliveryMode deliveryMode)
             throws NullPointerException {
-        this(name, type, durable, autoDelete, arguments, deliveryMode, false);
+        this(name, type, durable, autoDelete, arguments, deliveryMode, Compression.NONE);
     }
     
     /**
@@ -176,14 +184,14 @@ public class Exchange {
      *            Optional arguments used when defining the exchange.
      * @param deliveryMode
      *            The delivery mode of messages published to this exchange (persistent/nonpersistent)
-     * @param compressed
-     *            Whether to compress messages before sending
+     * @param compression
+     *            The type of compression desired.
      * @throws NullPointerException
      *             If the exchange name or type is null.
      */
     public Exchange(String name, Type type, boolean durable, boolean autoDelete, 
                     Map<String, Object> arguments, MessageDeliveryMode deliveryMode, 
-                    boolean compressed)
+                    Compression compression)
             throws NullPointerException {
         if (name == null || type == null) {
             throw new NullPointerException();
@@ -193,7 +201,10 @@ public class Exchange {
         this.durable = durable;
         this.autoDelete = autoDelete;
         this.deliveryMode = deliveryMode;
-        this.compressed = compressed;
+        if (compression == null) {
+            compression = Compression.NONE;
+        }
+        this.compression = compression;
         if (arguments == null || arguments.isEmpty()) {
             this.arguments = Collections.emptyMap();
         } else {
@@ -245,8 +256,8 @@ public class Exchange {
         return deliveryMode;
     }
 
-    public boolean shouldCompress() {
-        return compressed;
+    public Compression getCompression() {
+        return compression;
     }
 
     /**
@@ -267,6 +278,7 @@ public class Exchange {
         sb.append(",type=").append(type);
         sb.append(",durable=").append(durable);
         sb.append(",autodelete=").append(autoDelete);
+        sb.append(",compression=").append(compression.name());
         if (!arguments.isEmpty()) {
             sb.append(",arguments=").append(this.arguments);
         }

@@ -6,8 +6,7 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 # 
 ##############################################################################
-
-
+import zlib
 import logging
 import pkg_resources # Import this so zenoss.protocols will be found
 from zenoss.protocols.queueschema import Schema, SchemaException
@@ -36,6 +35,7 @@ HEADER_REDELIVERED = 'X-Redelivered'
 HEADER_MESSAGE_COUNT = 'X-Message-Count'
 HEADER_DELIVERY_TAG = 'X-Delivery-Tag'
 HEADER_ORIGINAL_CONTENT_TYPE = 'X-Original-Content-Type'
+HEADER_ORIGINAL_CONTENT_ENCODING = 'X-Original-Content-Encoding'
 HEADER_PROTOBUF_FULL_NAME = 'X-Protobuf-FullName'
 
 CONTENT_TYPE_JSON = 'application/json'
@@ -84,6 +84,10 @@ class Formatter(object):
         priority = message.properties.get('priority')
         if priority is not None:
             self.dumpHeader(HEADER_PRIORITY, priority, stream)
+
+        content_encoding = message.properties.get('content_encoding')
+        if content_encoding is not None:
+            self.dumpHeader(HEADER_ORIGINAL_CONTENT_ENCODING, content_encoding, stream)
 
 class JsonFormatter(Formatter):
     """
@@ -230,6 +234,8 @@ class Dumper(object):
         Get the string form of the message.
         """
         # display the protobuf
+        if msg.properties.get('content_encoding', None) == 'deflate':
+            msg.body = zlib.decompress(msg.body)
         try:
             self.formatter.dump(msg, self.schema, queueName, self.stream)
         except FormatError as e:

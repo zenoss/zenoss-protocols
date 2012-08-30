@@ -31,7 +31,7 @@ import java.util.zip.Inflater;
 
 class ConsumerImpl<T> implements Consumer<T> {
 
-    private static byte[] decompressBody(byte[] compressed) {
+    private static byte[] deflateDecompress(byte[] compressed) {
         final Inflater decompressor = new Inflater();
         decompressor.setInput(compressed);
         ByteArrayOutputStream bos = new ByteArrayOutputStream(compressed.length);
@@ -108,7 +108,6 @@ class ConsumerImpl<T> implements Consumer<T> {
         }
     }
 
-
     @SuppressWarnings("unchecked")
     private Message<T> createMessage(Delivery delivery) throws AmqpException {
         final T body;
@@ -117,8 +116,8 @@ class ConsumerImpl<T> implements Consumer<T> {
                 delivery.getProperties());
         final MessageEnvelope envelope = new EnvelopeWrapper(
                 delivery.getEnvelope());
-        if ("deflate".equals(properties.getContentEncoding())) {
-            rawBody = decompressBody(delivery.getBody());
+        if ("deflate".equalsIgnoreCase(properties.getContentEncoding())) {
+            rawBody = deflateDecompress(delivery.getBody());
         } else {
             rawBody = delivery.getBody();
         }

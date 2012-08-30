@@ -24,8 +24,6 @@ __all__ = [
     'Schema',
 ]
 
-_TRUTHYSTRINGS = frozenset(["1", "true", "yes", "y"])
-
 
 class SchemaException(Exception):
     pass
@@ -123,7 +121,7 @@ class Exchange(object):
 
     def __init__(self, identifier, name, type, durable, auto_delete,
                  description, content_types, arguments=None, delivery_mode=2,
-                 compression=False):
+                 compression='none'):
         self.identifier = identifier
         self._name = name
         self._type = type
@@ -328,8 +326,8 @@ class Schema(object):
         else:
             exchange_node = self._exchange_nodes_by_name[name]
 
-        compression = self._getExchangeProperty(exchange_node, 'compression', 
-                                                'false').lower() in _TRUTHYSTRINGS
+        compression = self._getExchangeProperty(exchange_node, 'compression', 'none')
+
         return Exchange(exchange_node.identifier,
                         substitute_replacements(exchange_node.name, replacements),
                         exchange_node.type,
@@ -339,7 +337,7 @@ class Schema(object):
                         [self._content_types[content_type_id] for content_type_id in exchange_node.content_type_ids],
                         substitute_replacements_in_arguments(exchange_node.arguments, replacements),
                         int(self._getExchangeProperty(exchange_node.identifier, 'delivery_mode', 2)),
-                        compression
+                        compression.lower()
                        )
             
     def getQueue(self, name, replacements=None):

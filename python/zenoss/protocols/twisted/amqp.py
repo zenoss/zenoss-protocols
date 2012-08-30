@@ -165,7 +165,7 @@ class AMQProtocol(AMQClient):
             # Declare the exchange to which the message is being sent
             yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
 
-        if exchangeConfig.compression:
+        if exchangeConfig.compression == 'deflate':
             body = zlib.compress(body)
 
         content = Content(body)
@@ -174,7 +174,7 @@ class AMQProtocol(AMQClient):
         content.properties['headers'] = headers
         content.properties['content-type'] = 'application/x-protobuf'
 
-        if exchangeConfig.compression:
+        if exchangeConfig.compression == 'deflate':
             content.properties['content-encoding'] = 'deflate'
 
         # Publish away

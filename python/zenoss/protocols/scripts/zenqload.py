@@ -62,6 +62,9 @@ def main():
     parser.add_option('-F', '--format', type='string', dest='format', default='protostream',
                        help='Format to dump the messages in (%s)' % ', '.join(_FORMATTERS.keys()))
 
+    parser.add_option('-c', '--compression', type='string', dest='compression', default='none',
+                     help='Message compression algorithm (possible values: deflate, none)')
+
     parser = AMQPConfig.addOptionsToParser(parser)
     parser = addLoggingOptions(parser)
 
@@ -80,7 +83,9 @@ def main():
     amqpConnectionInfo = AMQPConfig()
     amqpConnectionInfo.update(options)
     schema = Schema(*schemas)
+    schema.loadProperties({'exchange.default.compression': options.compression.lower()})
     publisher = getProtobufPubSub(amqpConnectionInfo, schema, None)
+
 
     loader = Loader(sys.stdin, formatter, schema, publisher)
 

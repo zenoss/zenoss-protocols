@@ -14,6 +14,7 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import org.zenoss.amqp.AmqpException;
 import org.zenoss.amqp.Channel;
 import org.zenoss.amqp.Exchange;
+import org.zenoss.amqp.Exchange.Compression;
 import org.zenoss.amqp.MessageConverter;
 import org.zenoss.amqp.MessageProperties;
 import org.zenoss.amqp.MessagePropertiesBuilder;
@@ -24,7 +25,7 @@ import java.util.zip.Deflater;
 
 class PublisherImpl<T> implements Publisher<T> {
 
-    private static byte[] compressData(byte[] data) throws IOException {
+    private static byte[] deflateCompress(byte[] data) throws IOException {
         final Deflater compressor = new Deflater();
         byte[] output = new byte[data.length];
         compressor.setInput(data);
@@ -72,8 +73,8 @@ class PublisherImpl<T> implements Publisher<T> {
                 rawBody = (byte[]) body;
             }
 
-            if (exchange.shouldCompress()) {
-                rawBody = compressData(rawBody);
+            if (exchange.getCompression().equals(Compression.DEFLATE)) {
+                rawBody = deflateCompress(rawBody);
                 propertiesBuilder.setContentEncoding("deflate");
             }
 

@@ -154,7 +154,7 @@ class ProtobufPubSub(PubSub):
         self._handlers[fullName] = handler
 
     def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
-                     compression=False):
+                     compression='none'):
 
         body = obj.SerializeToString()
 
@@ -164,7 +164,7 @@ class ProtobufPubSub(PubSub):
 
         msg_properties = {}
 
-        if compression:
+        if compression == 'deflate':
             body = zlib.compress(body)
             msg_properties['content_encoding'] = 'deflate'
 

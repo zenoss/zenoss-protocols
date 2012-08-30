@@ -20,6 +20,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.zenoss.amqp.Exchange.Compression;
 import org.zenoss.amqp.Exchange.Type;
 
 import java.io.BufferedInputStream;
@@ -49,7 +50,6 @@ import java.util.regex.Pattern;
  */
 public class QueueConfig {
     private static final Logger logger = LoggerFactory.getLogger(QueueConfig.class);
-    private static final Set truthyStrings = Sets.newHashSet("1", "true", "yes", "y");
 
     /**
      * Contains parsed configuration for an exchange from QJS file.
@@ -413,8 +413,14 @@ public class QueueConfig {
         MessageDeliveryMode deliveryMode = MessageDeliveryMode.fromMode(
                 Integer.parseInt(properties.getExchangeProperty(identifier, "delivery_mode", "2")));
 
-        String rawCompression = properties.getExchangeProperty(identifier, "compression", "false");
-        boolean compression = truthyStrings.contains(rawCompression.toLowerCase());
+        Compression compression;
+        try {
+            compression = Compression.valueOf(properties.getExchangeProperty(
+                    identifier, "compression", "none").toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // Invalid entry in config file.
+            compression = Compression.NONE;
+        }
 
         Exchange exchange = new Exchange(name, exchangeNode.type, exchangeNode.durable,
                 exchangeNode.autoDelete, arguments, deliveryMode, compression);

@@ -194,7 +194,7 @@ class Publisher(object):
                 raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
 
     def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
-                     compression=False):
+                     compression='none'):
 
         body = obj.SerializeToString()
 
@@ -204,7 +204,7 @@ class Publisher(object):
 
         msg_properties = {}
 
-        if compression:
+        if compression == 'deflate':
             body = zlib.compress(body)
             msg_properties['content_encoding'] = 'deflate'
 
