@@ -20,19 +20,26 @@ import org.zenoss.amqp.MessageProperties;
 import org.zenoss.amqp.MessagePropertiesBuilder;
 import org.zenoss.amqp.Publisher;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
 class PublisherImpl<T> implements Publisher<T> {
 
-    private static byte[] deflateCompress(byte[] data) throws IOException {
-        final Deflater compressor = new Deflater();
-        byte[] output = new byte[data.length];
-        compressor.setInput(data);
-        compressor.finish();
-        compressor.deflate(output);
-        compressor.end();
-        return output;
+    static byte[] deflateCompress(byte[] data) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(data.length);
+        DeflaterOutputStream dos = null;
+        try {
+            dos = new DeflaterOutputStream(baos);
+            dos.write(data);
+            dos.close();
+            dos = null;
+            return baos.toByteArray();
+        } finally {
+            if (dos != null) {
+                dos.close();
+            }
+        }
     }
 
     protected final ChannelImpl channel;
@@ -73,9 +80,13 @@ class PublisherImpl<T> implements Publisher<T> {
                 rawBody = (byte[]) body;
             }
 
-            if (exchange.getCompression().equals(Compression.DEFLATE)) {
-                rawBody = deflateCompress(rawBody);
-                propertiesBuilder.setContentEncoding("deflate");
+            if (Compression.DEFLATE == exchange.getCompression()) {
+                final byte[] compressedBody = deflateCompress(rawBody);
+                // Only send compressed if we saved space
+                if (compressedBody.length < rawBody.length) {
+                    rawBody = compressedBody;
+                    propertiesBuilder.setContentEncoding("deflate");
+                }
             }
 
             synchronized (this.channel) {

@@ -13,6 +13,8 @@ package org.zenoss.amqp.impl;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zenoss.amqp.AmqpException;
 import org.zenoss.amqp.Channel;
 import org.zenoss.amqp.Consumer;
@@ -26,32 +28,27 @@ import org.zenoss.amqp.Queue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
+import java.util.zip.InflaterOutputStream;
 
 class ConsumerImpl<T> implements Consumer<T> {
 
-    private static byte[] deflateDecompress(byte[] compressed) {
-        final Inflater decompressor = new Inflater();
-        decompressor.setInput(compressed);
-        ByteArrayOutputStream bos = new ByteArrayOutputStream(compressed.length);
-        byte[] buf = new byte[1024];
+    private static final Logger logger = LoggerFactory.getLogger(ConsumerImpl.class);
+
+    static byte[] deflateDecompress(byte[] compressed) throws IOException {
+        // Assume the decompressed size is 2x compressed
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(compressed.length * 2);
+        InflaterOutputStream ios = null;
         try {
-            while (true) {
-                int count = decompressor.inflate(buf);
-                if (count == 0 && decompressor.finished()) {
-                    break;
-                } else if (count == 0) {
-                    throw new RuntimeException("Bad data");
-                } else {
-                    bos.write(buf, 0, count);
-                }
+            ios = new InflaterOutputStream(bos);
+            ios.write(compressed);
+            ios.close();
+            ios = null;
+            return bos.toByteArray();
+        } finally {
+            if (ios != null) {
+                ios.close();
             }
-        } catch (DataFormatException e) {
-            throw new RuntimeException(e);
         }
-        decompressor.end();
-        return bos.toByteArray();
     }
 
     private final ChannelImpl channel;
@@ -117,7 +114,14 @@ class ConsumerImpl<T> implements Consumer<T> {
         final MessageEnvelope envelope = new EnvelopeWrapper(
                 delivery.getEnvelope());
         if ("deflate".equalsIgnoreCase(properties.getContentEncoding())) {
-            rawBody = deflateDecompress(delivery.getBody());
+            try {
+                rawBody = deflateDecompress(delivery.getBody());
+            } catch (IOException e) {
+                logger.warn("Failed to decompress message", e);
+                // Throw MessageDecoderException so we don't loop attempting to read invalid message
+                throw new MessageDecoderException(
+                        DefaultMessage.newMessage(delivery.getBody(), properties, envelope), e);
+            }
         } else {
             rawBody = delivery.getBody();
         }

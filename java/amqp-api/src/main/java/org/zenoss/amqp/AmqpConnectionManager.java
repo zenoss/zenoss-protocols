@@ -500,7 +500,7 @@ public class AmqpConnectionManager {
                         }
                     } catch (MessageDecoderException e) {
                         // Unsupported message in this queue - reject the message
-                        log.warn("Failed to decode message in queue: {}", e);
+                        log.warn("Failed to decode message in queue", e);
                         consumer.rejectMessage(e.getRawMessage(), false);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
