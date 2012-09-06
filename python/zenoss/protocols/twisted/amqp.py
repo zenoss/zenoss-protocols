@@ -157,7 +157,7 @@ class AMQProtocol(AMQClient):
         if not isinstance(msg, basestring):
             body = msg.SerializeToString()
             headers['X-Protobuf-FullName'] = msg.DESCRIPTOR.full_name
-        
+
         queueSchema = self.factory.queueSchema
         exchangeConfig = queueSchema.getExchange(exchange)
 
@@ -220,7 +220,11 @@ class AMQProtocol(AMQClient):
         try:
             message = yield queue.get()
         except Closed:
-            log.debug('Connection to queue closed')
+            log.error('Connection to queue closed')
+            self.factory.disconnect()
+        except Exception:
+            log.exception("Exception while getting message from queue.")
+            raise
         else:
             reactor.callLater(0, self._doCallback, queue, callback, message)
             returnValue(None)
@@ -361,6 +365,11 @@ class AMQPFactory(ReconnectingClientFactory):
         Rejects a message and optionally requeues it.
         """
         return self.p.reject(message, requeue=requeue)
+
+    def disconnect(self):
+        log.warn("Disconnecting AMQP Client.")
+        self.connector.disconnect()
+        self.p = None
 
     def shutdown(self):
         """
