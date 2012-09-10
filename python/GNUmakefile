@@ -11,6 +11,7 @@
 PROTODIR = zenoss/protocols/protobufs
 DATADIR = zenoss/protocols/data
 PROTOC = protoc
+PYTHON = python
 default: build
 
 define QJS_BUILD
@@ -28,7 +29,7 @@ build:
 	cp -r ../interface/src/protobufs/zenoss/protocols/protobufs/*.proto ${PROTODIR}
 	$(PROTOC) -I ../interface/src/protobufs/ --python_out=. ../interface/src/protobufs/zenoss/protocols/protobufs/*.proto
 	mkdir -p ${DATADIR} && touch ${DATADIR}/__init__.py
-	python -c "$$QJS_BUILD" > ${DATADIR}/queueschema.py
+	$(PYTHON) -c "$$QJS_BUILD" > ${DATADIR}/queueschema.py
 
 clean:
 	rm -rf ${PROTODIR}
