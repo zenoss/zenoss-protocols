@@ -220,7 +220,7 @@ class AMQProtocol(AMQClient):
         try:
             message = yield queue.get()
         except Closed:
-            log.error('Connection to queue closed')
+            log.info('Connection to queue closed')
             self.factory.disconnect()
         except Exception:
             log.exception("Exception while getting message from queue.")
@@ -367,7 +367,7 @@ class AMQPFactory(ReconnectingClientFactory):
         return self.p.reject(message, requeue=requeue)
 
     def disconnect(self):
-        log.warn("Disconnecting AMQP Client.")
+        log.info("Disconnecting AMQP Client.")
         self.connector.disconnect()
         self.p = None
 
