@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.zenoss</groupId>
         <artifactId>protocols</artifactId>
-        <version>1.2-SNAPSHOT</version>
+        <version>1.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -13,7 +13,6 @@
     <artifactId>amqp-api</artifactId>
     <packaging>jar</packaging>
     <name>Zenoss AMQP Client API</name>
-    <version>1.2-SNAPSHOT</version>
     <build>
         <plugins>
             <plugin>
@@ -40,8 +39,8 @@
     <dependencies>
         <dependency>
             <groupId>org.zenoss</groupId>
-            <artifactId>utils</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <artifactId>zenoss-utils</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -67,7 +66,7 @@
         <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>protobufs</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
