@@ -34,7 +34,7 @@ class AMQPConfig(object):
     ]
 
     def __init__(self, amqphost='localhost', amqpport=5672, amqpvhost='/zenoss', amqpuser='zenoss',
-                 amqppassword='zenoss', amqpusessl=False, amqpconnectionheartbeat=30):
+                 amqppassword='zenoss', amqpusessl=False, amqpconnectionheartbeat=300):
         """
         Initialize with optional settings as keyword arguments.
         
