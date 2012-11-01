@@ -30,7 +30,7 @@ class AMQPConfig(object):
         dict(short_opt='u', long_opt='amqpuser', type='string', key='user', default='zenoss', help='User to connect as'),
         dict(short_opt='p', long_opt='amqppassword', type='string', key='password', default='zenoss', help='Password to connect with'),
         dict(short_opt='s', long_opt='amqpusessl', action='store_true', key='usessl', default=False, help='Use SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
-        dict(short_opt='b', long_opt='amqpheartbeat', type='int', key='amqpconnectionheartbeat', default=0, help='AMQP Connection Heart Beat in Seconds', parser=int),
+        dict(short_opt='b', long_opt='amqpheartbeat', type='int', key='amqpconnectionheartbeat', default=300, help='AMQP Connection Heart Beat in Seconds', parser=int),
     ]
 
     def __init__(self, amqphost='localhost', amqpport=5672, amqpvhost='/zenoss', amqpuser='zenoss',
