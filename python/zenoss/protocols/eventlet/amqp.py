@@ -18,6 +18,7 @@ from eventlet import patcher
 from eventlet.green import socket
 amqp = patcher.import_patched('amqplib.client_0_8', socket=socket)
 import eventlet
+from ..amqp import set_keepalive
 
 
 DELIVERY_NONPERSISTENT = 1
@@ -37,8 +38,13 @@ def register_eventlet():
     """
     eventlet.monkey_patch(socket=True, time=True)
 
+
 class Connection(amqp.Connection):
-    pass
+    def __init__(self, *args, **kwargs):
+        super(Connection, self).__init__(*args, **kwargs)
+        if 'keepalive' in kwargs:
+            sock = self.connection.transport.sock.fd
+            set_keepalive(sock, kwargs['keepalive'])
 
 
 class Publishable(object):
@@ -216,7 +222,8 @@ def getProtobufPubSub(amqpConnectionInfo, queueSchema, queue, connection=None):
             userid = amqpConnectionInfo.user,
             password = amqpConnectionInfo.password,
             ssl = amqpConnectionInfo.usessl,
-            virtual_host = amqpConnectionInfo.vhost
+            virtual_host = amqpConnectionInfo.vhost,
+            keepalive = amqpConnectionInfo.amqpconnectionheartbeat,
         )
     pubsub = ProtobufPubSub(connection, queueSchema, queue)
     return pubsub

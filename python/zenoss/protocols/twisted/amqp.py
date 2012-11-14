@@ -23,6 +23,8 @@ from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.exceptions import ChannelClosedError
 
+from ..amqp import set_keepalive
+
 log = logging.getLogger('zen.protocols.twisted')
 
 
@@ -46,6 +48,7 @@ class AMQProtocol(AMQClient):
         """
         try:
             connectionInfo = self.factory.connectionInfo
+            set_keepalive(self.transport.socket, connectionInfo.amqpconnectionheartbeat)
             AMQClient.connectionMade(self)
             log.debug('Made initial connection to message broker')
             self._connected = False
@@ -288,6 +291,7 @@ class AMQPFactory(ReconnectingClientFactory):
         d.callback(value)
 
     def onConnectionMade(self, value):
+        set_keepalive(self.connector.transport.socket, self.heartbeat)
         d,self._onConnectionMade = self._onConnectionMade, self._createDeferred()
         d.callback(value)
 

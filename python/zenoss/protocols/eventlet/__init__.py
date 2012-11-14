@@ -6,6 +6,3 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 # 
 ##############################################################################
-
-
-__author__ = 'michaelthornton'

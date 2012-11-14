@@ -10,7 +10,7 @@ import zlib
 import errno
 import logging
 import socket
-from amqplib.client_0_8.connection import Connection
+from amqplib.client_0_8.connection import Connection as amqpConnection
 from amqplib.client_0_8.basic_message import Message
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.exceptions import (
@@ -28,6 +28,25 @@ REPLY_CODE_NO_ROUTE = 312
 REPLY_CODE_NO_CONSUMERS = 313
 
 log = logging.getLogger('zen.%s' % __name__)
+
+
+def set_keepalive(sock, timeout):
+    if timeout > 0:
+        # set keepalive on this connection 
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, timeout)
+
+        interval = max(timeout / 4, 10)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, interval)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 2)
+
+
+class Connection(amqpConnection):
+    def __init__(self, *args, **kwargs):
+        super(Connection, self).__init__(*args, **kwargs)
+        if 'keepalive' in kwargs:
+            sock = self.connection.transport.sock
+            set_keepalive(sock, kwargs['keepalive'])
 
 
 class Publisher(object):
@@ -66,6 +85,7 @@ class Publisher(object):
                                               userid=self._connectionInfo.user,
                                               password=self._connectionInfo.password,
                                               virtual_host=self._connectionInfo.vhost,
+                                              keepalive=self._connectionInfo.amqpconnectionheartbeat,
                                               ssl=self._connectionInfo.usessl)
                 log.debug("Connecting to RabbitMQ...")
             if not self._channel:
