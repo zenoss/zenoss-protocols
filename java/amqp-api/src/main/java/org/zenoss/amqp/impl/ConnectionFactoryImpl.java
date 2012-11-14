@@ -10,6 +10,9 @@
 
 package org.zenoss.amqp.impl;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -18,61 +21,41 @@ import org.zenoss.amqp.AmqpException;
 import org.zenoss.amqp.AmqpServerUri;
 import org.zenoss.amqp.Connection;
 import org.zenoss.amqp.ConnectionFactory;
+import org.zenoss.utils.Zenoss;
 
-import java.io.*;
+import java.util.Properties;
 
 public class ConnectionFactoryImpl extends ConnectionFactory {
 
-    private static final Logger logger = LoggerFactory
-            .getLogger(ConnectionFactoryImpl.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionFactoryImpl.class);
 
-    private Integer heartbeat = null;
+    private static int DEFAULT_HEARTBEAT = -1;
 
-    private int getHeartbeat() {
-
-        if (this.heartbeat != null) {
-            return (int)this.heartbeat;
-        }
-
-        // set the default heartbeat up
-        this.heartbeat = 0;
-
-        FileInputStream fstream = null;
-        BufferedReader br = null;
+    static {
+        // Attempt to load the default heartbeat from the global.conf file on the system
+        BufferedInputStream bis = null;
         try {
-            String line;
-            String filename = String.format("%s/etc/global.conf", System.getenv("ZENHOME"));
-
-            fstream = new FileInputStream(filename);
-            br = new BufferedReader(new InputStreamReader(fstream));
-            while((line = br.readLine()) != null) {
-                if (line.startsWith("amqpheartbeat")) {
-                    String[] parts = line.split("\\s+");
-                    if (parts.length >=2) {
-                        Integer myheartbeat = Integer.valueOf(parts[1]);
-                        if (myheartbeat != null) {
-                            if (myheartbeat >= 0) {
-                                this.heartbeat = myheartbeat;
-                                break;
-                            }
-                        }
-                    }
+            File globalConf = new File(Zenoss.zenPath("etc", "global.conf"));
+            if (globalConf.isFile()) {
+                bis = new BufferedInputStream(new FileInputStream(globalConf));
+                Properties props = new Properties();
+                props.load(bis);
+                String amqpHeartbeatStrVal = props.getProperty("amqpheartbeat");
+                if (amqpHeartbeatStrVal != null) {
+                    DEFAULT_HEARTBEAT = Integer.parseInt(amqpHeartbeatStrVal.trim());
                 }
-
             }
-        } catch (Exception ex) {
-            logger.warn("There was a problem reading amqpconnectionheartbeat from $ZENHOME/etc/global.conf: {}", ex.toString());
+        } catch (Exception e) {
+            logger.warn("Failed to load AMQP heartbeat from global.conf: {}", e.getLocalizedMessage());
         } finally {
-            if (br != null) {
+            if (bis != null) {
                 try {
-                    br.close();
-                } catch (IOException ex) {}
-            } else if (fstream != null)
-                try {
-                    fstream.close();
-                } catch (IOException ex) {}
+                    bis.close();
+                } catch (Exception e) {
+                    // Ignore errors on close
+                }
+            }
         }
-        return (int)this.heartbeat;
     }
 
     @Override
@@ -98,12 +81,11 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
         // factory.setRequestedChannelMax(?);
         // factory.setRequestedFrameMax(?);
 
-        int myhearbeat = this.getHeartbeat();
-        if (myhearbeat > 0) {
-            logger.info("Setting amqpconnectionheartbeat to {}", myhearbeat);
-            factory.setRequestedHeartbeat(myhearbeat);
+        if (DEFAULT_HEARTBEAT > 0) {
+            logger.info("Setting AMQP connection heartbeat to {}", DEFAULT_HEARTBEAT);
+            factory.setRequestedHeartbeat(DEFAULT_HEARTBEAT);
         } else {
-            logger.info("No amqpconnectionheartbeat on AMQP connection");
+            logger.info("No AMQP connection heartbeat");
         }
         // factory.setClientProperties(?);
         try {
