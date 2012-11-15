@@ -10,7 +10,6 @@
     <modules>
         <module>protobufs</module>
         <module>amqp-api</module>
-        <module>amqp-util</module>
         <module>amqp-samples</module>
     </modules>
     <properties>
