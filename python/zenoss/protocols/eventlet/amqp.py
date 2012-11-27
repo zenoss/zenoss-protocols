@@ -1,10 +1,10 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2010, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 import zlib
 import logging
@@ -16,7 +16,7 @@ from zenoss.protocols.exceptions import ChannelClosedError
 
 from eventlet import patcher
 from eventlet.green import socket
-amqp = patcher.import_patched('amqplib.client_0_8', socket=socket)
+amqp = patcher.import_patched('amqplib.client_0_8')
 import eventlet
 from ..amqp import set_keepalive
 
@@ -89,7 +89,7 @@ class PubSub(object):
         try:
             getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig)
         except ChannelClosedError as e:
-            # Here we handle the case where we redeclare a queue 
+            # Here we handle the case where we redeclare a queue
             # with different properties. When this happens, Rabbit
             # both returns an error and closes the channel. We
             # need to detect this and reopen the channel, since
@@ -159,7 +159,7 @@ class ProtobufPubSub(PubSub):
         fullName = self._queueSchema.getContentType(contentType).protobuf_name
         self._handlers[fullName] = handler
 
-    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
+    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT,
                      compression='none'):
 
         body = obj.SerializeToString()
