@@ -1,10 +1,10 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2010, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 import zlib
 import errno
@@ -32,13 +32,14 @@ log = logging.getLogger('zen.%s' % __name__)
 
 def set_keepalive(sock, timeout):
     if timeout > 0:
-        # set keepalive on this connection 
+        # set keepalive on this connection
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, timeout)
+        if hasattr(socket, 'TCP_KEEPIDLE'):
+            sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, timeout)
 
-        interval = max(timeout / 4, 10)
-        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, interval)
-        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 2)
+            interval = max(timeout / 4, 10)
+            sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, interval)
+            sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 2)
 
 
 class Connection(amqpConnection):
@@ -185,7 +186,7 @@ class Publisher(object):
                     try:
                         getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
                     except ChannelClosedError as e:
-                        # Here we handle the case where we redeclare a queue 
+                        # Here we handle the case where we redeclare a queue
                         # with different properties. When this happens, Rabbit
                         # both returns an error and closes the channel. We
                         # need to detect this and reopen the channel, since
@@ -213,7 +214,7 @@ class Publisher(object):
             else:
                 raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
 
-    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT, 
+    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT,
                      compression='none'):
 
         body = obj.SerializeToString()
@@ -237,4 +238,3 @@ class Publisher(object):
             application_headers=msg_headers,
             delivery_mode=delivery_mode,
             **msg_properties)
-
