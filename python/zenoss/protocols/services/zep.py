@@ -143,32 +143,35 @@ class ZepServiceClient(object):
             self.deleteSavedSearch(next_request.event_query_uuid)
         return status, response
 
-    def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
+    def closeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None,
+                            timeout=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_CLOSED,
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
         return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
-                                          limit=limit)
+                                         limit=limit, timeout=timeout)
 
-    def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
+    def acknowledgeEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None,
+                                  timeout=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_ACKNOWLEDGED,
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
         return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
-                                          limit=limit)
+                                         limit=limit, timeout=timeout)
 
-    def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None):
+    def reopenEventSummaries(self, userUuid, userName=None, event_filter=None, exclusionFilter=None, limit=None,
+                             timeout=None):
         update = from_dict(EventSummaryUpdate, dict(
             status = STATUS_NEW,
             current_user_uuid = userUuid,
             current_user_name = userName,
         ))
         return self.updateEventSummaries(update, event_filter=event_filter, exclusion_filter=exclusionFilter,
-                                          limit=limit)
+                                         limit=limit, timeout=timeout)
 
     def getEventTagSeverities(self, event_filter):
         return self.client.post('tag_severities', body=event_filter)
