@@ -1,0 +1,15 @@
+//##########################################################################
+//# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
+//##########################################################################
+
+package org.zenoss.protobufs.messaging;
+
+// Represents a message in the queue
+message AppMessage {
+    required string uuid = 1;
+    required uint64 created_time = 2;
+    required string type = 3;
+    
+    // For each type you need to define an extension field for the data
+    extensions 1000 to max;
+}
