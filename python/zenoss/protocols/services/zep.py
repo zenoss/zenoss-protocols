@@ -295,6 +295,18 @@ class ZepHeartbeatClient(object):
         uri = monitor if monitor else ''
         return self.client.delete(uri)
 
+    def deleteHeartbeat(self, monitor, daemon):
+        """
+        Removes the heartbeat record for the specified monitor and daemon.
+
+        @param monitor: The heartbeat monitor (i.e. 'localhost').
+        @type monitor: basestring
+        @param daemon: The heartbeat daemon (i.e. 'zenhub').
+        @type daemon: basestring
+        """
+        uri = "/".join((monitor, daemon))
+        return self.client.delete(uri)
+
 class ZepEventTimeClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/eventtime/'
