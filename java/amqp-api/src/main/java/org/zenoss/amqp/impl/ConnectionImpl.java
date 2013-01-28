@@ -57,4 +57,8 @@ class ConnectionImpl implements Connection {
         return wrapped.getClientProperties();
     }
 
+    @Override
+    public boolean isOpen() {
+        return wrapped.isOpen();
+    }
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (C) Zenoss, Inc. 2010-2011, all rights reserved.
+ * Copyright (C) Zenoss, Inc. 2010-2013, all rights reserved.
  *
  * This content is made available according to terms specified in
  * License.zenoss under the directory where your Zenoss product is installed.
@@ -18,16 +18,18 @@ import com.rabbitmq.client.impl.AMQImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.Closeable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Class which maintains a persistent connection to an AMQP server and allows
@@ -40,6 +42,7 @@ import java.util.concurrent.Future;
 public class AmqpConnectionManager {
 
     public static final int DEFAULT_RETRY_INTERVAL = 1000;
+    private static final int POOL_SHUTDOWN_WAIT_SECONDS = 30;
 
     private static final Logger log = LoggerFactory.getLogger(AmqpConnectionManager.class);
 
@@ -54,6 +57,8 @@ public class AmqpConnectionManager {
             new ConcurrentHashMap<String, Publisher<com.google.protobuf.Message>>();
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private Future<Object> connectionThreadFuture;
+    private volatile boolean connectionThreadShutdown = false;
     private volatile ExtensionRegistry extensionRegistry;
 
     /**
@@ -87,6 +92,9 @@ public class AmqpConnectionManager {
     }
 
     private Channel openChannel() throws AmqpException {
+        if (this.connection == null) {
+            throw new AmqpException("Not connected to message broker");
+        }
         return this.connection.openChannel();
     }
 
@@ -94,9 +102,11 @@ public class AmqpConnectionManager {
         try {
             future.get();
         } catch (ExecutionException e) {
-            log.debug("exception", e);
+            log.debug("exception", e.getLocalizedMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        } catch (CancellationException e) {
+            // Ignored
         }
     }
 
@@ -152,6 +162,16 @@ public class AmqpConnectionManager {
         }
     }
 
+    private static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (Exception e) {
+                log.debug("Failed to close {}: {}", closeable, e.getLocalizedMessage());
+            }
+        }
+    }
+
     private Publisher<com.google.protobuf.Message> getPublisher(ExchangeConfiguration config) throws AmqpException {
         if (config == null) {
             throw new NullPointerException();
@@ -160,19 +180,31 @@ public class AmqpConnectionManager {
         Publisher<com.google.protobuf.Message> pub = this.publishers.get(exchange.getName());
         if (pub == null) {
             Channel channel = this.openChannel();
-            channel.declareExchange(exchange);
-            pub = channel.createPublisher(exchange, new ProtobufConverter(config.getMessages()));
-            Publisher<com.google.protobuf.Message> previous = this.publishers.putIfAbsent(exchange.getName(), pub);
-            if (previous != null) {
-                pub = previous;
-                try {
-                    channel.close();
-                } catch (IOException e) {
-                    throw new AmqpException(e.getLocalizedMessage(), e);
+            try {
+                channel.declareExchange(exchange);
+                pub = channel.createPublisher(exchange, new ProtobufConverter(config.getMessages()));
+                Publisher<com.google.protobuf.Message> previous = this.publishers.putIfAbsent(exchange.getName(), pub);
+                if (previous != null) {
+                    pub = previous;
+                    closeQuietly(channel);
+                    channel = null;
                 }
+            } catch (AmqpException e) {
+                closeQuietly(channel);
+                throw e;
+            } catch (RuntimeException e) {
+                closeQuietly(channel);
+                throw e;
             }
         }
         return pub;
+    }
+
+    private void removePublisher(ExchangeConfiguration config, Publisher<com.google.protobuf.Message> publisher) {
+        if (publisher != null) {
+            this.publishers.remove(config.getIdentifier(), publisher);
+            closeQuietly(publisher.getChannel());
+        }
     }
 
     /**
@@ -188,21 +220,16 @@ public class AmqpConnectionManager {
      */
     public void publish(ExchangeConfiguration config, String routingKey,
                         com.google.protobuf.Message message) throws AmqpException {
-        Publisher<com.google.protobuf.Message> pub;
+        Publisher<com.google.protobuf.Message> pub = null;
         try {
             pub = this.getPublisher(config);
             pub.publish(message, routingKey);
         } catch (AmqpException e) {
-            // Reconnect and try one more time. If we fail the second time throw
-            // the exception.
-            try {
-                this.reconnect();
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                throw e;
-            }
-            pub = this.getPublisher(config);
-            pub.publish(message, routingKey);
+            removePublisher(config, pub);
+            throw e;
+        } catch (RuntimeException e) {
+            removePublisher(config, pub);
+            throw e;
         }
     }
 
@@ -213,6 +240,7 @@ public class AmqpConnectionManager {
      * @return A batch publisher for the exchange. It must be closed with
      *         {@link BatchPublisher#close()} when it is no longer needed.
      * @throws AmqpException If an exception occurs.
+     * @deprecated Batch publishing API needs rework.
      */
     public BatchPublisher<com.google.protobuf.Message> createBatchPublisher(
             ExchangeConfiguration config) throws AmqpException {
@@ -226,13 +254,10 @@ public class AmqpConnectionManager {
             channel.declareExchange(exchange);
             return channel.createBatchPublisher(exchange, new ProtobufConverter(config.getMessages()));
         } catch (AmqpException e) {
-            if (channel != null) {
-                try {
-                    channel.close();
-                } catch (IOException ioe) {
-                    log.warn("Failed to close channel: {}", ioe);
-                }
-            }
+            closeQuietly(channel);
+            throw e;
+        } catch (RuntimeException e) {
+            closeQuietly(channel);
             throw e;
         }
     }
@@ -244,64 +269,69 @@ public class AmqpConnectionManager {
      * {@link AmqpConnectionManager}.
      */
     public void init() {
-        this.executor.submit(new ThreadRenamingCallable<Object>("AmqpConnectionManager") {
+        this.connectionThreadFuture = this.executor.submit(new ThreadRenamingCallable<Object>("AmqpConnectionManager") {
             @Override
             protected Object doCall() throws Exception {
-                runInternal();
+                try {
+                    runInternal();
+                } catch (Exception e) {
+                    log.error("Fatal exception in AMQP connection thread: {}", e);
+                    // AMQP producers / consumers not able to restart after this point.
+                    // For now we re-raise.
+                    throw e;
+                }
                 return null;
             }
         });
     }
 
-    private static boolean isAmqpException(Exception e) {
-        boolean isAmqpException = false;
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof AmqpException) {
-                isAmqpException = true;
-                break;
-            }
-            current = current.getCause();
-        }
-        return isAmqpException;
-    }
-
-    private void runInternal() throws InterruptedException {
-        this.reconnect();
-        Future<Object> future;
-        while ((future = ecs.take()) != null) {
-            QueueWorker worker = null;
-            for (QueueWorker info : this.workers.values()) {
-                if (future.equals(info.getFuture())) {
-                    worker = info;
-                    break;
+    private void runInternal() throws Exception {
+        while (!connectionThreadShutdown) {
+            try {
+                if (this.connection == null || !this.connection.isOpen()) {
+                    reconnect();
                 }
-            }
-            if (worker == null) {
-                log.debug("Unable to associate Future with QueueWorker: {}", future);
-                continue;
-            }
-            if (!future.isCancelled()) {
-                try {
-                    future.get();
-                    log.debug("Queue worker completed successfully: {}", worker.getWorkerId());
-                    this.workers.remove(worker.getWorkerId());
-                } catch (ExecutionException e) {
-                    if (isAmqpException(e)) {
-                        log.debug("exception", e);
-                        this.reconnect();
-                    } else {
-                        log.info("Restarting single worker due to exception.", e);
-                        worker.reset();
-                        worker.setFuture(this.ecs.submit(worker));
+                // We wait up to 5 minutes before validating the AMQP connection (needed when only publishers)
+                Future<Object> future = ecs.poll(5, TimeUnit.MINUTES);
+                if (future == null) {
+                    continue;
+                }
+                QueueWorker worker = null;
+                for (QueueWorker info : this.workers.values()) {
+                    if (future.equals(info.getFuture())) {
+                        worker = info;
+                        break;
                     }
                 }
-            } else {
-                this.workers.remove(worker.getWorkerId());
+                if (worker == null) {
+                    log.debug("Unable to associate Future with QueueWorker: {}", future);
+                    continue;
+                }
+                if (!future.isCancelled()) {
+                    try {
+                        future.get();
+                        log.debug("Queue worker completed successfully: {}", worker.getWorkerId());
+                        this.workers.remove(worker.getWorkerId());
+                    } catch (ExecutionException e) {
+                        if (this.connection.isOpen()) {
+                            log.info("Restarting single worker due to exception: {}", e.getLocalizedMessage());
+                            worker.reset();
+                            worker.setFuture(this.ecs.submit(worker));
+                        }
+                    }
+                } else {
+                    log.debug("Queue worker canceled: {}", worker.getWorkerId());
+                    this.workers.remove(worker.getWorkerId());
+                }
+            } catch (InterruptedException e) {
+                log.debug("AMQP thread interrupted");
+                Thread.currentThread().interrupt();
             }
         }
+        disconnect();
     }
 
+    // NOTE: This should *only* be called from the background thread (runInternal)
     private synchronized void disconnect() {
         if (this.connection != null) {
             try {
@@ -322,29 +352,26 @@ public class AmqpConnectionManager {
                 final Iterator<Publisher<com.google.protobuf.Message>> publisherIt =
                         this.publishers.values().iterator();
                 while (publisherIt.hasNext()) {
-                    try {
-                        final Publisher publisher = publisherIt.next();
-                        publisherIt.remove();
-                        publisher.getChannel().close();
-                    } catch (IOException ignored) {
-                    }
+                    final Publisher publisher = publisherIt.next();
+                    publisherIt.remove();
+                    closeQuietly(publisher.getChannel());
                 }
             } finally {
-                try {
-                    this.connection.close();
-                } catch (IOException ignored) {
-                } finally {
-                    this.connection = null;
-                }
+                closeQuietly(this.connection);
+                this.connection = null;
+                this.publishers.clear();
+                log.info("Disconnected from message broker at {}", this.uri);
             }
         }
     }
 
+    // NOTE: This should *only* be called from the background thread (runInternal)
     private synchronized boolean connect() {
+        log.info("Attempting to connect to message broker at {}", this.uri);
         try {
             this.connection = ConnectionFactory.newInstance().newConnection(this.uri);
         } catch (AmqpException e) {
-            log.debug("Unable to connect", e);
+            log.debug("Unable to connect: {}", e.getLocalizedMessage());
             return false;
         }
         log.info("Connected to message broker at {}", this.uri);
@@ -354,11 +381,25 @@ public class AmqpConnectionManager {
         return true;
     }
 
-    private void reconnect() throws InterruptedException {
-        log.info("Attempting to connect to message broker at {}", this.uri);
+    // NOTE: This should *only* be called from the background thread (runInternal)
+    private synchronized void reconnect() throws InterruptedException {
         this.disconnect();
         while (!this.connect()) {
+            log.debug("Will retry connection in {} seconds", TimeUnit.MILLISECONDS.toSeconds(retry));
             Thread.sleep(retry);
+        }
+    }
+
+    private static void shutdownExecutorService(ExecutorService service) {
+        if (service != null) {
+            service.shutdown();
+            try {
+                service.awaitTermination(POOL_SHUTDOWN_WAIT_SECONDS, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                log.debug("Failed to shutdown executor service: {}", e);
+                Thread.currentThread().interrupt();
+                service.shutdownNow();
+            }
         }
     }
 
@@ -368,9 +409,12 @@ public class AmqpConnectionManager {
      */
     public void shutdown() {
         log.info("Shutting down...");
-        this.disconnect();
-        this.executor.shutdownNow();
-        this.pool.shutdownNow();
+        this.connectionThreadShutdown = true;
+        if (this.connectionThreadFuture != null) {
+            this.connectionThreadFuture.cancel(true);
+        }
+        shutdownExecutorService(this.executor);
+        shutdownExecutorService(this.pool);
     }
 
     private static class QueueWorker extends ThreadRenamingCallable<Object> {
@@ -438,61 +482,82 @@ public class AmqpConnectionManager {
             this.runningThread = null;
         }
 
+        private boolean isPreconditionFailed(AmqpException e) {
+            Throwable t = e;
+            boolean preconditionFailed = false;
+            while (t != null) {
+                t = t.getCause();
+                if (t instanceof ShutdownSignalException) {
+                    Object reason = ((ShutdownSignalException) t).getReason();
+                    if (reason instanceof AMQCommand) {
+                        Method method = ((AMQCommand) reason).getMethod();
+                        if (method instanceof AMQImpl.Channel.Close) {
+                            int replyCode = ((AMQImpl.Channel.Close) method).getReplyCode();
+                            if (replyCode == 406) {
+                                // PRECONDITION_FAILED -- properties changed. Reopen the channel.
+                                log.warn("Attempted to redeclare queue {} with different arguments. You will " +
+                                        "need to delete the queue to pick up the new configuration.",
+                                        config.getQueue().getName());
+                                log.debug("Queue declare exception", e);
+                                preconditionFailed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            return preconditionFailed;
+        }
+
+        private void cancelQuietly(Consumer<?> consumer) {
+            if (consumer != null) {
+                try {
+                    consumer.cancel();
+                } catch (Exception e) {
+                    log.debug("Failed to cancel consumer: {}", e.getLocalizedMessage());
+                }
+            }
+        }
+
         @Override
         protected Object doCall() throws Exception {
             this.runningThread = Thread.currentThread();
             if (this.shutdown) {
                 throw new IllegalStateException("This worker has already been shut down");
             }
-            Channel channel = manager.openChannel();
-            this.listener.configureChannel(channel);
+            Channel channel = null;
+            Consumer<com.google.protobuf.Message> consumer = null;
             try {
-                channel.declareQueue(config.getQueue());
-            } catch (AmqpException e) {
-                /**
-                 * Here we handle the case where we redeclare a queue with different properties.
-                 * When this happens, Rabbit both returns an error and closes the channel. We need
-                 * to detect this and reopen the channel, since the existing queue will work fine
-                 * (although it will not use the modified config).
-                 */
-                Throwable t = e;
-                while (t != null) {
-                    t = t.getCause();
-                    if (t instanceof ShutdownSignalException) {
-                        Object reason = ((ShutdownSignalException) t).getReason();
-                        if (reason instanceof AMQCommand) {
-                            Method method = ((AMQCommand) reason).getMethod();
-                            if (method instanceof AMQImpl.Channel.Close) {
-                                int replyCode = ((AMQImpl.Channel.Close) method).getReplyCode();
-                                if (replyCode == 406) {
-                                    // PRECONDITION_FAILED -- properties changed. Reopen the channel.
-                                    log.warn("Attempted to redeclare queue {} with different arguments. You will " +
-                                            "need to delete the queue to pick up the new configuration.",
-                                            config.getQueue().getName());
-                                    log.debug("Queue declare exception", e);
-                                    channel = manager.openChannel();
-                                    this.listener.configureChannel(channel);
-                                    break;
-                                }
-                            }
-                        }
+                channel = manager.openChannel();
+                this.listener.configureChannel(channel);
+                try {
+                    channel.declareQueue(config.getQueue());
+                } catch (AmqpException e) {
+                    /**
+                     * Here we handle the case where we redeclare a queue with different properties.
+                     * When this happens, Rabbit both returns an error and closes the channel. We need
+                     * to detect this and reopen the channel, since the existing queue will work fine
+                     * (although it will not use the modified config).
+                     */
+                    if (!isPreconditionFailed(e)) {
                         throw e;
                     }
+                    closeQuietly(channel);
+                    channel = null;
+                    channel = manager.openChannel();
+                    this.listener.configureChannel(channel);
                 }
-            }
-            for (Binding binding : config.getBindings()) {
-                channel.declareExchange(binding.getExchange());
-                channel.bindQueue(binding);
-            }
-            final ProtobufConverter converter = new ProtobufConverter(this.config.getMessages());
-            if (manager.extensionRegistry != null) {
-                converter.setExtensionRegistry(manager.extensionRegistry);
-            }
-            final Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
-                    converter);
-            log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
-            Message<com.google.protobuf.Message> message;
-            try {
+                for (Binding binding : config.getBindings()) {
+                    channel.declareExchange(binding.getExchange());
+                    channel.bindQueue(binding);
+                }
+                final ProtobufConverter converter = new ProtobufConverter(this.config.getMessages());
+                if (manager.extensionRegistry != null) {
+                    converter.setExtensionRegistry(manager.extensionRegistry);
+                }
+                consumer = channel.createConsumer(this.config.getQueue(), converter);
+                log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
+                Message<com.google.protobuf.Message> message;
                 while (!this.shutdown) {
                     try {
                         while ((message = consumer.nextMessage()) != null) {
@@ -509,14 +574,8 @@ public class AmqpConnectionManager {
                 return null;
             } finally {
                 log.debug("Stopping worker for queue: {}", config.getQueue().getName());
-                try {
-                    consumer.cancel();
-                } catch (AmqpException ignored) {
-                }
-                try {
-                    channel.close();
-                } catch (IOException ignored) {
-                }
+                cancelQuietly(consumer);
+                closeQuietly(channel);
                 this.runningThread = null;
             }
         }

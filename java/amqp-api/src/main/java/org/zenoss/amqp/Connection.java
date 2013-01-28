@@ -39,4 +39,11 @@ public interface Connection extends Closeable {
      * @return Properties of the AMQP client.
      */
     public Map<String, Object> getClientProperties();
+
+    /**
+     * Returns true if the connection is open.
+     *
+     * @return If the connection is open.
+     */
+    public boolean isOpen();
 }
