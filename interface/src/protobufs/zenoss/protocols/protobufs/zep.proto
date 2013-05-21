@@ -530,6 +530,20 @@ message ZepConfig {
     // The interval when events are scanned for moving to the archive.
     optional uint64 archive_interval_milliseconds = 14 [default = 60000];
 
+    // If we want to enable event flapping detection
+    optional bool enable_event_flapping_detection = 15 [default = true];
+
+    // The number of flaps an event set must have to be considered in a flapping state
+    optional uint32 flapping_threshold = 16 [default = 4];
+
+    // The time interval that flapping_threshold number of flaps must occur in to be considered flapping (default 1 hour)
+    optional uint32 flapping_interval_seconds = 17 [default = 3600];
+
+    // if an event is below this severity level, then the next event is above, it is considered a flap.
+    optional EventSeverity flapping_severity_threshold = 18 [default = SEVERITY_WARNING];
+
+    // The event class that we want the generated flapping event to be
+    optional string flapping_event_class = 19 [default = "/Status/Flapping"];
     extensions 1000 to max;
 }
 
