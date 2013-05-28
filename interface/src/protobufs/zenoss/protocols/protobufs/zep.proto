@@ -117,6 +117,19 @@ message Event {
     optional uint32 count = 24 [default = 1];
     // The first seen time (if event was de-duped at the collector).
     optional uint64 first_seen_time = 25;
+
+    // Event Flapping detection parameters, these are configured
+    // in the zodb on event classes and added as an attribute to the event
+
+    // The time interval that flapping_threshold number of flaps must occur in to be considered flapping (default 1 hour)
+    optional uint32 flapping_interval_seconds = 26 [default = 3600];
+
+    // The number of flaps an event set must have to be considered in a flapping state
+    optional uint32 flapping_threshold = 27 [default = 4];
+
+    // if an event is below this severity level, then the next event is above, it is considered a flap.
+    optional EventSeverity flapping_severity = 28 [default = SEVERITY_ERROR];
+
     extensions 1000 to max;
     // extensions 1000-1099 are reserved for the GOM zenpack
 }
@@ -531,16 +544,7 @@ message ZepConfig {
     optional uint64 archive_interval_milliseconds = 14 [default = 60000];
 
     // If we want to enable event flapping detection
-    optional bool enable_event_flapping_detection = 15 [default = true];
-
-    // The number of flaps an event set must have to be considered in a flapping state
-    optional uint32 flapping_threshold = 16 [default = 4];
-
-    // The time interval that flapping_threshold number of flaps must occur in to be considered flapping (default 1 hour)
-    optional uint32 flapping_interval_seconds = 17 [default = 3600];
-
-    // if an event is below this severity level, then the next event is above, it is considered a flap.
-    optional EventSeverity flapping_severity_threshold = 18 [default = SEVERITY_WARNING];
+    optional bool enable_event_flapping_detection = 15 [default = false];
 
     // The event class that we want the generated flapping event to be
     optional string flapping_event_class = 19 [default = "/Status/Flapping"];
