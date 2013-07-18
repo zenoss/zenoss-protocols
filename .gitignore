@@ -1,3 +1,5 @@
+.build
+.extracted
 .classpath
 .project
 .pydevproject
