@@ -219,6 +219,10 @@ class ZepServiceClient(object):
             url = 'archive/' + url
         return self.client.get(url, params)
 
+    def updateDetails(self, uuid, eventDetailSet):
+        return self.client.post(uuid + "/details", eventDetailSet)
+
+
 class ZepConfigClient(object):
 
     _base_uri = '/zeneventserver/api/1.0/config/'
@@ -278,6 +282,7 @@ class ZepConfigClient(object):
         """
         log.debug("Removing a detail item: '%s'" % key)
         return self.client.delete('index_details/%s' % key)
+
 
 class ZepHeartbeatClient(object):
 
