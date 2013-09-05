@@ -30,7 +30,7 @@ class Pusher(object):
         self.protobufClass = schema.getProtobuf(messageType)
         self.publisher = publisher
 
-    def push(self, data, routingKey, mandatory=False, immediate=False):
+    def push(self, data, routingKey, mandatory=False):
         """
         Push a message on the queue
 
@@ -45,7 +45,7 @@ class Pusher(object):
 
         published = False
         try:
-            self.publisher.publish(self.exchange, routingKey, proto, mandatory=mandatory, immediate=immediate)
+            self.publisher.publish(self.exchange, routingKey, proto, mandatory=mandatory)
             published = True
         except PublishException, e:
             log.error("%s (%d)", e.reply_text, e.reply_code)
@@ -67,9 +67,7 @@ def main():
                       help="Message data as JSON, use '-' to read from stdin", action='store')
     parser.add_option('-M', '--mandatory', dest='mandatory',
                       help="Publish message with mandatory flag set.", action='store_true')
-    parser.add_option('-I', '--immediate', dest='immediate',
-                      help="Publish message with immediate flag set.", action='store_true')
-
+    
     parser = AMQPConfig.addOptionsToParser(parser)
     parser = addLoggingOptions(parser)
 
@@ -101,8 +99,7 @@ def main():
     else:
         data = loads(options.data)
 
-    published = pusher.push(data=data, routingKey=options.routingKey, mandatory=options.mandatory,
-                            immediate=options.immediate)
+    published = pusher.push(data=data, routingKey=options.routingKey, mandatory=options.mandatory)
     if not published:
         sys.exit(1)
 
