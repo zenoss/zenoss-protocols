@@ -133,7 +133,7 @@ class Publisher(object):
         self._queues = set()
 
     def publish(self, exchange, routing_key, obj, headers=None, mandatory=False,
-                immediate=False, declareExchange=True):
+                 declareExchange=True):
         """
         Blocking method for publishing items to the queue
 
@@ -157,8 +157,8 @@ class Publisher(object):
             try:
                 channel = self.getChannel()
                 log.debug('Publishing with routing key %s to exchange %s', routing_key, exchangeConfig.name)
-                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory, immediate=immediate)
-                if mandatory or immediate:
+                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory)
+                if mandatory:
                     self._channel.close()
                     self._channel = None
                     if not channel.returned_messages.empty():
