@@ -1,12 +1,10 @@
 from setuptools import setup, find_packages
 
 # 'make build' will build the protobufs and copy them to the needed locations.
-import subprocess
-subprocess.check_call(['make','build'])
 
 setup(
     name = "zenoss.protocols",
-    version = "0.2",
+    version = "1.0.0a",
     packages = find_packages(),
     long_description=open('README.txt').read(),
     install_requires = [
