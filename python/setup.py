@@ -2,11 +2,18 @@ from setuptools import setup, find_packages
 
 # 'make build' will build the protobufs and copy them to the needed locations.
 import subprocess
-subprocess.check_call(['make','build'])
+from setuptools.command.sdist import sdist
+
+
+class ProtoDist(sdist):
+    def run(self):
+        subprocess.check_call(['make','build'])
+        sdist.run(self)
+
 
 setup(
     name = "zenoss.protocols",
-    version = "0.2",
+    version = "1.0.0",
     packages = find_packages(),
     long_description=open('README.txt').read(),
     install_requires = [
@@ -20,6 +27,7 @@ setup(
         'txamqp',
         'urllib3>=1.3',
     ],
+    cmdclass={"sdist": ProtoBuild},
     include_package_data=True,
     # in the zenoss namespace
     namespace_packages = ['zenoss'],

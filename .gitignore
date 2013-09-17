@@ -12,3 +12,5 @@ target
 *.egg-info
 python/zenoss/protocols/data
 python/zenoss/protocols/protobufs
+python/build
+python/dist
