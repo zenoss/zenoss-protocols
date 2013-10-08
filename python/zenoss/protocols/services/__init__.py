@@ -148,8 +148,7 @@ class RestServiceClient(object):
         except MaxRetryError as e:
             # urllib3 raises this when it cannot establish a connection
             raise self._connection_error_class('Could not connect to service.', e)
-
-
+        
         if not (response.status >= 200 and response.status <= 299):
             raise ServiceResponseError(response.reason, response.status, request, response, content)
 

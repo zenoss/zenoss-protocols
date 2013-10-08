@@ -23,7 +23,7 @@ from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.exceptions import ChannelClosedError
 
-from ..amqp import set_keepalive
+from zenoss.protocols.amqp import set_keepalive
 
 log = logging.getLogger('zen.protocols.twisted')
 
@@ -151,7 +151,7 @@ class AMQProtocol(AMQClient):
                 raise
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False, immediate=False, headers=None,
+    def send_message(self, exchange, routing_key, msg, mandatory=False, headers=None,
                      declareExchange=True):
         body = msg
         headers = headers if headers else {}
@@ -184,8 +184,7 @@ class AMQProtocol(AMQClient):
         yield self.chan.basic_publish(exchange=exchangeConfig.name,
                                       routing_key=routing_key,
                                       content=content,
-                                      mandatory=mandatory,
-                                      immediate=immediate)
+                                      mandatory=mandatory)
         returnValue("SUCCESS")
 
     def send(self):
@@ -330,7 +329,7 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, immediate=False, headers=None,
+    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, headers=None,
              declareExchange=True):
         """
         Send a C{message} to exchange C{exchange}.
@@ -346,12 +345,10 @@ class AMQPFactory(ReconnectingClientFactory):
         @type message: str
         @param mandatory: Whether the mandatory bit should be set.
         @type mandatory: bool
-        @param immediate: Whether the immediate bit should be set.
-        @type immediate: bool
         @param headers: The message headers used when publishing the message.
         @type headers: dict
         """
-        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, immediate, headers, declareExchange))
+        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, headers, declareExchange))
         if self.p is not None:
             return self.p.send()
         else:
