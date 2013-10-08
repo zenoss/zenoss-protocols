@@ -23,7 +23,7 @@ from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
 from zenoss.protocols.exceptions import ChannelClosedError
 
-from ..amqp import set_keepalive
+from zenoss.protocols.amqp import set_keepalive
 
 log = logging.getLogger('zen.protocols.twisted')
 
