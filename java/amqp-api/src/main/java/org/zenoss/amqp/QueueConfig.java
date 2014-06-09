@@ -30,16 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -172,6 +163,10 @@ public class QueueConfig {
 
     public void loadProperties(InputStream is) throws IOException {
         properties.load(is);
+    }
+
+    public void loadProperties(Properties p) {
+        properties.load(p);
     }
 
     protected void load(InputStream is) throws IOException {
