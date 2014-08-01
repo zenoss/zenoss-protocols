@@ -86,6 +86,18 @@ class ZepServiceClient(object):
 
         return self.client.post('%s/notes' % uuid, body=note)
 
+    def addNoteBulkAsync(self, uuids, message, userUuid=None, userName=None):
+        """
+        Add a note (what used to be called log) to several event summaries.
+        """
+
+        note = from_dict(EventNote, dict(
+            user_uuid = userUuid,
+            user_name = userName,
+            message = message
+        ))
+
+        return self.client.post('notes_async', body=note, params={'uuid': uuids})
 
     def postNote(self, uuid, note):
         return self.client.post('{0}/notes'.format(uuid), body=note)
