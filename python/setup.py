@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "zenoss.protocols",
-    version = "1.0.0a",
+    version = "2.0.2",
     packages = find_packages(),
     long_description=open('README.txt').read(),
     install_requires = [
