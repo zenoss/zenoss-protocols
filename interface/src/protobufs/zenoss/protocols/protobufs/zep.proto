@@ -39,6 +39,8 @@ message EventDetail {
 
 message EventDetailSet {
     repeated EventDetail details = 1;
+
+    extensions 1000 to max;
 }
 
 // Tag events with arbitrary UUIDs. Tags are used for event rainbows and filtering.
