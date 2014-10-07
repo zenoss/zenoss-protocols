@@ -25,6 +25,9 @@ import javax.ws.rs.ext.MessageBodyReader;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.Provider;
 
+import org.slf4j.Logger; 
+import org.slf4j.LoggerFactory; 
+ 
 import org.zenoss.protobufs.JsonFormat;
 import org.zenoss.protobufs.ProtobufConstants;
 
@@ -38,6 +41,9 @@ import com.google.protobuf.Message;
 @Consumes({ ProtobufConstants.CONTENT_TYPE_PROTOBUF, MediaType.APPLICATION_JSON })
 public class ProtobufProvider implements MessageBodyWriter<Message>,
         MessageBodyReader<Message> {
+
+    private static final Logger logger = LoggerFactory 
+            .getLogger(ProtobufProvider.class); 
 
     private ProtobufMessageRegistry messageRegistry;
 
@@ -68,15 +74,18 @@ public class ProtobufProvider implements MessageBodyWriter<Message>,
     public void writeTo(Message message, Class<?> type, Type genericType,
             Annotation[] annotations, MediaType mediaType,
             MultivaluedMap<String, Object> httpHeaders,
-            OutputStream entityStream) throws IOException,
-            WebApplicationException {
+            OutputStream entityStream) throws WebApplicationException {
         String fullName = message.getDescriptorForType().getFullName();
         httpHeaders.add(ProtobufConstants.HEADER_PROTOBUF_FULLNAME, fullName);
-        if (mediaType.isCompatible(MediaType.APPLICATION_JSON_TYPE)) {
-            JsonFormat.writeTo(message, entityStream);
-        } else {
-            message.writeTo(entityStream);
-        }
+        try { 
+            if (mediaType.isCompatible(MediaType.APPLICATION_JSON_TYPE)) { 
+                JsonFormat.writeTo(message, entityStream); 
+            } else { 
+                message.writeTo(entityStream); 
+            } 
+        } catch (IOException e) { 
+            logger.warn("Failed writing message to output stream", e); 
+        } 
     }
 
     @Override

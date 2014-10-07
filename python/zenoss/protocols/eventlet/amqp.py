@@ -24,6 +24,11 @@ from ..amqp import set_keepalive
 DELIVERY_NONPERSISTENT = 1
 DELIVERY_PERSISTENT = 2
 
+# basic_qos parameters
+UNLIMITED_MESSAGE_SIZE = 0
+MESSAGES_PER_WORKER = 1
+GLOBAL_QOS = False
+
 
 __doc__ = """
 An eventlet based AMQP publisher/subscriber (consumer).
@@ -66,6 +71,7 @@ class PubSub(object):
         self._queueName = queueName
         self._run = False
         self._exchanges = set()
+        self._messages_per_worker = MESSAGES_PER_WORKER
 
     def registerExchange(self, exchange):
         self._exchanges.add(exchange)
@@ -120,7 +126,9 @@ class PubSub(object):
 
     def _startup(self):
         self._bind()
-
+        self.channel.basic_qos(prefetch_size=UNLIMITED_MESSAGE_SIZE,
+                               prefetch_count=self._messages_per_worker,
+                               a_global=GLOBAL_QOS)
         self.channel.basic_consume(self._queueName, callback=self._onMessage)
 
     def run(self):
@@ -148,6 +156,14 @@ class PubSub(object):
         if self._connection:
             self._connection.close()
             self._connection = None
+
+    @property
+    def messagesPerWorker(self):
+        return self._messages_per_worker
+
+    @messagesPerWorker.setter
+    def messagesPerWorker(self, value):
+        self._messages_per_worker = value
 
 
 class ProtobufPubSub(PubSub):
