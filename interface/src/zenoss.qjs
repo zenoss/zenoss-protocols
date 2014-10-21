@@ -79,6 +79,14 @@
         "$EventTime" : {
             "java_class" : "org.zenoss.protobufs.zep.Zep$EventTime",
             "python_class" : "zenoss.protocols.protobufs.zep_pb2.EventTime"
+        },
+        "$ZepStatistic" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$ZepStatistic",
+            "python_class":  "zenoss.protocols.protobufs.zep_pb2.ZepStatistic"
+        },
+        "$ZepStatistics" : {
+            "java_class" : "org.zenoss.protobufs.zep.Zep$ZepStatistics",
+            "python_class":  "zenoss.protocols.protobufs.zep_pb2.ZepStatistics"
         }
     },
     "exchanges" : {

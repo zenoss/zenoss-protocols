@@ -337,3 +337,13 @@ class ZepEventTimeClient(object):
         params = dict(time=timestamp,
               limit=limit,)
         return self.client.get(uri, params)
+
+
+class ZepStatsClient(object):
+    _base_uri = '/zeneventserver/api/1.0/stats/'
+
+    def __init__(self, uri, queueSchema):
+            self.client = ProtobufRestServiceClient(uri.rstrip('/') + self._base_uri, queueSchema,connection_error_class=ZepConnectionError)
+
+    def get(self):
+        return self.client.get('')
