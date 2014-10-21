@@ -18,11 +18,6 @@
         <version.jackson>1.9.2</version.jackson>
         <zenoss-utils.version>2.0.0</zenoss-utils.version>
     </properties>
-    <scm>
-        <connection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</connection>
-        <developerConnection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</developerConnection>
-        <url>http://dev.zenoss.org/trac/browser/org.zenoss.protocols</url>
-    </scm>
     <build>
         <pluginManagement>
             <plugins>
@@ -32,58 +27,6 @@
                     <version>2.5.2</version>
                     <configuration>
                         <xmlOutput>true</xmlOutput>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-antrun-plugin</artifactId>
-                    <version>1.7</version>
-                    <executions>
-                        <!-- Run `svnversion -n` and store output in svn.revision property. -->
-                        <!-- Run `svn info` and store URL in output in svn.url property. -->
-                        <execution>
-                            <id>get-svn-version</id>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                            <configuration>
-                                <exportAntProperties>true</exportAntProperties>
-                                <target>
-                                    <exec executable="svnversion" outputproperty="svn.revision" logError="true"
-                                          failonerror="false" failifexecutionfails="false">
-                                        <arg value="-n" />
-                                    </exec>
-                                    <exec executable="svn" failonerror="false" failifexecutionfails="false" logError="true">
-                                        <arg value="info" />
-                                        <redirector outputproperty="svn.url">
-                                            <outputfilterchain>
-                                                <linecontainsregexp>
-                                                    <regexp pattern="^URL:" />
-                                                </linecontainsregexp>
-                                                <tokenfilter>
-                                                    <replaceregex pattern="^URL:\s*(.*)"
-                                                                  replace="\1" />
-                                                </tokenfilter>
-                                                <striplinebreaks/>
-                                            </outputfilterchain>
-                                        </redirector>
-                                    </exec>
-                                </target>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
-                    <configuration>
-                        <archive>
-                            <manifestEntries>
-                                <SVN-Url>${svn.url}</SVN-Url>
-                                <SVN-Revision>${svn.revision}</SVN-Revision>
-                            </manifestEntries>
-                        </archive>
                     </configuration>
                 </plugin>
             </plugins>

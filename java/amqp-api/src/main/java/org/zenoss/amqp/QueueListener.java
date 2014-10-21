@@ -18,9 +18,37 @@ public abstract class QueueListener {
     private static final int DEFAULT_PREFETCH_SIZE = 0;
     private static final int DEFAULT_PREFETCH_COUNT = 1;
 
+    protected Consumer<com.google.protobuf.Message> consumer;
+    private int timeout = 0;
+
     protected void configureChannel(Channel channel) throws AmqpException {
         /* Set a default QOS on the channel */
         channel.setQos(DEFAULT_PREFETCH_SIZE, DEFAULT_PREFETCH_COUNT);
+    }
+
+    /**
+     * @param consumer
+     *            The consumer which receives the messages.
+     */
+    public void setConsumer(Consumer<com.google.protobuf.Message> consumer) {
+        this.consumer = consumer;
+    }
+
+    /**
+     * Get the queue reading timeout (in milliseconds) for this listener
+     * @return timeout (in milliseconds)
+     */
+    public int getTimeout(){
+        return timeout;
+    }
+
+    /**
+     * Set the queue reading timeout (in milliseconds) for this listener
+     * @param timeout
+     *          timeout (in milliseconds)
+     */
+    public void setTimeout(int timeout){
+        this.timeout = timeout;
     }
 
     /**
@@ -30,26 +58,37 @@ public abstract class QueueListener {
      * errors, and reject the message (and *NOT* re-queue) when an exception
      * occurs. This method will likely need to be overridden by subclasses to
      * customize when a message needs to be re-queued.
-     * 
+     *
      * @param message
      *            The message received by the consumer.
-     * @param consumer
-     *            The consumer which received the message.
      * @throws Exception
      *             If an exception is thrown when processing a message, it is
      *             re-thrown and the connection is restarted.
      */
-    protected void receive(final Message<com.google.protobuf.Message> message,
-            final Consumer<com.google.protobuf.Message> consumer)
-            throws Exception {
+    protected void receive(final Message<com.google.protobuf.Message> message) throws Exception {
         try {
             handle(message.getBody());
-            consumer.ackMessage(message);
+            handled(message);
         } catch (Exception e) {
-            consumer.rejectMessage(message, false);
+            failed(message);
             throw e;
         }
     }
+
+    /**
+     * See: {@Link #receive(Message<com.google.protobuf.Message>)}
+    */
+    protected void receive(final Message<com.google.protobuf.Message> message,
+                        final Consumer<com.google.protobuf.Message> consumer)
+            throws Exception {
+        this.setConsumer(consumer);
+        this.receive(message);
+    }
+
+    /**
+     * Method which is called when no more messages remain on the queue at the moment.
+     */
+    public void queueEmptied() throws Exception {}
 
     /**
      * Processes the message read from the queue.
@@ -59,6 +98,33 @@ public abstract class QueueListener {
      * @throws Exception
      *             If an exception occurs while processing the message.
      */
-    public abstract void handle(com.google.protobuf.Message message)
+    protected abstract void handle(com.google.protobuf.Message message)
             throws Exception;
+
+    /**
+     * Acknowledge this message
+     * @param message
+     * @throws AmqpException
+     */
+    protected void handled(final Message message) throws AmqpException {
+        this.consumer.ackMessage(message);
+    }
+
+    /**
+     * Reject this message, do not re-queue
+     * @param message
+     * @throws AmqpException
+     */
+    protected void failed(final Message message) throws AmqpException {
+        this.consumer.rejectMessage(message, false);
+    }
+
+    /**
+     * Reject this message and requeue
+     * @param message
+     * @throws AmqpException
+     */
+    protected void unhandled(final Message message) throws AmqpException {
+        this.consumer.rejectMessage(message, true);
+    }
 }

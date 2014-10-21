@@ -18,18 +18,12 @@ import com.rabbitmq.client.impl.AMQImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Closeable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Class which maintains a persistent connection to an AMQP server and allows
@@ -555,14 +549,17 @@ public class AmqpConnectionManager {
                 if (manager.extensionRegistry != null) {
                     converter.setExtensionRegistry(manager.extensionRegistry);
                 }
-                consumer = channel.createConsumer(this.config.getQueue(), converter);
+                final Consumer<com.google.protobuf.Message> consumer = channel.createConsumer(this.config.getQueue(),
+                        converter);
+                this.listener.setConsumer(consumer);
                 log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
                 Message<com.google.protobuf.Message> message;
                 while (!this.shutdown) {
                     try {
-                        while ((message = consumer.nextMessage()) != null) {
+                        while ((message = consumer.nextMessage(listener.getTimeout(), TimeUnit.MILLISECONDS)) != null) {
                             this.listener.receive(message, consumer);
                         }
+                        this.listener.queueEmptied();
                     } catch (MessageDecoderException e) {
                         // Unsupported message in this queue - reject the message
                         log.warn("Failed to decode message in queue", e);
