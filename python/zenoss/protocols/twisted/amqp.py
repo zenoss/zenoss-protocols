@@ -64,6 +64,12 @@ class AMQProtocol(AMQClient):
             # Get a channel
             self.chan = yield self.get_channel()
             self._connected = True
+            
+            # Set prefetch limit if necessary 
+            if getattr(self, "prefetch", None)  and not getattr(self.chan, '_flag_qos', False):
+                self.chan.basic_qos(prefetch_count=self.prefetch)
+                self.chan._flag_qos = True
+
             # Initialize the queues
             yield self.begin_listening()
 
@@ -277,6 +283,7 @@ class AMQPFactory(ReconnectingClientFactory):
         self._onConnectionFailed = self._createDeferred()
         self.connector = reactor.connectTCP(self.host, self.port, self)
         self.heartbeat = self.connectionInfo.amqpconnectionheartbeat
+        self.prefetch = None
 
     def _defaultErrback(self, reason):
         log.debug('Error: %s', reason)
@@ -311,8 +318,12 @@ class AMQPFactory(ReconnectingClientFactory):
     def buildProtocol(self, addr):
         self.p = self.protocol(self.delegate, self.vhost, self.spec, self.heartbeat)
         self.p.factory = self
-        self.resetDelay()
+        self.p.prefetch = self.prefetch
+	self.resetDelay()
         return self.p
+
+    def setPrefetch(self, prefetch):
+        self.prefetch = prefetch
 
     def listen(self, queue, callback, exclusive=False):
         """
