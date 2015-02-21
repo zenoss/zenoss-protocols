@@ -319,7 +319,7 @@ class AMQPFactory(ReconnectingClientFactory):
         self.p = self.protocol(self.delegate, self.vhost, self.spec, self.heartbeat)
         self.p.factory = self
         self.p.prefetch = self.prefetch
-	self.resetDelay()
+        self.resetDelay()
         return self.p
 
     def setPrefetch(self, prefetch):
