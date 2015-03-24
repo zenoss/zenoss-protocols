@@ -168,7 +168,7 @@ class ConsumerImpl<T> implements Consumer<T> {
     }
 
     @Override
-    public void ackMessage(Message<T> message) throws AmqpException {
+    public void ackMessage(Message<?> message) throws AmqpException {
         if (!this.noAck) {
             this.channel.ackMessage(message.getEnvelope().getDeliveryTag());
         }
