@@ -30,6 +30,10 @@ public class MessagingProperties {
         properties.load(inputStream);
     }
 
+    public void load(Properties p) {
+        properties.putAll(p);
+    }
+
     public String getQueueProperty(String identifier, String key) {
         return getQueueProperty(identifier, key, null);
     }

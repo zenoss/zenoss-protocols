@@ -556,13 +556,15 @@ public class AmqpConnectionManager {
                     converter.setExtensionRegistry(manager.extensionRegistry);
                 }
                 consumer = channel.createConsumer(this.config.getQueue(), converter);
+                this.listener.setConsumer(consumer);
                 log.info("Worker started, consuming messages on queue: {}", config.getQueue().getName());
                 Message<com.google.protobuf.Message> message;
                 while (!this.shutdown) {
                     try {
-                        while ((message = consumer.nextMessage()) != null) {
+                        while ((message = consumer.nextMessage(listener.getTimeout(), TimeUnit.MILLISECONDS)) != null) {
                             this.listener.receive(message, consumer);
                         }
+                        this.listener.queueEmptied();
                     } catch (MessageDecoderException e) {
                         // Unsupported message in this queue - reject the message
                         log.warn("Failed to decode message in queue", e);

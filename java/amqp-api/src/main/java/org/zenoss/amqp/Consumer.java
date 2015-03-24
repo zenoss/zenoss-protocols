@@ -78,7 +78,7 @@ public interface Consumer<T> {
      * @throws AmqpException
      *             If an error occurs sending the acknowledgment.
      */
-    public void ackMessage(Message<T> message) throws AmqpException;
+    public void ackMessage(Message<?> message) throws AmqpException;
 
     /**
      * Rejects the message.
