@@ -15,6 +15,8 @@ from zenoss.protocols.protobufs.zep_pb2 import EventSummary, Event, EventNote, E
 from zenoss.protocols.protobufs.zep_pb2 import STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_CLOSED
 from zenoss.protocols.protobufutil import ProtobufEnum, listify
 from datetime import timedelta
+from urllib3.exceptions import TimeoutError
+from socket import timeout as socket_timeout
 
 log = logging.getLogger('zepclient')
 
@@ -29,8 +31,13 @@ HOUR = timedelta(hours=1)
 class ZepServiceException(Exception):
     pass
 
-class ZepConnectionError(ServiceConnectionError):
+class ZepConnectionTimeout(ServiceConnectionError):
     pass
+
+class ZepConnectionError(ServiceConnectionError):
+    def __init__(self, msg, e):
+        if isinstance(e, (TimeoutError, socket_timeout)):
+            raise ZepConnectionTimeout(msg, e)
 
 class ZepServiceClient(object):
     _base_uri = '/zeneventserver/api/1.0/events/'
