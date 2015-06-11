@@ -31,9 +31,14 @@ HOUR = timedelta(hours=1)
 class ZepServiceException(Exception):
     pass
 
-class ZepConnectionError(ServiceConnectionError):
+class ZepConnectionTimeout(ServiceConnectionError):
     pass
-    
+
+class ZepConnectionError(ServiceConnectionError):
+    def __init__(self, msg, e):
+        if isinstance(e, (TimeoutError, socket_timeout)):
+            raise ZepConnectionTimeout(msg, e)
+
 class ZepServiceClient(object):
     _base_uri = '/zeneventserver/api/1.0/events/'
     _timeFormat = "%Y-%m-%dT%H:%M:%S.%fZ"
