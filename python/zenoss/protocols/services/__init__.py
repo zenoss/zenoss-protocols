@@ -45,9 +45,6 @@ class ServiceConnectionError(ServiceException):
         self.error = error
         super(ServiceConnectionError, self).__init__(message)
 
-class ZepConnectionTimeout(ServiceException):
-    pass
-
 class RestSerializer(object):
     def dump(self, headers, body):
         return headers, body
@@ -142,7 +139,7 @@ class RestServiceClient(object):
             elapsed_time = time() - start_time
             log.debug("Elapsed time calling %s: %s", request.uri, elapsed_time)
         except (socket.timeout, TimeoutError) as e:
-            raise ZepConnectionTimeout('Timed out connecting to service.', e)
+            raise self._connection_error_class('Timed out connecting to service.', e)
         except socket.error as e:
             if e.errno == errno.ECONNREFUSED or e.errno == errno.EINVAL:
                 raise self._connection_error_class('Could not connect to service.', e)
