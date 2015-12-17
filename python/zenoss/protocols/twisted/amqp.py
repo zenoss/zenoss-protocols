@@ -178,8 +178,7 @@ class AMQProtocol(AMQClient):
             body = zlib.compress(body)
 
         content = Content(body)
-        content['delivery_mode'] = exchangeConfig.delivery_mode
-        # set the headers to our protobuf type, hopefully this works
+        content['delivery-mode'] = exchangeConfig.delivery_mode
         content.properties['headers'] = headers
         content.properties['content-type'] = 'application/x-protobuf'
 
