@@ -1,0 +1,6 @@
+
+v2.1.4
+ * added CHANGES.txt.
+ * ZEN-17607 changed amqp delivery mode
+ * updated zenoss-utils dep version to 2.1.0
+
