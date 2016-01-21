@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protoc.path>protoc</protoc.path>
         <version.jackson>1.9.2</version.jackson>
-        <zenoss-utils.version>2.0.0</zenoss-utils.version>
+        <zenoss-utils.version>2.1.0</zenoss-utils.version>
     </properties>
     <scm>
         <connection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</connection>
