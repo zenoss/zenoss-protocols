@@ -30,7 +30,7 @@ build:
 	$(PROTOC) -I ../interface/src/protobufs/ --python_out=. ../interface/src/protobufs/zenoss/protocols/protobufs/*.proto
 	mkdir -p ${DATADIR} && touch ${DATADIR}/__init__.py
 	$(PYTHON) -c "$$QJS_BUILD" > ${DATADIR}/queueschema.py
-	$(PYTHON) setup.py sdist
+	$(PYTHON) setup.py bdist_wheel
 
 clean:
 	rm -rf ${PROTODIR}
