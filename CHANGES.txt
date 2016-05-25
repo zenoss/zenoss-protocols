@@ -1,4 +1,7 @@
 
+v2.1.4-1
+ * packaging change for python protocols to create a wheel
+
 v2.1.4
  * added CHANGES.txt.
  * ZEN-17607 changed amqp delivery mode
