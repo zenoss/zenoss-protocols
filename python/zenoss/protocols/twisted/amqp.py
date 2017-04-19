@@ -16,9 +16,9 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, DeferredList
 from twisted.python.failure import Failure
 from txamqp import spec
-from txamqp.queue import Closed
+from txamqp.queue import Closed as QueueClosed
 from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate
+from txamqp.client import TwistedDelegate, Closed
 from txamqp.content import Content
 from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
@@ -48,32 +48,28 @@ class AMQProtocol(AMQClient):
         exchange setup, etc.
         """
         try:
-            print("begin connectionMade()")
             connectionInfo = self.factory.connectionInfo
             set_keepalive(self.transport.socket, connectionInfo.amqpconnectionheartbeat)
             AMQClient.connectionMade(self)
             log.debug('Made initial connection to message broker')
-            print('Made initial connection to message broker')
             self._connected = False
             # Authenticate
             try:
-                print('try to run self.start')
-                yield self.start({'LOGIN':connectionInfo.user,
-                                  'PASSWORD':connectionInfo.password})
-                print('try to run onAuthenticated(True)')
+                yield self.start({'LOGIN': connectionInfo.user,
+                                  'PASSWORD': connectionInfo.password})
                 self.factory.onAuthenticated(True)
-                log.debug('Successfully authenticated as %s' % connectionInfo.user)
-                print("authenticated successfully")
-            except Exception as e:
-                print("exception caught in start/authenticated clause")
-                log.warn("Error authenticating to %s as %s" % (connectionInfo.host, connectionInfo.user))
-                yield self.factory.onConnectionFailed("authentication failed")
-                #self.factory.onAuthenticated(e.args[0])
-                returnValue( Failure(e) )
+                log.debug('Successfully authenticated as %s',
+                          connectionInfo.user)
+            except Closed as err:
+                log.warn("Error authenticating to %s as %s",
+                         (connectionInfo.host, connectionInfo.user))
+                # If authentication fails, add onConnectionFailed
+                # to the reactor, and return a Failure for this deferred
+                self.factory.onConnectionFailed("authentication failed")
+                returnValue(Failure())
+
             # Get a channel
-            print('get channel')
             self.chan = yield self.get_channel()
-            print('set _connected to True')
             self._connected = True
 
             # Set prefetch limit if necessary
@@ -88,10 +84,11 @@ class AMQProtocol(AMQClient):
             self.factory.onConnectionMade(self)
             # Flush any messages that have been sent before now
             yield self.send()
-            returnValue("Connection Made Successfully")
+            returnValue("success")
         except Exception as err:
             log.exception("Unable to connect")
-            returnValue(Failure(err))
+            self.factory.onConnectionFailed("authentication failed")
+            returnValue(Failure())
 
     def is_connected(self):
         return self._connected
@@ -243,7 +240,7 @@ class AMQProtocol(AMQClient):
         """
         try:
             message = yield queue.get()
-        except Closed:
+        except QueueClosed:
             log.info('Connection to queue closed')
             self.factory.disconnect()
         except Exception:
@@ -295,7 +292,7 @@ class AMQPFactory(ReconnectingClientFactory):
         self._onInitialSend = self._createDeferred()
         self._onConnectionMade = self._createDeferred()
         self._onConnectionLost = self._createDeferred()
-        self._onAuthenticated = self._createDeferred()
+        #self._onAuthenticated = self._createDeferred()
         self._onConnectionFailed = self._createDeferred()
         self.reactor = reactor
         self.connector = self.reactor.connectTCP(self.host, self.port, self)
@@ -314,10 +311,18 @@ class AMQPFactory(ReconnectingClientFactory):
         d = Deferred()
         return d.addErrback(self._defaultErrback)
 
-    def onAuthenticated(self, value):
-        d, self._onAuthenticated = self._onAuthenticated, self._createDeferred()
-        d.callback(value)
+    def onAuthenticated(self, din):
+        log.debug('AMQPFactory.onAuthenticated(%s)', din)
+        #d, self._onAuthenticated = self._onAuthenticated, self._createDeferred()
+        d = defer.Deferred()
+        d.addCallback(self._onAuthenticated)
+        d.addErrback(self._defaultErrback)
+        d.callback(din)
         return d
+
+    def _onAuthenticated(self, din):
+        log.debug('AMQPFactory._onAuthenticated(%s)', str(din))
+        return din
 
     def onConnectionMade(self, value):
         set_keepalive(self.connector.transport.socket, self.heartbeat)
@@ -330,15 +335,12 @@ class AMQPFactory(ReconnectingClientFactory):
         d.callback(value)
 
     def onConnectionFailed(self, din):
-        print('AMQPFactory.onConnectionFailed(%s)' % din)
         log.debug('onConnectionFailed %s' % din)
         #d,self._onConnectionFailed = self._onConnectionFailed, self._createDeferred()
         d = Deferred()
         d.addCallback(self.clientConnectionFailed)
         d.addErrback(self._defaultErrback)
-        print("clientConnectionFailed defered created")
-        d.callback(self.connector, din)
-        print("clientConnectionFailed defered was called back")
+        d.callback((self.connector, din))
         return d
 
     def onInitialSend(self, value):
@@ -450,8 +452,7 @@ class AMQPFactory(ReconnectingClientFactory):
             self._onConnectionMade.addCallback(doCreateQueue)
             return self._onConnectionMade
 
-    def clientConnectionFailed(self, connector, reason):
-        print("factory.clientConnectionFailed begin")
+    def clientConnectionFailed(self, (connector, reason)):
         log.debug('Client connection failed: %s', reason)
         #self.onConnectionFailed(reason)
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)

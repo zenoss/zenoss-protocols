@@ -5,6 +5,7 @@ from zope.interface import implements
 from zenoss.protocols.interfaces import IAMQPConnectionInfo, IQueueSchema
 from zenoss.protocols.queueschema import Schema
 from fixtures import queueschema
+from txamqp.client import Closed
 
 from mock import MagicMock
 from mock import patch
@@ -26,7 +27,6 @@ class ConnectionInfo ():
         self.amqpconnectionheartbeat = MagicMock(return_value=300)
         self.user = 'test_user'
         self.password = 'test_pass'
-        #print(dir(self.amqpconnectionheartbeat))
 
 
 def BOMB(reason):
@@ -56,8 +56,10 @@ class BombTest(unittest.TestCase):
         return d
 
 
-def base_errback(din):
+def test_errback(din):
+    print('test_errback caught exception')
     din.printTraceback()
+    return din
 
 
 class AMQPProtocolTestCase(unittest.TestCase):
@@ -105,27 +107,47 @@ class AMQPProtocolTestCase(unittest.TestCase):
 
     @patch('zenoss.protocols.twisted.amqp.ReconnectingClientFactory.clientConnectionFailed',
            autospec=True)
+    def test_connectionMade_authentication_errors(self, m_ccf):
+        self.tr.proto.start = MagicMock(spec=self.proto.start)
+        chan = object()
+        self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+                                           return_value=chan)
+
+        def raise_err(din):
+            raise Closed()
+        self.factory.onAuthenticated = raise_err
+
+        cm = self.proto.connectionMade()
+        cm.addErrback(test_errback)
+        self.reactor.advance(4)
+        print(cm.result)
+
+        # reconnecting client failure should be called if the connectoin fails
+        self.assertEqual(m_ccf.call_count, 1,
+                         "clientConnectionFailed was not called")
+        self.assertFailure(cm, Closed)
+
+        return cm
+
+    @patch('zenoss.protocols.twisted.amqp.ReconnectingClientFactory.clientConnectionFailed',
+           autospec=True)
     def test_connectionMade_handles_errors(self, m_ccf):
         self.tr.proto.start = MagicMock(spec=self.proto.start)
         chan = object()
         self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
                                            return_value=chan)
-        self.factory.onAuthenticated = BOMB
-        #self.factory.clientConnectionFailed = MagicMock()
-        '''amqp.ReconnectingClientFactory.clientConnectionFailed = MagicMock(
-            spec=amqp.ReconnectingClientFactory.clientConnectionFailed,
-            return_value="ok"
-        )'''
 
+        self.factory.onAuthenticated = BOMB
 
         cm = self.proto.connectionMade()
+        cm.addErrback(test_errback)
         self.reactor.advance(4)
+        print(cm.result)
 
         # reconnecting client failure should be called if the connectoin fails
-        #self.assertEqual(self.factory.clientConnectionFailed.call_count, 1,
-        #                 "factory.clientConnectionFailed was not called")
         self.assertEqual(m_ccf.call_count, 1,
                          "clientConnectionFailed was not called")
+        self.assertFailure(cm, RuntimeError)
 
         return cm
 
@@ -158,6 +180,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
 
     def test_onAuthenticated(self):
         d = self.factory.onAuthenticated('test')
+        self.reactor.advance(2)
         print(d.result)
         self.assertTrue(d.called)
         return d
