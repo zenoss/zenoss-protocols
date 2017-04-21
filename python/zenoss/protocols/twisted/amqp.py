@@ -49,7 +49,8 @@ class AMQProtocol(AMQClient):
         """
         try:
             connectionInfo = self.factory.connectionInfo
-            set_keepalive(self.transport.socket, connectionInfo.amqpconnectionheartbeat)
+            set_keepalive(self.transport.socket,
+                          connectionInfo.amqpconnectionheartbeat)
             AMQClient.connectionMade(self)
             log.debug('Made initial connection to message broker')
             self._connected = False
@@ -61,11 +62,11 @@ class AMQProtocol(AMQClient):
                 log.debug('Successfully authenticated as %s',
                           connectionInfo.user)
             except Closed as err:
-                log.warn("Error authenticating to %s as %s",
+                log.debug("Error authenticating to %s as %s",
                          (connectionInfo.host, connectionInfo.user))
-                # If authentication fails, add onConnectionFailed
+                # If authentication fails, errback the onAuthentication trigger
                 # to the reactor, and return a Failure for this deferred
-                self.factory.onConnectionFailed("authentication failed")
+                self.factory.onAuthenticatoin("authentication failed")
                 returnValue(Failure())
 
             # Get a channel
@@ -80,14 +81,15 @@ class AMQProtocol(AMQClient):
             # Initialize the queues
             yield self.begin_listening()
 
-            # Call back our deferred
+            # Call back any onConnectionMade deferreds registered by the factory
             self.factory.onConnectionMade(self)
+
             # Flush any messages that have been sent before now
             yield self.send()
             returnValue("success")
         except Exception as err:
             log.exception("Unable to connect")
-            self.factory.onConnectionFailed("authentication failed")
+            self.factory.onConnectionFailed("protocol connectionMade failed")
             returnValue(Failure())
 
     def is_connected(self):
@@ -151,7 +153,7 @@ class AMQProtocol(AMQClient):
         # Declare the queue
         try:
             yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
-        except ChannelClosedError as e:
+        except ChannelClosedError as err:
             # Here we handle the case where we redeclare a queue
             # with different properties. When this happens, Rabbit
             # both returns an error and closes the channel. We
@@ -162,17 +164,17 @@ class AMQProtocol(AMQClient):
                 # PRECONDITION_FAILED -- properties changed
                 # Remove the channel and allow it to be reopened
                 log.warn(("Attempted to redeclare queue {0} with "
-                        "different arguments. You will need to "
-                        "delete the queue to pick up the new "
-                        "configuration.").format(queue.name))
-                log.debug(e)
+                          "different arguments. You will need to "
+                          "delete the queue to pick up the new "
+                          "configuration.").format(queue.name))
+                log.debug(err)
                 self.chan = yield self.get_channel()
             else:
                 raise
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False, headers=None,
-                     declareExchange=True):
+    def send_message(self, exchange, routing_key, msg, mandatory=False,
+                     headers=None, declareExchange=True):
         body = msg
         headers = headers if headers else {}
 
@@ -289,11 +291,13 @@ class AMQPFactory(ReconnectingClientFactory):
         self.queues = []
         self.messages = []
         self.p = None
-        self._onInitialSend = self._createDeferred()
+        # Event Hooks. yield to these deferreds to wait for the event
         self._onConnectionMade = self._createDeferred()
         self._onConnectionLost = self._createDeferred()
-        #self._onAuthenticated = self._createDeferred()
         self._onConnectionFailed = self._createDeferred()
+        self._onAuthenticated = self._createDeferred()
+        self._onInitialSend = self._createDeferred()
+
         self.reactor = reactor
         self.connector = self.reactor.connectTCP(self.host, self.port, self)
         self.heartbeat = self.connectionInfo.amqpconnectionheartbeat
@@ -313,18 +317,22 @@ class AMQPFactory(ReconnectingClientFactory):
 
     def onAuthenticated(self, din):
         log.debug('AMQPFactory.onAuthenticated(%s)', din)
-        #d, self._onAuthenticated = self._onAuthenticated, self._createDeferred()
-        d = defer.Deferred()
-        d.addCallback(self._onAuthenticated)
+        d, self._onAuthenticated = self._onAuthenticated, defer.Deferred()
+        #d = defer.Deferred()
+        #d.addCallback(self._onAuthenticated)
         d.addErrback(self._defaultErrback)
         d.callback(din)
         return d
 
-    def _onAuthenticated(self, din):
+    '''def _onAuthenticated(self, din):
         log.debug('AMQPFactory._onAuthenticated(%s)', str(din))
         return din
+    '''
 
     def onConnectionMade(self, value):
+        '''Register a deferred that AMQProtocol's onConnectionMade method
+        will callback when it completes.
+        '''
         set_keepalive(self.connector.transport.socket, self.heartbeat)
         d,self._onConnectionMade = self._onConnectionMade, self._createDeferred()
         d.callback(value)
@@ -334,17 +342,24 @@ class AMQPFactory(ReconnectingClientFactory):
         d,self._onConnectionLost = self._onConnectionLost, self._createDeferred()
         d.callback(value)
 
-    def onConnectionFailed(self, din):
-        log.debug('onConnectionFailed %s' % din)
-        #d,self._onConnectionFailed = self._onConnectionFailed, self._createDeferred()
-        d = Deferred()
-        d.addCallback(self.clientConnectionFailed)
-        d.addErrback(self._defaultErrback)
-        d.callback((self.connector, din))
+    def onConnectionFailed(self, msg):
+        '''Trigger the _onConnectionFailed Hook
+        applications may subscribe to this hook
+        by yielding to it in an inline callback
+        which will wait for the hook to be triggered and return some value
+        before continuing
+        '''
+        log.debug('onConnectionFailed %s' % msg)
+        d, self._onConnectionFailed = self._onConnectionFailed, self._createDeferred()
+        #d = Deferred()
+        #d.addCallback(self.clientConnectionFailed)
+        #d.addErrback(self._defaultErrback)
+        #d.callback((self.connector, din))
+        d.callback(msg)
         return d
 
     def onInitialSend(self, value):
-        d,self._onInitialSend = self._onInitialSend, self._createDeferred()
+        d, self._onInitialSend = self._onInitialSend, self._createDeferred()
         d.callback(value)
 
     def buildProtocol(self, addr, clock=reactor):
@@ -443,16 +458,21 @@ class AMQPFactory(ReconnectingClientFactory):
         return self.p.chan
 
     def createQueue(self, queueIdentifier, replacements=None):
+        log.debug("begin: AMQPFactory.createQueue(%s, replacements=%s)",
+                  queueIdentifier, replacements)
         queue = self.queueSchema.getQueue(queueIdentifier, replacements)
         if self.p is not None:
             return self.p.create_queue(queue)
         else:
             def doCreateQueue(value):
                 return self.p.create_queue(queue)
-            self._onConnectionMade.addCallback(doCreateQueue)
-            return self._onConnectionMade
 
-    def clientConnectionFailed(self, (connector, reason)):
+            d = self.onConnectionMade('start', delay=True)
+            d.addCallback(doCreateQueue)
+            d.addErrback(self._defaultErrback)
+            return d
+
+    def clientConnectionFailed(self, connector, reason):
         log.debug('Client connection failed: %s', reason)
         #self.onConnectionFailed(reason)
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)

@@ -16,6 +16,9 @@ from twisted.trial import unittest
 from twisted.test import proto_helpers
 
 
+INVALIDATION_QUEUE = "$TestQueue"
+
+
 class ConnectionInfo ():
     implements(IAMQPConnectionInfo)
 
@@ -61,6 +64,19 @@ def test_errback(din):
     din.printTraceback()
     return din
 
+
+class DebugTestCase(unittest.TestCase):
+    def setUp(self):
+        self.tr = proto_helpers.StringTransport()
+        self.tr.socket = MagicMock()
+        self.connection_info = ConnectionInfo()
+        self.reactor = Clock()
+        self.reactor.connectTCP = MagicMock()
+        self.factory = AMQPFactory(self.connection_info,
+                                   queueschema,
+                                   reactor=self.reactor)
+    def test_debug(self):
+        print(dir(self.factory))
 
 class AMQPProtocolTestCase(unittest.TestCase):
 
@@ -167,7 +183,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.proto = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
         self.tr.proto = self.proto
         self.proto.makeConnection(self.tr)
-        self.reactor.advance(1)
+        self.reactor.advance(2)
 
     def tearDown(self):
         self.factory.shutdown()
@@ -178,18 +194,81 @@ class AMQPFactoryTestCase(unittest.TestCase):
             self.factory.protocol.__name__
         )
 
-    def test_onAuthenticated(self):
-        d = self.factory.onAuthenticated('test')
-        self.reactor.advance(2)
-        print(d.result)
-        self.assertTrue(d.called)
-        return d
-
     def test_default_errback(self):
         d = defer.Deferred()
         d.addCallback(BOMB)
         d.addErrback(self.factory._defaultErrback)
 
         test = self.assertFailure(d, RuntimeError)
-        test.callback("go")
+        test.callback("test")
         return test
+
+    def test_createQueue(self):
+        # requires protocol chan attribute be set
+        self.tr.proto.start = MagicMock(spec=self.proto.start)
+        chan = object()
+        self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+                                           return_value=chan)
+
+        self.assertTrue(self.proto.chan)
+        d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
+        self.reactor.advance(2)
+        return d
+
+    def _test_factory_hook(self, hook_name):
+        '''Convenience method for testing factory hooks and triggers
+        '''
+        trigger_name = hook_name[1:]
+        hook = getattr(self.factory, hook_name)
+        trigger = getattr(self.factory, trigger_name)
+        self.success = False
+
+        @defer.inlineCallbacks
+        def wait_for_hook(self):
+            # wait for factory.onAuthenticated to be triggered
+            yield hook
+            self.success = True
+
+        waiter = defer.Deferred().addCallback(wait_for_hook)
+        waiter.callback(self)
+        # let the reactor run, and confirm that the trigger is still waiting
+        self.reactor.advance(2)
+        self.assertFalse(self.success)
+        # Trigger the Hook on the factory
+        trigger('go')
+        self.reactor.advance(2)
+        self.assertTrue(self.success)
+
+    def test_onInitialSend_hook_full(self):
+        self.success = False
+
+        @defer.inlineCallbacks
+        def trigger_onInitialSend(self):
+            # wait for factory.onInitialSend to be triggered
+            yield self.factory._onInitialSend
+            self.success = True
+
+        ois_trigger = defer.Deferred().addCallback(trigger_onInitialSend)
+        ois_trigger.callback(self)
+        # let the reactor run, and confirm that the trigger is still waiting
+        self.reactor.advance(2)
+        self.assertFalse(self.success)
+        # Trigger the Hook on the factory
+        self.factory.onInitialSend('trigger')
+        self.reactor.advance(2)
+        self.assertTrue(self.success)
+
+    def test_onConnectionMade_hook(self):
+        self._test_factory_hook('_onConnectionMade')
+
+    def test_onConnectionLost_hook(self):
+        self._test_factory_hook('_onConnectionLost')
+
+    def test_onConnectionFailed_hook(self):
+        self._test_factory_hook('_onConnectionFailed')
+
+    def test_onAuthenticated_hook(self):
+        self._test_factory_hook('_onAuthenticated')
+
+    def test_onInitialSend_hook(self):
+        self._test_factory_hook('_onInitialSend')
