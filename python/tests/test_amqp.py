@@ -1,5 +1,5 @@
 from zenoss.protocols.twisted import amqp
-from zenoss.protocols.twisted.amqp import AMQPFactory
+from zenoss.protocols.twisted.amqp import AMQPFactory, IAMQPChannelAdapter
 
 from zope.interface import implements
 from zenoss.protocols.interfaces import IAMQPConnectionInfo, IQueueSchema
@@ -167,6 +167,23 @@ class AMQPProtocolTestCase(unittest.TestCase):
 
         return cm
 
+    @patch('zenoss.protocols.twisted.amqp.getAdapter', autospec=True)
+    def test_create_queue(self, m_get_adapter):
+        self.tr.proto.start = MagicMock(spec=self.proto.start)
+        chan = object()
+        self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+                                           return_value=chan)
+        cm = self.proto.connectionMade()
+        self.reactor.advance(2)
+        self.assertTrue(hasattr(self.proto, 'chan'))
+        self.assertEqual(chan, self.proto.chan)
+
+        d = self.proto.create_queue(INVALIDATION_QUEUE)
+        self.reactor.advance(2)
+        m_get_adapter.assert_called_with(self.proto.chan, IAMQPChannelAdapter)
+        return d
+
+
 
 class AMQPFactoryTestCase(unittest.TestCase):
 
@@ -204,15 +221,23 @@ class AMQPFactoryTestCase(unittest.TestCase):
         return test
 
     def test_createQueue(self):
-        # requires protocol chan attribute be set
-        self.tr.proto.start = MagicMock(spec=self.proto.start)
-        chan = object()
-        self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
-                                           return_value=chan)
+        # factory.createQueue calls protocol create_queue
+        #self.tr.proto.start = MagicMock(spec=self.proto.start)
+        #chan = object()
+        #self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+        #                                   return_value=chan)
+        queueIdentifier = INVALIDATION_QUEUE
+        replacements = None
+        queue = object()
+        queue = self.factory.queueSchema.getQueue(queueIdentifier,
+                                                  replacements)
 
-        self.assertTrue(self.proto.chan)
+        m_proto_create_queue = MagicMock(spec=self.proto.create_queue)
+        self.proto.create_queue = m_proto_create_queue
         d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
         self.reactor.advance(2)
+        self.assertEqual(m_proto_create_queue.call_count, 1,
+                         "protocol.create_queue was not called")
         return d
 
     def _test_factory_hook(self, hook_name):
@@ -236,25 +261,6 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.assertFalse(self.success)
         # Trigger the Hook on the factory
         trigger('go')
-        self.reactor.advance(2)
-        self.assertTrue(self.success)
-
-    def test_onInitialSend_hook_full(self):
-        self.success = False
-
-        @defer.inlineCallbacks
-        def trigger_onInitialSend(self):
-            # wait for factory.onInitialSend to be triggered
-            yield self.factory._onInitialSend
-            self.success = True
-
-        ois_trigger = defer.Deferred().addCallback(trigger_onInitialSend)
-        ois_trigger.callback(self)
-        # let the reactor run, and confirm that the trigger is still waiting
-        self.reactor.advance(2)
-        self.assertFalse(self.success)
-        # Trigger the Hook on the factory
-        self.factory.onInitialSend('trigger')
         self.reactor.advance(2)
         self.assertTrue(self.success)
 

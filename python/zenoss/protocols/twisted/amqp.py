@@ -66,7 +66,7 @@ class AMQProtocol(AMQClient):
                          (connectionInfo.host, connectionInfo.user))
                 # If authentication fails, errback the onAuthentication trigger
                 # to the reactor, and return a Failure for this deferred
-                self.factory.onAuthenticatoin("authentication failed")
+                self.factory.onAuthentication("authentication failed")
                 returnValue(Failure())
 
             # Get a channel
@@ -274,6 +274,10 @@ class AMQPFactory(ReconnectingClientFactory):
     The actual service. This is what should be used to listen to queues and
     send messages; these are buffered on the factory, then referenced by the
     protocol each time a connection is made.
+
+    provides asynchronous hooks, which you can yield to
+    in a deferred.inlineCallbacks method,
+    to wait for the specified event to occur before proceeding.
     """
     protocol = AMQProtocol
 
@@ -334,13 +338,21 @@ class AMQPFactory(ReconnectingClientFactory):
         will callback when it completes.
         '''
         set_keepalive(self.connector.transport.socket, self.heartbeat)
-        d,self._onConnectionMade = self._onConnectionMade, self._createDeferred()
+        d, self._onConnectionMade = self._onConnectionMade, self._createDeferred()
         d.callback(value)
+        return d
 
-    def onConnectionLost(self, value):
-        log.debug('onConnectionLost %s' % value)
-        d,self._onConnectionLost = self._onConnectionLost, self._createDeferred()
-        d.callback(value)
+    def onConnectionLost(self, reason):
+        '''Trigger the _onConnectionLost Hook
+        you can add clientConnectionLost as a callback
+        to the _onConnectionLost deferred, to trigger a reconnection attempt
+        '''
+        log.debug('onConnectionLost %s' % reason)
+        d, self._onConnectionLost = self._onConnectionLost, self._createDeferred()
+        #d.addCallback(self.clientConnectionLost)
+        #d.callback(self.connector, reason)
+        d.callback(reason)
+        return d
 
     def onConnectionFailed(self, msg):
         '''Trigger the _onConnectionFailed Hook
@@ -458,6 +470,10 @@ class AMQPFactory(ReconnectingClientFactory):
         return self.p.chan
 
     def createQueue(self, queueIdentifier, replacements=None):
+        '''if this factory has a protocol,
+        run the protocol's create_queue method
+        else add it as a callback on the _onConnectionMade deferred.
+        '''
         log.debug("begin: AMQPFactory.createQueue(%s, replacements=%s)",
                   queueIdentifier, replacements)
         queue = self.queueSchema.getQueue(queueIdentifier, replacements)
