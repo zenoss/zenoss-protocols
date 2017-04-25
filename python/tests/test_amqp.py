@@ -35,7 +35,7 @@ class ConnectionInfo ():
 def BOMB(reason):
     raise RuntimeError("BOMB {}".format(reason))
 
-
+'''
 def lightBomb(fuse, message, reactor=reactor):
     d = defer.Deferred()
     reactor.callLater(fuse, d.callback, message)
@@ -77,6 +77,116 @@ class DebugTestCase(unittest.TestCase):
                                    reactor=self.reactor)
     def test_debug(self):
         print(dir(self.factory))
+'''
+
+
+class AMQPFactoryTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self._build_factory()
+        self._build_protocol()
+        self.reactor.advance(2)
+
+
+    def _build_factory(self):
+        self.tr = proto_helpers.StringTransport()
+        self.tr.socket = MagicMock()
+
+        self.connection_info = ConnectionInfo()
+        self.reactor = Clock()
+        self.reactor.connectTCP = MagicMock()
+        self.factory = AMQPFactory(self.connection_info,
+                                   queueschema,
+                                   reactor=self.reactor)
+
+    def _build_protocol(self):
+        self.proto = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
+        self.tr.proto = self.proto
+        self.proto.makeConnection(self.tr)
+
+    def tearDown(self):
+        self.factory.shutdown()
+
+    def test_buildProtocol(self):
+        '''After setUp, ensure that the protocol for our test factory
+        is the same as the protocol we built.
+        '''
+        self.assertEqual(
+            self.proto.__class__.__name__,
+            self.factory.protocol.__name__
+        )
+
+    def test_default_errback(self):
+        '''Create a deferred with a callback that will raise an error
+        and test that it raises the expected RuntimeError type
+        '''
+        d = defer.Deferred()
+        d.addCallback(BOMB)
+        d.addErrback(self.factory._defaultErrback)
+
+        test = self.assertFailure(d, RuntimeError)
+        test.callback("test_default_errback")
+        return test
+
+    def test_createQueue(self):
+        # factory.createQueue calls protocol create_queue
+        #self.tr.proto.start = MagicMock(spec=self.proto.start)
+        #chan = object()
+        #self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+        #                                   return_value=chan)
+        queueIdentifier = INVALIDATION_QUEUE
+        replacements = None
+        queue = object()
+        queue = self.factory.queueSchema.getQueue(queueIdentifier,
+                                                  replacements)
+
+        m_proto_create_queue = MagicMock(spec=self.proto.create_queue)
+        self.proto.create_queue = m_proto_create_queue
+        d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
+        self.reactor.advance(2)
+        self.assertEqual(m_proto_create_queue.call_count, 1,
+                         "protocol.create_queue was not called")
+        return d
+
+    def _test_factory_hook(self, hook_name):
+        '''Convenience method for testing factory hooks and triggers
+        '''
+        trigger_name = hook_name[1:]
+        hook = getattr(self.factory, hook_name)
+        trigger = getattr(self.factory, trigger_name)
+        self.success = False
+
+        @defer.inlineCallbacks
+        def wait_for_hook(self):
+            # wait for factory.onAuthenticated to be triggered
+            yield hook
+            self.success = True
+
+        waiter = defer.Deferred().addCallback(wait_for_hook)
+        waiter.callback(self)
+        # let the reactor run, and confirm that the trigger is still waiting
+        self.reactor.advance(2)
+        self.assertFalse(self.success)
+        # Trigger the Hook on the factory
+        trigger('go')
+        self.reactor.advance(2)
+        self.assertTrue(self.success)
+
+    def test_onConnectionMade_hook(self):
+        self._test_factory_hook('_onConnectionMade')
+
+    def test_onConnectionLost_hook(self):
+        self._test_factory_hook('_onConnectionLost')
+
+    def test_onConnectionFailed_hook(self):
+        self._test_factory_hook('_onConnectionFailed')
+
+    def test_onAuthenticated_hook(self):
+        self._test_factory_hook('_onAuthenticated')
+
+    def test_onInitialSend_hook(self):
+        self._test_factory_hook('_onInitialSend')
+
 
 class AMQPProtocolTestCase(unittest.TestCase):
 
@@ -182,99 +292,3 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.reactor.advance(2)
         m_get_adapter.assert_called_with(self.proto.chan, IAMQPChannelAdapter)
         return d
-
-
-
-class AMQPFactoryTestCase(unittest.TestCase):
-
-    def setUp(self):
-        self.tr = proto_helpers.StringTransport()
-        self.tr.socket = MagicMock()
-
-        self.connection_info = ConnectionInfo()
-        self.reactor = Clock()
-        self.reactor.connectTCP = MagicMock()
-        self.factory = AMQPFactory(self.connection_info,
-                                   queueschema,
-                                   reactor=self.reactor)
-        self.proto = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
-        self.tr.proto = self.proto
-        self.proto.makeConnection(self.tr)
-        self.reactor.advance(2)
-
-    def tearDown(self):
-        self.factory.shutdown()
-
-    def test_buildProtocol(self):
-        self.assertEqual(
-            self.proto.__class__.__name__,
-            self.factory.protocol.__name__
-        )
-
-    def test_default_errback(self):
-        d = defer.Deferred()
-        d.addCallback(BOMB)
-        d.addErrback(self.factory._defaultErrback)
-
-        test = self.assertFailure(d, RuntimeError)
-        test.callback("test")
-        return test
-
-    def test_createQueue(self):
-        # factory.createQueue calls protocol create_queue
-        #self.tr.proto.start = MagicMock(spec=self.proto.start)
-        #chan = object()
-        #self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
-        #                                   return_value=chan)
-        queueIdentifier = INVALIDATION_QUEUE
-        replacements = None
-        queue = object()
-        queue = self.factory.queueSchema.getQueue(queueIdentifier,
-                                                  replacements)
-
-        m_proto_create_queue = MagicMock(spec=self.proto.create_queue)
-        self.proto.create_queue = m_proto_create_queue
-        d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
-        self.reactor.advance(2)
-        self.assertEqual(m_proto_create_queue.call_count, 1,
-                         "protocol.create_queue was not called")
-        return d
-
-    def _test_factory_hook(self, hook_name):
-        '''Convenience method for testing factory hooks and triggers
-        '''
-        trigger_name = hook_name[1:]
-        hook = getattr(self.factory, hook_name)
-        trigger = getattr(self.factory, trigger_name)
-        self.success = False
-
-        @defer.inlineCallbacks
-        def wait_for_hook(self):
-            # wait for factory.onAuthenticated to be triggered
-            yield hook
-            self.success = True
-
-        waiter = defer.Deferred().addCallback(wait_for_hook)
-        waiter.callback(self)
-        # let the reactor run, and confirm that the trigger is still waiting
-        self.reactor.advance(2)
-        self.assertFalse(self.success)
-        # Trigger the Hook on the factory
-        trigger('go')
-        self.reactor.advance(2)
-        self.assertTrue(self.success)
-
-    def test_onConnectionMade_hook(self):
-        self._test_factory_hook('_onConnectionMade')
-
-    def test_onConnectionLost_hook(self):
-        self._test_factory_hook('_onConnectionLost')
-
-    def test_onConnectionFailed_hook(self):
-        self._test_factory_hook('_onConnectionFailed')
-
-    def test_onAuthenticated_hook(self):
-        self._test_factory_hook('_onAuthenticated')
-
-    def test_onInitialSend_hook(self):
-        self._test_factory_hook('_onInitialSend')
