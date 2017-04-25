@@ -63,7 +63,7 @@ class AMQProtocol(AMQClient):
                           connectionInfo.user)
             except Closed as err:
                 log.debug("Error authenticating to %s as %s",
-                         (connectionInfo.host, connectionInfo.user))
+                          (connectionInfo.host, connectionInfo.user))
                 # If authentication fails, errback the onAuthentication trigger
                 # to the reactor, and return a Failure for this deferred
                 self.factory.onAuthentication("authentication failed")
@@ -74,7 +74,7 @@ class AMQProtocol(AMQClient):
             self._connected = True
 
             # Set prefetch limit if necessary
-            if getattr(self, "prefetch", None)  and not getattr(self.chan, '_flag_qos', False):
+            if getattr(self, "prefetch", None) and not getattr(self.chan, '_flag_qos', False):
                 self.chan.basic_qos(prefetch_count=self.prefetch)
                 self.chan._flag_qos = True
 
@@ -260,7 +260,7 @@ class AMQProtocol(AMQClient):
             except zlib.error as e:
                 log.exception("Unable to decode event.")
 
-        yield defer.maybeDeferred(callback, message)
+        yield defer.maybeDeferred(callback, message) # synchronous
         self.processMessages(queue, callback)
 
     def connectionLost(self, reason):
@@ -323,7 +323,7 @@ class AMQPFactory(ReconnectingClientFactory):
         d, self._onAuthenticated = self._onAuthenticated, defer.Deferred()
         #d = defer.Deferred()
         #d.addCallback(self._onAuthenticated)
-        d.addErrback(self._defaultErrback)
+        #d.addErrback(self._defaultErrback)
         d.callback(din)
         return d
 
@@ -372,6 +372,7 @@ class AMQPFactory(ReconnectingClientFactory):
     def onInitialSend(self, value):
         d, self._onInitialSend = self._onInitialSend, self._createDeferred()
         d.callback(value)
+        return d
 
     def buildProtocol(self, addr, clock=reactor):
         self.p = self.protocol(self.delegate,

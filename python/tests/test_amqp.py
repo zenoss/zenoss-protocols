@@ -87,7 +87,6 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self._build_protocol()
         self.reactor.advance(2)
 
-
     def _build_factory(self):
         self.tr = proto_helpers.StringTransport()
         self.tr.socket = MagicMock()
@@ -98,6 +97,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.factory = AMQPFactory(self.connection_info,
                                    queueschema,
                                    reactor=self.reactor)
+        self.mock_connector = self.factory.connector
 
     def _build_protocol(self):
         self.proto = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
@@ -107,7 +107,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
     def tearDown(self):
         self.factory.shutdown()
 
-    def test_buildProtocol(self):
+    def test_buildProtocol_setup(self):
         '''After setUp, ensure that the protocol for our test factory
         is the same as the protocol we built.
         '''
@@ -127,26 +127,6 @@ class AMQPFactoryTestCase(unittest.TestCase):
         test = self.assertFailure(d, RuntimeError)
         test.callback("test_default_errback")
         return test
-
-    def test_createQueue(self):
-        # factory.createQueue calls protocol create_queue
-        #self.tr.proto.start = MagicMock(spec=self.proto.start)
-        #chan = object()
-        #self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
-        #                                   return_value=chan)
-        queueIdentifier = INVALIDATION_QUEUE
-        replacements = None
-        queue = object()
-        queue = self.factory.queueSchema.getQueue(queueIdentifier,
-                                                  replacements)
-
-        m_proto_create_queue = MagicMock(spec=self.proto.create_queue)
-        self.proto.create_queue = m_proto_create_queue
-        d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
-        self.reactor.advance(2)
-        self.assertEqual(m_proto_create_queue.call_count, 1,
-                         "protocol.create_queue was not called")
-        return d
 
     def _test_factory_hook(self, hook_name):
         '''Convenience method for testing factory hooks and triggers
@@ -186,6 +166,67 @@ class AMQPFactoryTestCase(unittest.TestCase):
 
     def test_onInitialSend_hook(self):
         self._test_factory_hook('_onInitialSend')
+
+    @patch('zenoss.protocols.twisted.amqp.AMQPFactory.resetDelay',
+           autospec=True)
+    def test_buildProtocol(self, m_reset_delay):
+        '''ensure that factory.buildProtocol() returns an AMQProtocol object
+        '''
+        p = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
+        self.assertEqual(p.__class__.__name__, 'AMQProtocol')
+        self.assertEqual(p.factory, self.factory)
+        self.assertEqual(p.prefetch, self.factory.prefetch)
+        # ensure creating a new protocol resets the reconnecting delay
+        self.assertEqual(m_reset_delay.call_count, 1)
+
+    def test_setPrefetch(self):
+        '''ensure setPrefetch sets the factory's prefetch attribute
+        '''
+        tracer = object()
+        self.factory.setPrefetch(tracer)
+        self.assertEqual(tracer, self.factory.prefetch)
+
+    def test_listen(self):
+        try:
+            backup = self.proto.listen_to_queue
+            self.proto.listen_to_queue = MagicMock()
+
+            queue = object()
+            def process_message(self): pass
+            callback = process_message
+
+            self.assertTrue(self.factory.p is not None)
+            self.factory.listen(queue, callback, exclusive=False)
+            args = (queue, callback, False)
+            # ensure factory.queues contains tuple of args
+            self.assertIn(args, self.factory.queues)
+
+            # ensure protocol.listen_to_queue was called
+            self.proto.listen_to_queue.assert_called_with(*args)
+        finally:
+            self.proto.listen_to_queue = backup
+
+    def test_createQueue(self):
+        # factory.createQueue calls protocol create_queue
+        #self.tr.proto.start = MagicMock(spec=self.proto.start)
+        #chan = object()
+        #self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
+        #                                   return_value=chan)
+        queueIdentifier = INVALIDATION_QUEUE
+        replacements = None
+        #queue = object()
+        queue = self.factory.queueSchema.getQueue(queueIdentifier,
+                                                  replacements)
+
+        m_proto_create_queue = MagicMock(spec=self.proto.create_queue)
+        self.proto.create_queue = m_proto_create_queue
+        d = self.factory.createQueue(INVALIDATION_QUEUE, replacements=None)
+        self.reactor.advance(2)
+        self.assertEqual(m_proto_create_queue.call_count, 1,
+                         "protocol.create_queue was not called")
+        return d
+
+
 
 
 class AMQPProtocolTestCase(unittest.TestCase):
