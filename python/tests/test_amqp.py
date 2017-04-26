@@ -235,6 +235,8 @@ class AMQPFactoryTestCase(unittest.TestCase):
         return deferred
 
     def test_send_without_protocol(self):
+        '''if factory.p(rotocol) is None, return the _onInitialSend hook
+        '''
         self.factory.p = None
 
         exchangeIdentifier = "test_exchangeIdentifier"
@@ -258,6 +260,13 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.assertEqual(d_onInitialSend, deferred)
         deferred.callback('test_send_without_protocol')
         return deferred
+
+    @patch('zenoss.protocols.twisted.amqp.AMQProtocol.acknowledge',
+           autospec=True)
+    def test_acknowledge(self, m_protocol_acknowledge):
+        tracer = object()
+        self.factory.acknowledge(tracer)
+        m_protocol_acknowledge.assert_called_with(self.factory.p, tracer)
 
     def test_createQueue(self):
         # factory.createQueue calls protocol create_queue
