@@ -214,25 +214,49 @@ class AMQPFactoryTestCase(unittest.TestCase):
         exchangeIdentifier = "test_exchangeIdentifier"
         routing_key = "test_routing_key"
         message = "test_message"
-        mandatory = False,
-        headers = None,
-        declareExchange = True
+        mandatory = None
+        headers = True
+        declareExchange = False
+        args = [exchangeIdentifier,
+                routing_key,
+                message]
+        kwargs = {'mandatory': mandatory,
+                  'headers': headers,
+                  'declareExchange': declareExchange}
+        values = tuple(args + [mandatory, headers, declareExchange])
 
         self.assertEqual(m_protocol_send.call_count, 0)
-        deferred = self.factory.send(exchangeIdentifier,
-                                     routing_key,
-                                     message,
-                                     mandatory=mandatory,
-                                     headers=headers,
-                                     declareExchange=declareExchange
-        )
+        deferred = self.factory.send(*args, **kwargs)
 
-        self.assertIn(
-            (exchangeIdentifier, routing_key, message, mandatory, headers, declareExchange),
-            self.factory.messages
-        )
+        self.assertIn(tuple(values), self.factory.messages)
         self.assertEqual(m_protocol_send.call_count, 1)
+        self.assertEqual(m_protocol_send.return_value, deferred)
 
+        return deferred
+
+    def test_send_without_protocol(self):
+        self.factory.p = None
+
+        exchangeIdentifier = "test_exchangeIdentifier"
+        routing_key = "test_routing_key"
+        message = "test_message"
+        mandatory = None
+        headers = True
+        declareExchange = False
+        args = [exchangeIdentifier,
+                routing_key,
+                message]
+        kwargs = {'mandatory': mandatory,
+                  'headers': headers,
+                  'declareExchange': declareExchange}
+        values = tuple(args + [mandatory, headers, declareExchange])
+
+        d_onInitialSend = self.factory._onInitialSend
+        deferred = self.factory.send(*args, **kwargs)
+
+        self.assertIn(tuple(values), self.factory.messages)
+        self.assertEqual(d_onInitialSend, deferred)
+        deferred.callback('test_send_without_protocol')
         return deferred
 
     def test_createQueue(self):
@@ -254,8 +278,6 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.assertEqual(m_proto_create_queue.call_count, 1,
                          "protocol.create_queue was not called")
         return d
-
-
 
 
 class AMQPProtocolTestCase(unittest.TestCase):
