@@ -260,8 +260,8 @@ class AMQProtocol(AMQClient):
             except zlib.error as e:
                 log.exception("Unable to decode event.")
 
-        yield defer.maybeDeferred(callback, message) # synchronous
-        self.processMessages(queue, callback)
+        yield defer.maybeDeferred(callback, message)  # synchronous
+        self.processMessages(queue, callback)  # not guaranteed to trigger
 
     def connectionLost(self, reason):
         log.debug("connection lost %s" % reason)
@@ -403,8 +403,8 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, headers=None,
-             declareExchange=True):
+    def send(self, exchangeIdentifier, routing_key, message, mandatory=False,
+             headers=None, declareExchange=True):
         """
         Send a C{message} to exchange C{exchange}.
 

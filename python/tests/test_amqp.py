@@ -187,24 +187,53 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.assertEqual(tracer, self.factory.prefetch)
 
     def test_listen(self):
+        backup = self.proto.listen_to_queue
         try:
-            backup = self.proto.listen_to_queue
             self.proto.listen_to_queue = MagicMock()
-
             queue = object()
             def process_message(self): pass
             callback = process_message
-
             self.assertTrue(self.factory.p is not None)
+
             self.factory.listen(queue, callback, exclusive=False)
             args = (queue, callback, False)
             # ensure factory.queues contains tuple of args
             self.assertIn(args, self.factory.queues)
-
             # ensure protocol.listen_to_queue was called
             self.proto.listen_to_queue.assert_called_with(*args)
         finally:
             self.proto.listen_to_queue = backup
+
+    @patch('zenoss.protocols.twisted.amqp.AMQProtocol.send',
+           autospec=True)
+    def test_send(self, m_protocol_send):
+        '''appends parameters to factory message queue.
+        returns a deffered, either protocol.send if protocol is set,
+        or factory._onInitialSend if not
+        '''
+        exchangeIdentifier = "test_exchangeIdentifier"
+        routing_key = "test_routing_key"
+        message = "test_message"
+        mandatory = False,
+        headers = None,
+        declareExchange = True
+
+        self.assertEqual(m_protocol_send.call_count, 0)
+        deferred = self.factory.send(exchangeIdentifier,
+                                     routing_key,
+                                     message,
+                                     mandatory=mandatory,
+                                     headers=headers,
+                                     declareExchange=declareExchange
+        )
+
+        self.assertIn(
+            (exchangeIdentifier, routing_key, message, mandatory, headers, declareExchange),
+            self.factory.messages
+        )
+        self.assertEqual(m_protocol_send.call_count, 1)
+
+        return deferred
 
     def test_createQueue(self):
         # factory.createQueue calls protocol create_queue
