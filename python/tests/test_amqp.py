@@ -268,6 +268,17 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.factory.acknowledge(tracer)
         m_protocol_acknowledge.assert_called_with(self.factory.p, tracer)
 
+    @patch('zenoss.protocols.twisted.amqp.AMQProtocol.reject',
+           autospec=True)
+    def test_reject(self, m_protocol_reject):
+        message = object()
+        requeue = object()
+        self.factory.reject(message, requeue=requeue)
+        m_protocol_reject.assert_called_with(self.factory.p, message, requeue)
+
+    # test_disconnect
+    # test_shutdown
+
     def test_createQueue(self):
         # factory.createQueue calls protocol create_queue
         #self.tr.proto.start = MagicMock(spec=self.proto.start)
@@ -288,6 +299,8 @@ class AMQPFactoryTestCase(unittest.TestCase):
                          "protocol.create_queue was not called")
         return d
 
+    # test_clientConnectionFailed
+    # test_clientConnectionLost
 
 class AMQPProtocolTestCase(unittest.TestCase):
 
