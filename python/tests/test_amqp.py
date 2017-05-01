@@ -57,14 +57,14 @@ class BombTest(unittest.TestCase):
         d.addCallback(check)
         clock.advance(2)
         return d
-
+'''
 
 def test_errback(din):
     print('test_errback caught exception')
     din.printTraceback()
     return din
 
-
+'''
 class DebugTestCase(unittest.TestCase):
     def setUp(self):
         self.tr = proto_helpers.StringTransport()
@@ -302,27 +302,37 @@ class AMQPFactoryTestCase(unittest.TestCase):
     # test_clientConnectionFailed
     # test_clientConnectionLost
 
+    #def test_double_ack_error(self):
+
+
 class AMQPProtocolTestCase(unittest.TestCase):
 
     def setUp(self):
+        self._build_factory()
+        self._build_protocol()
+        self.reactor.advance(2)
+
+    def _build_factory(self):
         self.tr = proto_helpers.StringTransport()
         self.tr.socket = MagicMock()
+
         self.connection_info = ConnectionInfo()
         self.reactor = Clock()
         self.reactor.connectTCP = MagicMock()
         self.factory = AMQPFactory(self.connection_info,
                                    queueschema,
                                    reactor=self.reactor)
+        self.mock_connector = self.factory.connector
+
+    def _build_protocol(self):
         self.proto = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
         self.tr.proto = self.proto
         self.proto.makeConnection(self.tr)
-        self.reactor.advance(1)
 
     def tearDown(self):
         self.factory.shutdown()
 
     def test_connectionMade(self):
-        print("proto._connected is %s" % self.proto._connected)
         self.tr.proto.start = MagicMock(spec=self.proto.start)
         chan = object()
         self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
@@ -345,28 +355,19 @@ class AMQPProtocolTestCase(unittest.TestCase):
 
         return cm
 
-    @patch('zenoss.protocols.twisted.amqp.ReconnectingClientFactory.clientConnectionFailed',
-           autospec=True)
-    def test_connectionMade_authentication_errors(self, m_ccf):
+    def test_connectionMade_authentication_errors(self):
         self.tr.proto.start = MagicMock(spec=self.proto.start)
         chan = object()
         self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
                                            return_value=chan)
 
-        def raise_err(din):
-            raise Closed()
-        self.factory.onAuthenticated = raise_err
+        # raise a txamqp.client.Closed exception when we call proto.start
+        self.tr.proto.start.side_effect = Closed
 
         cm = self.proto.connectionMade()
-        cm.addErrback(test_errback)
         self.reactor.advance(4)
-        print(cm.result)
-
-        # reconnecting client failure should be called if the connectoin fails
-        self.assertEqual(m_ccf.call_count, 1,
-                         "clientConnectionFailed was not called")
+        # ensure that the Closed error is raised
         self.assertFailure(cm, Closed)
-
         return cm
 
     @patch('zenoss.protocols.twisted.amqp.ReconnectingClientFactory.clientConnectionFailed',
@@ -377,19 +378,20 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
                                            return_value=chan)
 
-        self.factory.onAuthenticated = BOMB
+        self.tr.proto.start.side_effect = BOMB
 
         cm = self.proto.connectionMade()
-        cm.addErrback(test_errback)
         self.reactor.advance(4)
-        print(cm.result)
 
-        # reconnecting client failure should be called if the connectoin fails
-        self.assertEqual(m_ccf.call_count, 1,
-                         "clientConnectionFailed was not called")
         self.assertFailure(cm, RuntimeError)
-
         return cm
+
+    def test_get_channel(self):
+        raise NotImplementedError
+
+    def test_listen_to_queue(self):
+        raise NotImplementedError
+
 
     @patch('zenoss.protocols.twisted.amqp.getAdapter', autospec=True)
     def test_create_queue(self, m_get_adapter):

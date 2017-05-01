@@ -66,7 +66,7 @@ class AMQProtocol(AMQClient):
                           (connectionInfo.host, connectionInfo.user))
                 # If authentication fails, errback the onAuthentication trigger
                 # to the reactor, and return a Failure for this deferred
-                self.factory.onAuthentication("authentication failed")
+                self.factory.onAuthenticated(err)
                 returnValue(Failure())
 
             # Get a channel
@@ -320,7 +320,7 @@ class AMQPFactory(ReconnectingClientFactory):
 
     def onAuthenticated(self, din):
         log.debug('AMQPFactory.onAuthenticated(%s)', din)
-        d, self._onAuthenticated = self._onAuthenticated, defer.Deferred()
+        d, self._onAuthenticated = self._onAuthenticated, self._createDeferred()
         #d = defer.Deferred()
         #d.addCallback(self._onAuthenticated)
         #d.addErrback(self._defaultErrback)
@@ -424,9 +424,9 @@ class AMQPFactory(ReconnectingClientFactory):
         """
         self.messages.append((exchangeIdentifier, routing_key, message, mandatory, headers, declareExchange))
         if self.p is not None:
-            return self.p.send()
+            return self.p.send()  # returns an unfired deferred
         else:
-            return self._onInitialSend
+            return self._onInitialSend  # untriggered Hook
 
 
     def acknowledge(self, message):
