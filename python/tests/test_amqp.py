@@ -392,6 +392,11 @@ class AMQPProtocolTestCase(unittest.TestCase):
     def test_listen_to_queue(self):
         raise NotImplementedError
 
+    def test_begin_listening(self):
+        raise NotImplementedError
+
+    def test_get_queue(self):
+        raise NotImplementedError
 
     @patch('zenoss.protocols.twisted.amqp.getAdapter', autospec=True)
     def test_create_queue(self, m_get_adapter):
@@ -408,3 +413,27 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.reactor.advance(2)
         m_get_adapter.assert_called_with(self.proto.chan, IAMQPChannelAdapter)
         return d
+
+    def test_send_message(self):
+        raise NotImplementedError
+
+    def test_send(self):
+        raise NotImplementedError
+
+    def test_acknowledge(self):
+        raise NotImplementedError
+
+    def test_processMessages(self):
+        raise NotImplementedError
+
+    def test_doCallback(self):
+        raise NotImplementedError
+
+    def test_connectionLost(self):
+        raise NotImplementedError
+
+    def test_acknowledge(self):
+        raise NotImplementedError
+
+    def test_acknowledge(self):
+        raise NotImplementedError
