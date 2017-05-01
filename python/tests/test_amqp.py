@@ -382,12 +382,19 @@ class AMQPProtocolTestCase(unittest.TestCase):
 
         cm = self.proto.connectionMade()
         self.reactor.advance(4)
-
         self.assertFailure(cm, RuntimeError)
         return cm
 
-    def test_get_channel(self):
-        raise NotImplementedError
+    def test_get_channel_err(self):
+        '''ensure get_channel raises a deferred Failure if an exception occurs
+        '''
+        self.proto.channel = MagicMock(spec=self.proto.get_channel,
+                                       side_effect=RuntimeError)
+
+        d = self.proto.get_channel()
+        self.reactor.advance(2)
+        self.assertFailure(d, RuntimeError)
+        return d
 
     def test_listen_to_queue(self):
         raise NotImplementedError
