@@ -396,14 +396,22 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.assertFailure(d, RuntimeError)
         return d
 
-    def test_listen_to_queue(self):
-        raise NotImplementedError
+    def test_listen_to_queue_err(self):
+        self.proto.processMessages = MagicMock(spec=self.proto.processMessages,
+                                               side_effect=RuntimeError)
+        def callback_function(): pass
 
-    def test_begin_listening(self):
-        raise NotImplementedError
+        test = defer.Deferred()
+        d = self.proto.listen_to_queue(INVALIDATION_QUEUE, callback_function)
+        self.reactor.advance(2)
+        self.assertFailure(test, RuntimeError)
 
-    def test_get_queue(self):
-        raise NotImplementedError
+
+    def test_begin_listening_err(self):
+        pass
+
+    def test_get_queue_err(self):
+        pass
 
     @patch('zenoss.protocols.twisted.amqp.getAdapter', autospec=True)
     def test_create_queue(self, m_get_adapter):
