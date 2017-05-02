@@ -18,7 +18,7 @@ from twisted.python.failure import Failure
 from txamqp import spec
 from txamqp.queue import Closed as QueueClosed
 from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate, Closed
+from txamqp.client import TwistedDelegate, Closed as client_closed
 from txamqp.content import Content
 from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
@@ -61,7 +61,7 @@ class AMQProtocol(AMQClient):
                 self.factory.onAuthenticated(True)
                 log.debug('Successfully authenticated as %s',
                           connectionInfo.user)
-            except Closed as err:
+            except client_closed as err:
                 log.debug("Error authenticating to %s as %s",
                           (connectionInfo.host, connectionInfo.user))
                 # If authentication fails, errback the onAuthentication trigger
@@ -101,7 +101,7 @@ class AMQProtocol(AMQClient):
         Get a channel.
         """
         try:
-            log.debug("begin: AMQProtocol.get_channel()")
+            log.debug("AMQProtocol.get_channel(): begin")
             chan = yield self.channel(self._counter)
             self._counter += 1
             yield chan.channel_open()
@@ -117,12 +117,19 @@ class AMQProtocol(AMQClient):
         Get a queue and register a callback to be executed when a message is
         received, then begin listening.
         """
+        log.debug("AMQProtocol.listen_to_queue(%s, %s)", queue.name, callback)
         if self.is_connected():
-            twisted_queue = yield self.get_queue(queue, exclusive)
-            log.debug('Listening to queue %s' % queue.name)
-            # Start the recursive call to listen for messages. Not yielding on this because
-            # we don't want to block while waiting for the first message.
-            self.processMessages(twisted_queue, callback)
+            try:
+                twisted_queue = yield self.get_queue(queue, exclusive)
+                log.debug('Listening to queue %s' % queue.name)
+                # Start the recursive call to listen for messages. Not yielding on this because
+                # we don't want to block while waiting for the first message.
+                self.processMessages(twisted_queue, callback)
+                returnValue(twisted_queue)
+            except Exception as err:
+                returnValue(Failure())
+        else:
+            raise RuntimeError("cannot listen to queue until protocol is connected")
 
     @inlineCallbacks
     def begin_listening(self):
@@ -222,11 +229,24 @@ class AMQProtocol(AMQClient):
             return d
         return self.factory._onInitialSend
 
+    @inlineCallbacks
     def acknowledge(self, message, multiple=False):
         """
         Acknowledges a message
         """
-        return self.chan.basic_ack(delivery_tag=message.delivery_tag, multiple=multiple)
+        try:
+            out = yield self.chan.basic_ack(
+                delivery_tag=message.delivery_tag,
+                multiple=multiple
+            )
+            returnValue(out)
+        except client_closed as err:
+            log.exception('AMQProtocol.acknowledge():')
+            log.debug('AMQProtocol.acknowledge.error: '
+                      'protocol.is_connected() = %s',
+                      self.is_connected())
+            self.connectionLost(err)
+            returnValue('quash client_closed error')
 
     def reject(self, message, requeue=False):
         """
