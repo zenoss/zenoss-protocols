@@ -265,8 +265,12 @@ class AMQPFactoryTestCase(unittest.TestCase):
            autospec=True)
     def test_acknowledge(self, m_protocol_acknowledge):
         tracer = object()
-        self.factory.acknowledge(tracer)
+        #test = defer.Deferred()
+        d = self.factory.acknowledge(tracer)
+        self.reactor.advance(4)
         m_protocol_acknowledge.assert_called_with(self.factory.p, tracer)
+        self.assertEqual('success', self.successResultOf(d))
+        #return test
 
     @patch('zenoss.protocols.twisted.amqp.AMQProtocol.acknowledge',
            autospec=True,
@@ -274,12 +278,13 @@ class AMQPFactoryTestCase(unittest.TestCase):
     def test_acknowledge_err(self, m_protocol_acknowledge):
         tracer = object()
         test = defer.Deferred()
-        test.addCallback(self.factory.acknowledge)
-        test.callback(tracer)
+        test.addCallback(self.factory.acknowledge).callback(tracer)
+        self.reactor.advance(2)
         self.assertFailure(test, Closed)
         test.addCallback(
             m_protocol_acknowledge.assert_called_with(self.factory.p, tracer)
         )
+        return test
 
 
     @patch('zenoss.protocols.twisted.amqp.AMQProtocol.reject',
@@ -287,9 +292,14 @@ class AMQPFactoryTestCase(unittest.TestCase):
     def test_reject(self, m_protocol_reject):
         message = object()
         requeue = object()
-        self.factory.reject(message, requeue=requeue)
-        m_protocol_reject.assert_called_with(self.factory.p, message, requeue)
-
+        test = defer.Deferred()
+        test.addCallback(
+            self.factory.reject
+        ).callback((message, requeue))
+        test.addCallback(
+            m_protocol_reject.assert_called_with(self.factory.p, message, requeue)
+        )
+        return test
     # test_disconnect
     # test_shutdown
 
@@ -360,22 +370,14 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.proto.get_channel = MagicMock(spec=self.proto.get_channel,
                                            return_value=chan)
 
-        cm = self.proto.connectionMade()
+        d = self.proto.connectionMade()
 
         self.reactor.advance(3)
 
-        cm.addCallback(
-            self.assertTrue,
-            self.proto._connected
-        )
-        cm.addCallback(
-            self.assertTrue, (chan is self.proto.chan)
-        )
-        cm.addCallback(
-            self.assertTrue, (self.tr.proto.get_channel.call_count == 1)
-        )
-
-        return cm
+        self.assertTrue(self.proto._connected)
+        self.assertTrue(chan is self.proto.chan)
+        self.assertTrue(self.tr.proto.get_channel.call_count == 1)
+        self.assertEqual('success', self.successResultOf(d))
 
     def test_connectionMade_authentication_errors(self):
         self.tr.proto.start = MagicMock(spec=self.proto.start)
@@ -386,11 +388,11 @@ class AMQPProtocolTestCase(unittest.TestCase):
         # raise a txamqp.client.Closed exception when we call proto.start
         self.tr.proto.start.side_effect = Closed
 
-        cm = self.proto.connectionMade()
+        d = self.proto.connectionMade()
         self.reactor.advance(4)
         # ensure that the Closed error is raised
-        self.assertFailure(cm, Closed)
-        return cm
+        #self.assertFailure(cm, Closed)
+        self.failureResultOf(d).trap(Closed)
 
     @patch('zenoss.protocols.twisted.amqp.ReconnectingClientFactory.clientConnectionFailed',
            autospec=True)
@@ -402,26 +404,26 @@ class AMQPProtocolTestCase(unittest.TestCase):
 
         self.tr.proto.start.side_effect = BOMB
 
-        cm = self.proto.connectionMade()
+        d = self.proto.connectionMade()
         self.reactor.advance(4)
-        self.assertFailure(cm, RuntimeError)
-        return cm
+        #self.assertFailure(d, RuntimeError)
+        self.failureResultOf(d).trap(RuntimeError)
 
     def test_get_channel_err(self):
         '''ensure get_channel raises a deferred Failure if an exception occurs
         '''
-        self.proto.channel = MagicMock(spec=self.proto.get_channel,
+        self.proto.channel = MagicMock(spec=self.proto.channel,
                                        side_effect=RuntimeError)
 
         d = self.proto.get_channel()
-        self.reactor.advance(2)
-        self.assertFailure(d, RuntimeError)
-        return d
+        self.reactor.advance(3)
+        #self.assertFailure(d, RuntimeError)
+        self.failureResultOf(d).trap(RuntimeError)
 
     def test_listen_to_queue_err(self):
         '''ensure listen_to_queue raises errors properly
         '''
-        '''base.DelayedCall.debug = True
+        #base.DelayedCall.debug = True
 
         test, chan = self._connect()
         #test = defer.Deferred()
@@ -431,17 +433,10 @@ class AMQPProtocolTestCase(unittest.TestCase):
         print(queue)
         self.proto._connected = False
         def callback_function(_): pass
-        def run_listen_to_queue(_):
-            self.proto.listen_to_queue(queue, callback_function)
 
-        test.addCallback(run_listen_to_queue)
-
-        self.assertFailure(test, RuntimeError)#ComponentLookupError)
-        test.callback('go')
+        d = self.proto.listen_to_queue(queue, callback_function)
         self.reactor.advance(4)
-        return test
-        '''
-        pass
+        self.failureResultOf(d).trap(RuntimeError)
 
     def test_begin_listening_err(self):
         pass
@@ -491,9 +486,9 @@ class AMQPProtocolTestCase(unittest.TestCase):
         #raise NotImplementedError
         pass
 
-        class message(object):
-            def __init__(self):
-                self.delivery_tag = 'tag'
+    class message(object):
+        def __init__(self):
+            self.delivery_tag = 'tag'
 
     def test_acknowledge(self):
         '''ensure protocol.acknowledge returns a deferred
@@ -503,7 +498,7 @@ class AMQPProtocolTestCase(unittest.TestCase):
         self.proto.chan = MagicMock(spec=IAMQPChannelAdapter)
         self.proto.chan.basic_ack = MagicMock()#side_effect=Closed)
 
-        dout = self.proto.acknowledge(message())
+        dout = self.proto.acknowledge(self.message())
         self.assertTrue(
             isinstance(dout, defer.Deferred)
         )
@@ -515,7 +510,8 @@ class AMQPProtocolTestCase(unittest.TestCase):
         test = defer.Deferred()
 
         test.addCallback(self.proto.acknowledge)
-        test.callback(message())
+        test.callback(self.message())
+        self.reactor.advance(2)
         self.assertFailure(test, Closed)
         return test
 

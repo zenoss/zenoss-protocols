@@ -176,6 +176,7 @@ class AMQProtocol(AMQClient):
                           "configuration.").format(queue.name))
                 log.debug(err)
                 self.chan = yield self.get_channel()
+                returnValue('success')
             else:
                 raise
 
