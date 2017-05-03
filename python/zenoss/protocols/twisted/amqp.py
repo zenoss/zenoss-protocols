@@ -333,7 +333,7 @@ class AMQPFactory(ReconnectingClientFactory):
         print('Error: {}'.format(failure))
         print('Error.value: {}'.format(failure.value))
         #print('Error.stack: {}'.format(failure.stack))
-        return failure
+        #return failure
 
     def _createDeferred(self):
         d = Deferred()

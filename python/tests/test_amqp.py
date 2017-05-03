@@ -123,10 +123,11 @@ class AMQPFactoryTestCase(unittest.TestCase):
         d = defer.Deferred()
         d.addCallback(BOMB)
         d.addErrback(self.factory._defaultErrback)
-
-        test = self.assertFailure(d, RuntimeError)
-        test.callback("test_default_errback")
-        return test
+        d.callback('test_default_errback')
+        self.reactor.advance(3)
+        # default errback currently swallows the error
+        # and returns a success deferred, with value None
+        self.assertEqual(None, self.successResultOf(d))
 
     def _test_factory_hook(self, hook_name):
         '''Convenience method for testing factory hooks and triggers
@@ -138,7 +139,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
 
         @defer.inlineCallbacks
         def wait_for_hook(self):
-            # wait for factory.onAuthenticated to be triggered
+            # wait for factory.<hook_name> to be triggered
             yield hook
             self.success = True
 
@@ -171,6 +172,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
            autospec=True)
     def test_buildProtocol(self, m_reset_delay):
         '''ensure that factory.buildProtocol() returns an AMQProtocol object
+        NOTE: not asynchronous
         '''
         p = self.factory.buildProtocol(('127.0.0.1', 0, self.reactor))
         self.assertEqual(p.__class__.__name__, 'AMQProtocol')
@@ -181,12 +183,16 @@ class AMQPFactoryTestCase(unittest.TestCase):
 
     def test_setPrefetch(self):
         '''ensure setPrefetch sets the factory's prefetch attribute
+        NOTE: not asynchronous
         '''
         tracer = object()
         self.factory.setPrefetch(tracer)
         self.assertEqual(tracer, self.factory.prefetch)
 
     def test_listen(self):
+        '''Mock the protocol.listen_to_queue method directly,
+        patching self.proto did not work when I tried it.
+        '''
         backup = self.proto.listen_to_queue
         try:
             self.proto.listen_to_queue = MagicMock()
@@ -195,8 +201,11 @@ class AMQPFactoryTestCase(unittest.TestCase):
             callback = process_message
             self.assertTrue(self.factory.p is not None)
 
-            self.factory.listen(queue, callback, exclusive=False)
+            d = self.factory.listen(queue, callback, exclusive=False)
             args = (queue, callback, False)
+            self.reactor.advance(3)
+            # we would use this if this method returned a deferred, it currently returns None
+            #self.assertEqual('success', self.successResultOf(d))
             # ensure factory.queues contains tuple of args
             self.assertIn(args, self.factory.queues)
             # ensure protocol.listen_to_queue was called
@@ -226,13 +235,11 @@ class AMQPFactoryTestCase(unittest.TestCase):
         values = tuple(args + [mandatory, headers, declareExchange])
 
         self.assertEqual(m_protocol_send.call_count, 0)
-        deferred = self.factory.send(*args, **kwargs)
+        d = self.factory.send(*args, **kwargs)
 
         self.assertIn(tuple(values), self.factory.messages)
         self.assertEqual(m_protocol_send.call_count, 1)
-        self.assertEqual(m_protocol_send.return_value, deferred)
-
-        return deferred
+        self.assertEqual(m_protocol_send.return_value, d)
 
     def test_send_without_protocol(self):
         '''if factory.p(rotocol) is None, return the _onInitialSend hook
@@ -254,12 +261,14 @@ class AMQPFactoryTestCase(unittest.TestCase):
         values = tuple(args + [mandatory, headers, declareExchange])
 
         d_onInitialSend = self.factory._onInitialSend
-        deferred = self.factory.send(*args, **kwargs)
+        d = self.factory.send(*args, **kwargs)
+        d.callback('test_send_without_protocol')
+        self.reactor.advance(3)
+        self.assertEqual('test_send_without_protocol', self.successResultOf(d))
 
         self.assertIn(tuple(values), self.factory.messages)
-        self.assertEqual(d_onInitialSend, deferred)
-        deferred.callback('test_send_without_protocol')
-        return deferred
+        self.assertEqual(d_onInitialSend, d)
+
 
     @patch('zenoss.protocols.twisted.amqp.AMQProtocol.acknowledge',
            autospec=True)
@@ -270,7 +279,7 @@ class AMQPFactoryTestCase(unittest.TestCase):
         self.reactor.advance(4)
         m_protocol_acknowledge.assert_called_with(self.factory.p, tracer)
         self.assertEqual('success', self.successResultOf(d))
-        #return test
+
 
     @patch('zenoss.protocols.twisted.amqp.AMQProtocol.acknowledge',
            autospec=True,
@@ -460,7 +469,7 @@ class AMQPProtocolTestCase(unittest.TestCase):
         d = self.proto.create_queue(INVALIDATION_QUEUE)
         self.reactor.advance(2)
         m_get_adapter.assert_called_with(self.proto.chan, IAMQPChannelAdapter)
-        return d
+        self.assertEqual('success', self.successResultOf(d))
 
     def test_send_message(self):
         #raise NotImplementedError
