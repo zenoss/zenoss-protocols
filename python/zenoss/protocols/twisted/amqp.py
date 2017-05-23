@@ -18,6 +18,7 @@ from txamqp import spec
 from txamqp.queue import Closed
 from txamqp.protocol import AMQClient
 from txamqp.client import TwistedDelegate
+from txamqp.client import Closed as ClientClosed
 from txamqp.content import Content
 from zope.component import getAdapter
 from zenoss.protocols.interfaces import IAMQPChannelAdapter
@@ -39,6 +40,15 @@ class AMQProtocol(AMQClient):
     """
     _connected = False
     _counter = 2
+
+    def channelFailed(self, channel, reason):
+        """
+        In recent versions of txamqp (>= 0.6.2) the channelFailed callback is
+        available to notify when rabbit closes the channel due to an error.
+        """
+        log.error("Rabbit closed the channel bc of an error. Reason {}.".format(reason))
+        log.warn("Closing connection to try to re-establish connectivity.")
+        self.factory.disconnect()
 
     @inlineCallbacks
     def connectionMade(self):
@@ -186,10 +196,15 @@ class AMQProtocol(AMQClient):
             content.properties['content-encoding'] = 'deflate'
 
         # Publish away
-        yield self.chan.basic_publish(exchange=exchangeConfig.name,
-                                      routing_key=routing_key,
-                                      content=content,
-                                      mandatory=mandatory)
+        try:
+            yield self.chan.basic_publish(exchange=exchangeConfig.name,
+                                          routing_key=routing_key,
+                                          content=content,
+                                          mandatory=mandatory)
+        except ClientClosed as e:
+            log.warn("Caught txamqp.client.Closed Exception. Trying to recover the channel.")
+            self.channelFailed(self.chan, e.message)
+
         returnValue("SUCCESS")
 
     def send(self):
@@ -364,18 +379,19 @@ class AMQPFactory(ReconnectingClientFactory):
         else:
             return self._onInitialSend
 
-
     def acknowledge(self, message):
         """
         Acknowledges a message so it is removed from the queue
         """
-        return self.p.acknowledge(message)
+        if self.p:
+            return self.p.acknowledge(message)
 
     def reject(self, message, requeue=False):
         """
         Rejects a message and optionally requeues it.
         """
-        return self.p.reject(message, requeue=requeue)
+        if self.p:
+            return self.p.reject(message, requeue=requeue)
 
     def disconnect(self):
         log.info("Disconnecting AMQP Client.")
@@ -403,7 +419,8 @@ class AMQPFactory(ReconnectingClientFactory):
 
     @property
     def channel(self):
-        return self.p.chan
+        if self.p:
+            return self.p.chan
 
     def createQueue(self, queueIdentifier, replacements=None):
         queue = self.queueSchema.getQueue(queueIdentifier, replacements)
