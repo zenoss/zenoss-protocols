@@ -135,7 +135,7 @@ class IAMQPChannelAdapter(Interface):
     exchange using the IQueue or IExchange returned from the queue schema.
     """
 
-    def declareQueue(queue):
+    def declareQueue(queue, passive):
         """
         Creates the queue and binds it to the exchange(s).
 

@@ -40,12 +40,16 @@ class AMQProtocol(AMQClient):
     """
     _connected = False
     _counter = 2
+    _checking = False
 
     def channelFailed(self, channel, reason):
         """
         In recent versions of txamqp (>= 0.6.2) the channelFailed callback is
         available to notify when rabbit closes the channel due to an error.
         """
+        if self._checking:
+            # Don't disconnect if we're just checking the queue.
+            return
         log.error("Rabbit closed the channel bc of an error. Reason {}.".format(reason))
         log.warn("Closing connection to try to re-establish connectivity.")
         self.factory.disconnect()
@@ -144,9 +148,19 @@ class AMQProtocol(AMQClient):
 
     @inlineCallbacks
     def create_queue(self, queue):
+        # Check to see if the queue exists.
+        try:
+            self._checking = True
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, True)
+            return
+        except ChannelClosedError as e:
+            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queue.name))
+            self.chan = yield self.get_channel()
+
         # Declare the queue
         try:
-            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue)
+            self._checking = False
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, False)
         except ChannelClosedError as e:
             # Here we handle the case where we redeclare a queue 
             # with different properties. When this happens, Rabbit
