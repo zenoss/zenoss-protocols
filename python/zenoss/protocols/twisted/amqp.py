@@ -156,10 +156,11 @@ class AMQProtocol(AMQClient):
         except ChannelClosedError as e:
             log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queue.name))
             self.chan = yield self.get_channel()
+        finally:
+            self._checking = False
 
         # Declare the queue
         try:
-            self._checking = False
             yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, False)
         except ChannelClosedError as e:
             # Here we handle the case where we redeclare a queue 
