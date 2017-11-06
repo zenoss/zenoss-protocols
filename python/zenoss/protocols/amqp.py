@@ -176,6 +176,27 @@ class Publisher(object):
         else:
             raise Exception("Could not publish message to RabbitMQ: %s" % lastexc)
 
+    def queueExists(self, queueIdentifier, replacements=None):
+        """
+        Returns whether a queue already exists.  If any exception is encountered
+        we return False and the publisher will try to create it.
+        """
+        if queueIdentifier in self._queues:
+            return True
+
+        queue = self._schema.getQueue(queueIdentifier, replacements)
+        try:
+            channel = self.getChannel()
+            getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue, True)
+        except:
+            # In this case, with passive=True, this exception indicates that the
+            # queue doesn't exist.  The channel is closed from RabbitMQ when this
+            # function call fails.
+            return False
+        # If there was no exception, the queue exists.  Add it to our list and return.
+        self._queues.add(queueIdentifier)
+        return True
+
     def createQueue(self, queueIdentifier, replacements=None):
         if queueIdentifier not in self._queues:
             queue = self._schema.getQueue(queueIdentifier, replacements)
@@ -184,7 +205,7 @@ class Publisher(object):
                 try:
                     channel = self.getChannel()
                     try:
-                        getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue)
+                        getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue, False)
                     except ChannelClosedError as e:
                         # Here we handle the case where we redeclare a queue
                         # with different properties. When this happens, Rabbit

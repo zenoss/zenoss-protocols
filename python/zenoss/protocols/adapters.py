@@ -32,15 +32,19 @@ class AMQPLibChannelAdapter(object):
     def __init__(self, channel):
         self.channel = channel
 
-    def declareQueue(self, queue):
-        log.debug("Creating queue: %s", queue.name)
+    def declareQueue(self, queue, passive):
+        if passive:
+            log.debug("Checking queue: %s", queue.name)
+        else:
+            log.debug("Creating queue: %s", queue.name)
         log.debug("Using arguments: %r", queue.arguments)
         try:
             result = self.channel.queue_declare(queue=queue.name,
                                                 durable=queue.durable,
                                                 exclusive=queue.exclusive,
                                                 auto_delete=queue.auto_delete,
-                                                arguments=queue.arguments)
+                                                arguments=queue.arguments,
+                                                passive=passive)
         except AMQPChannelException as e:
             raise ChannelClosedError(e)
 
@@ -86,15 +90,19 @@ class TwistedChannelAdapter(object):
         self.channel = channel
 
     @inlineCallbacks
-    def declareQueue(self, queue):
-        log.debug("Creating queue: %s", queue.name)
+    def declareQueue(self, queue, passive):
+        if passive:
+            log.debug("Checking queue: %s", queue.name)
+        else:
+            log.debug("Creating queue: %s", queue.name)
         log.debug("Using arguments: %r", queue.arguments)
         try:
             result = yield self.channel.queue_declare(queue=queue.name,
                                                       durable=queue.durable,
                                                       exclusive=queue.exclusive,
                                                       auto_delete=queue.auto_delete,
-                                                      arguments=queue.arguments)
+                                                      arguments=queue.arguments,
+                                                      passive=passive)
         except Closed as e:
             raise ChannelClosedError(e)
 
