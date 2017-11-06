@@ -92,26 +92,36 @@ class PubSub(object):
     def _bind(self):
         queueConfig = self._queueSchema.getQueue(self._queueName)
 
+        # Check to see if the queue exists.
         try:
-            getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig)
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, True)
+            found = True
         except ChannelClosedError as e:
-            # Here we handle the case where we redeclare a queue
-            # with different properties. When this happens, Rabbit
-            # both returns an error and closes the channel. We
-            # need to detect this and reopen the channel, since
-            # the existing queue will work fine (although it will
-            # not use the modified config).
-            if e.replyCode == 406:
-                # PRECONDITION_FAILED -- properties changed
-                # Remove the channel and allow it to be reopened
-                log.warn(("Attempted to redeclare queue {0} with "
-                        "different arguments. You will need to "
-                        "delete the queue to pick up the new "
-                        "configuration.").format(queueConfig.name))
-                log.debug(e)
-                self._channel = None
-            else:
-                raise
+            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queue.name))
+            self._channel = None
+
+        # If we found the queue, don't try to create it.
+        if not found:
+            try:
+                getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig, False)
+            except ChannelClosedError as e:
+                # Here we handle the case where we redeclare a queue
+                # with different properties. When this happens, Rabbit
+                # both returns an error and closes the channel. We
+                # need to detect this and reopen the channel, since
+                # the existing queue will work fine (although it will
+                # not use the modified config).
+                if e.replyCode == 406:
+                    # PRECONDITION_FAILED -- properties changed
+                    # Remove the channel and allow it to be reopened
+                    log.warn(("Attempted to redeclare queue {0} with "
+                            "different arguments. You will need to "
+                            "delete the queue to pick up the new "
+                            "configuration.").format(queueConfig.name))
+                    log.debug(e)
+                    self._channel = None
+                else:
+                    raise
 
         for outboundExchange in self._exchanges:
             exchangeConfig = self._queueSchema.getExchange(outboundExchange)
