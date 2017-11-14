@@ -93,11 +93,12 @@ class PubSub(object):
         queueConfig = self._queueSchema.getQueue(self._queueName)
 
         # Check to see if the queue exists.
+        found = False
         try:
-            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, True)
+            getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig, True)
             found = True
         except ChannelClosedError as e:
-            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queue.name))
+            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queueConfig.name))
             self._channel = None
 
         # If we found the queue, don't try to create it.
