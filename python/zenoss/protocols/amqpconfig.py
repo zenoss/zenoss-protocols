@@ -25,6 +25,7 @@ DEFAULT =  {
    'amqpusessl': False,
    'amqpadminport': 55672,
    'amqpadminusessl': False,
+   'amqpheartbeat': 300
 }
 
 def _zenPath(*args):
@@ -62,7 +63,7 @@ class AMQPConfig(object):
     _options = [
         dict(short_opt='H', long_opt='amqphost', type='string', key='host', default=DEFAULT['amqphost'], help='Rabbitmq server host'),
         dict(short_opt='P', long_opt='amqpport', type='int', key='port', default=DEFAULT['amqpport'], help='Rabbitmq server port', parser=int),
-        dict(short_opt='V', long_opt='amqpvhost', type='string', key='vhost', default=DEFAULT['smqpvhost'], help='Rabbitmq server virtual host'),
+        dict(short_opt='V', long_opt='amqpvhost', type='string', key='vhost', default=DEFAULT['amqpvhost'], help='Rabbitmq server virtual host'),
         dict(short_opt='u', long_opt='amqpuser', type='string', key='user', default=DEFAULT['amqpuser'], help='User to connect as'),
         dict(short_opt='p', long_opt='amqppassword', type='string', key='password', default=DEFAULT['amqppassword'], help='Password to connect with'),
         dict(short_opt='s', long_opt='amqpusessl', action='store_true', key='usessl', default=DEFAULT['amqpusessl'], help='Use SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
