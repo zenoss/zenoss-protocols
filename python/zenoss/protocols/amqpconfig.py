@@ -10,10 +10,47 @@
 
 from __future__ import absolute_import
 import logging
+import os
 from zenoss.protocols.interfaces import IAMQPConnectionInfo
 from zope.interface import implements
 
 log = logging.getLogger('zen.protocols')
+
+DEFAULT =  {
+   'amqphost': 'localhost',
+   'amqpport': 5672,
+   'amqpuser': 'zenoss',
+   'amqppassword': 'zenoss',
+   'amqpvhost': '/zenoss',
+   'amqpusessl': False,
+   'amqpadminport': 55672,
+   'amqpadminusessl': False,
+   'amqpheartbeat': 300
+}
+
+def _zenPath(*args):
+    return os.path.abspath(os.path.join(os.environ['ZENHOME'], *args))
+
+def _parse_properties(conf_file):
+    if not os.path.isfile(conf_file):
+        return
+    with open(conf_file) as global_conf:
+        for line in global_conf:
+            name = None
+            value = None
+            if not line.startswith('#'):
+                fields = line.rstrip().split()
+                if len(fields) > 1:
+                    name, value = fields
+            yield (name, value)
+
+def _get_setting_from_global():
+    filename = _zenPath('etc', 'global.conf')
+    for name, value in _parse_properties(filename):
+        if name in DEFAULT:
+            DEFAULT[name] = value
+
+_get_setting_from_global()
 
 class AMQPConfig(object):
 
@@ -24,13 +61,13 @@ class AMQPConfig(object):
     all of the various queues that zenoss uses.
     """
     _options = [
-        dict(short_opt='H', long_opt='amqphost', type='string', key='host', default='localhost', help='Rabbitmq server host'),
-        dict(short_opt='P', long_opt='amqpport', type='int', key='port', default=5672, help='Rabbitmq server port', parser=int),
-        dict(short_opt='V', long_opt='amqpvhost', type='string', key='vhost', default='/zenoss', help='Rabbitmq server virtual host'),
-        dict(short_opt='u', long_opt='amqpuser', type='string', key='user', default='zenoss', help='User to connect as'),
-        dict(short_opt='p', long_opt='amqppassword', type='string', key='password', default='zenoss', help='Password to connect with'),
-        dict(short_opt='s', long_opt='amqpusessl', action='store_true', key='usessl', default=False, help='Use SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
-        dict(short_opt='b', long_opt='amqpheartbeat', type='int', key='amqpconnectionheartbeat', default=300, help='AMQP Connection Heart Beat in Seconds', parser=int),
+        dict(short_opt='H', long_opt='amqphost', type='string', key='host', default=DEFAULT['amqphost'], help='Rabbitmq server host'),
+        dict(short_opt='P', long_opt='amqpport', type='int', key='port', default=DEFAULT['amqpport'], help='Rabbitmq server port', parser=int),
+        dict(short_opt='V', long_opt='amqpvhost', type='string', key='vhost', default=DEFAULT['amqpvhost'], help='Rabbitmq server virtual host'),
+        dict(short_opt='u', long_opt='amqpuser', type='string', key='user', default=DEFAULT['amqpuser'], help='User to connect as'),
+        dict(short_opt='p', long_opt='amqppassword', type='string', key='password', default=DEFAULT['amqppassword'], help='Password to connect with'),
+        dict(short_opt='s', long_opt='amqpusessl', action='store_true', key='usessl', default=DEFAULT['amqpusessl'], help='Use SSL to connect to the server', parser=lambda v: str(v).lower() in ('true', 'y', 'yes', '1')),
+        dict(short_opt='b', long_opt='amqpheartbeat', type='int', key='amqpconnectionheartbeat', default=DEFAULT['amqpheartbeat'], help='AMQP Connection Heart Beat in Seconds', parser=int),
     ]
 
     def __init__(self, amqphost='localhost', amqpport=5672, amqpvhost='/zenoss', amqpuser='zenoss',
