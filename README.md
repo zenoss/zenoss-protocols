@@ -6,7 +6,10 @@ for communicating with ZEP and Impact.
 # Python Build
 
     cd python
-    python setup.py bdist_egg
+   asd
+   
+   asd
+   fasdfpython setup.py bdist_egg
 
 # Java Build
 
