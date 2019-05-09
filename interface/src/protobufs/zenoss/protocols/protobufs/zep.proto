@@ -499,10 +499,10 @@ message ZepConfig {
     optional uint32 event_archive_interval_minutes = 3 [default = 4320];
 
     // The number of days that events in the event archive are saved. By default
-    // they are kept in the archive for 450 days. The minimum value is 1 and the
+    // they are kept in the archive for 90 days. The minimum value is 1 and the
     // maximum value is determined by the range of event archive partitions. With
     // the default configuration, the maximum value is 1000 days.
-    optional uint32 event_archive_purge_interval_days = 4 [default = 450];
+    optional uint32 event_archive_purge_interval_days = 4 [default = 90];
 
     // The number of days that event occurrence times are kept. By default
     // they are kept for 1 day. The minimum value is 1 and the
