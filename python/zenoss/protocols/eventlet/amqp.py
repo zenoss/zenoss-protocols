@@ -6,20 +6,24 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 ##############################################################################
-import zlib
+
+from __future__ import absolute_import
+
 import logging
-from zope.component import getAdapter
-from zenoss.protocols import hydrateQueueMessage
-from zenoss.protocols.interfaces import IAMQPChannelAdapter
-from zenoss.protocols.queueschema import SchemaException
-from zenoss.protocols.exceptions import ChannelClosedError
+import zlib
+
+import eventlet
 
 from eventlet import patcher
-from eventlet.green import socket
-amqp = patcher.import_patched('amqplib.client_0_8')
-import eventlet
-from ..amqp import set_keepalive
+from zope.component import getAdapter
 
+from .. import hydrateQueueMessage
+from ..amqp import set_keepalive
+from ..exceptions import ChannelClosedError
+from ..interfaces import IAMQPChannelAdapter
+from ..queueschema import SchemaException
+
+amqp = patcher.import_patched("amqplib.client_0_8")
 
 DELIVERY_NONPERSISTENT = 1
 DELIVERY_PERSISTENT = 2
@@ -29,12 +33,12 @@ UNLIMITED_MESSAGE_SIZE = 0
 MESSAGES_PER_WORKER = 1
 GLOBAL_QOS = False
 
-
 __doc__ = """
 An eventlet based AMQP publisher/subscriber (consumer).
 """
 
 log = logging.getLogger("zenoss.protocols.eventlet.amqp")
+
 
 def register_eventlet():
     """
@@ -47,9 +51,9 @@ def register_eventlet():
 class Connection(amqp.Connection):
     def __init__(self, *args, **kwargs):
         super(Connection, self).__init__(*args, **kwargs)
-        if 'keepalive' in kwargs:
+        if "keepalive" in kwargs:
             sock = self.connection.transport.sock.fd
-            set_keepalive(sock, kwargs['keepalive'])
+            set_keepalive(sock, kwargs["keepalive"])
 
 
 class Publishable(object):
@@ -78,9 +82,11 @@ class PubSub(object):
 
     def _onMessage(self, message):
         message.ack = lambda: self.channel.basic_ack(message.delivery_tag)
-        message.reject = lambda requeue=True: self.channel.basic_reject(message.delivery_tag, requeue)
+        message.reject = lambda requeue=True: self.channel.basic_reject(
+            message.delivery_tag, requeue
+        )
 
-        if message.properties.get('content_encoding', None) == 'deflate':
+        if message.properties.get("content_encoding", None) == "deflate":
             message.body = zlib.decompress(message.body)
 
         for publishable in self._processMessage(message):
@@ -95,16 +101,24 @@ class PubSub(object):
         # Check to see if the queue exists.
         found = False
         try:
-            getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig, True)
+            getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(
+                queueConfig, True
+            )
             found = True
         except ChannelClosedError as e:
-            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queueConfig.name))
+            log.debug(
+                ("Channel {0} doesn't exist, attempting to create it.").format(
+                    queueConfig.name
+                )
+            )
             self._channel = None
 
         # If we found the queue, don't try to create it.
         if not found:
             try:
-                getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(queueConfig, False)
+                getAdapter(self.channel, IAMQPChannelAdapter).declareQueue(
+                    queueConfig, False
+                )
             except ChannelClosedError as e:
                 # Here we handle the case where we redeclare a queue
                 # with different properties. When this happens, Rabbit
@@ -115,10 +129,14 @@ class PubSub(object):
                 if e.replyCode == 406:
                     # PRECONDITION_FAILED -- properties changed
                     # Remove the channel and allow it to be reopened
-                    log.warn(("Attempted to redeclare queue {0} with "
+                    log.warn(
+                        (
+                            "Attempted to redeclare queue {0} with "
                             "different arguments. You will need to "
                             "delete the queue to pick up the new "
-                            "configuration.").format(queueConfig.name))
+                            "configuration."
+                        ).format(queueConfig.name)
+                    )
                     log.debug(e)
                     self._channel = None
                 else:
@@ -126,7 +144,9 @@ class PubSub(object):
 
         for outboundExchange in self._exchanges:
             exchangeConfig = self._queueSchema.getExchange(outboundExchange)
-            getAdapter(self.channel, IAMQPChannelAdapter).declareExchange(exchangeConfig)
+            getAdapter(self.channel, IAMQPChannelAdapter).declareExchange(
+                exchangeConfig
+            )
 
     @property
     def channel(self):
@@ -137,9 +157,11 @@ class PubSub(object):
 
     def _startup(self):
         self._bind()
-        self.channel.basic_qos(prefetch_size=UNLIMITED_MESSAGE_SIZE,
-                               prefetch_count=self._messages_per_worker,
-                               a_global=GLOBAL_QOS)
+        self.channel.basic_qos(
+            prefetch_size=UNLIMITED_MESSAGE_SIZE,
+            prefetch_count=self._messages_per_worker,
+            a_global=GLOBAL_QOS,
+        )
         self.channel.basic_consume(self._queueName, callback=self._onMessage)
 
     def run(self):
@@ -159,7 +181,12 @@ class PubSub(object):
             self.channel.wait()
 
     def publish(self, publishable):
-        self.channel.basic_publish(publishable.message, publishable.exchange, publishable.routingKey, mandatory=publishable.mandatory)
+        self.channel.basic_publish(
+            publishable.message,
+            publishable.exchange,
+            publishable.routingKey,
+            mandatory=publishable.mandatory,
+        )
 
     def shutdown(self):
         self._run = False
@@ -179,45 +206,52 @@ class PubSub(object):
 
 class ProtobufPubSub(PubSub):
     def __init__(self, connection, queueSchema, queueName):
-        super(ProtobufPubSub, self).__init__(connection, queueSchema, queueName)
+        super(ProtobufPubSub, self).__init__(
+            connection, queueSchema, queueName
+        )
         self._handlers = {}
 
     def registerHandler(self, contentType, handler):
         fullName = self._queueSchema.getContentType(contentType).protobuf_name
         self._handlers[fullName] = handler
 
-    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT,
-                     compression='none'):
+    def buildMessage(
+        self,
+        obj,
+        headers=None,
+        delivery_mode=DELIVERY_PERSISTENT,
+        compression="none",
+    ):
 
         body = obj.SerializeToString()
 
-        msg_headers = {
-            'X-Protobuf-FullName' : obj.DESCRIPTOR.full_name
-        }
+        msg_headers = {"X-Protobuf-FullName": obj.DESCRIPTOR.full_name}
 
         msg_properties = {}
 
-        if compression == 'deflate':
+        if compression == "deflate":
             body = zlib.compress(body)
-            msg_properties['content_encoding'] = 'deflate'
+            msg_properties["content_encoding"] = "deflate"
 
         if headers:
             msg_headers.update(headers)
 
         return amqp.Message(
             body=body,
-            content_type='application/x-protobuf',
+            content_type="application/x-protobuf",
             application_headers=msg_headers,
             delivery_mode=delivery_mode,
-            **msg_properties)
-
+            **msg_properties
+        )
 
     def publish(self, publishable):
 
         exchangeConfig = self._queueSchema.getExchange(publishable.exchange)
-        publishable.message = self.buildMessage(publishable.message,
-                                               delivery_mode=exchangeConfig.delivery_mode,
-                                               compression=exchangeConfig.compression)
+        publishable.message = self.buildMessage(
+            publishable.message,
+            delivery_mode=exchangeConfig.delivery_mode,
+            compression=exchangeConfig.compression,
+        )
         publishable.exchange = exchangeConfig.name
 
         return super(ProtobufPubSub, self).publish(publishable)
@@ -229,14 +263,19 @@ class ProtobufPubSub(PubSub):
             try:
                 handler = self._handlers[proto.DESCRIPTOR.full_name]
             except KeyError:
-                raise Exception('No message handler for "%s"' % proto.DESCRIPTOR.full_name)
+                raise Exception(
+                    'No message handler for "%s"' % proto.DESCRIPTOR.full_name
+                )
 
             for publishable in handler(message, proto):
                 yield publishable
 
         except SchemaException:
             # received an invalid message log it and move on
-            log.error("Unable to hydrate protobuf %s with headers %s " % (message.body, message.properties.get('application_headers')))
+            log.error(
+                "Unable to hydrate protobuf %s with headers %s "
+                % (message.body, message.properties.get("application_headers"))
+            )
 
             # we can't process the message so throw it away
             message.ack()
@@ -245,12 +284,12 @@ class ProtobufPubSub(PubSub):
 def getProtobufPubSub(amqpConnectionInfo, queueSchema, queue, connection=None):
     if connection is None:
         connection = Connection(
-            host = '%s:%d' % (amqpConnectionInfo.host, amqpConnectionInfo.port),
-            userid = amqpConnectionInfo.user,
-            password = amqpConnectionInfo.password,
-            ssl = amqpConnectionInfo.usessl,
-            virtual_host = amqpConnectionInfo.vhost,
-            keepalive = amqpConnectionInfo.amqpconnectionheartbeat,
+            host="%s:%d" % (amqpConnectionInfo.host, amqpConnectionInfo.port),
+            userid=amqpConnectionInfo.user,
+            password=amqpConnectionInfo.password,
+            ssl=amqpConnectionInfo.usessl,
+            virtual_host=amqpConnectionInfo.vhost,
+            keepalive=amqpConnectionInfo.amqpconnectionheartbeat,
         )
     pubsub = ProtobufPubSub(connection, queueSchema, queue)
     return pubsub

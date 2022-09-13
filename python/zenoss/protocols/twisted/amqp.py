@@ -1,32 +1,39 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2010, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
+
+from __future__ import absolute_import
 
 import logging
 import zlib
+
 from os.path import join as pathjoin, dirname
-from twisted.internet import reactor
+
+from twisted.internet import defer, reactor
+from twisted.internet.defer import (
+    Deferred,
+    DeferredList,
+    inlineCallbacks,
+    returnValue,
+)
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, DeferredList
 from txamqp import spec
-from txamqp.queue import Closed
-from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate
-from txamqp.client import Closed as ClientClosed
+from txamqp.client import Closed as ClientClosed, TwistedDelegate
 from txamqp.content import Content
+from txamqp.protocol import AMQClient
+from txamqp.queue import Closed
 from zope.component import getAdapter
-from zenoss.protocols.interfaces import IAMQPChannelAdapter
-from zenoss.protocols.exceptions import ChannelClosedError
 
-from zenoss.protocols.amqp import set_keepalive
+from ..amqp import set_keepalive
+from ..exceptions import ChannelClosedError
+from ..interfaces import IAMQPChannelAdapter
 
-log = logging.getLogger('zen.protocols.twisted')
+log = logging.getLogger("zen.protocols.twisted")
 
 
 class AMQProtocol(AMQClient):
@@ -38,6 +45,7 @@ class AMQProtocol(AMQClient):
     anything on here that needs to outlive a given connection; we'll store
     things on the factory and ask it for that information.
     """
+
     _connected = False
     _counter = 2
     _checking = False
@@ -50,7 +58,11 @@ class AMQProtocol(AMQClient):
         if self._checking:
             # Don't disconnect if we're just checking the queue.
             return
-        log.error("Rabbit closed the channel bc of an error. Reason {}.".format(reason))
+        log.error(
+            "Rabbit closed the channel bc of an error. Reason {}.".format(
+                reason
+            )
+        )
         log.warn("Closing connection to try to re-establish connectivity.")
         self.factory.disconnect()
 
@@ -62,25 +74,39 @@ class AMQProtocol(AMQClient):
         """
         try:
             connectionInfo = self.factory.connectionInfo
-            set_keepalive(self.transport.socket, connectionInfo.amqpconnectionheartbeat)
+            set_keepalive(
+                self.transport.socket, connectionInfo.amqpconnectionheartbeat
+            )
             AMQClient.connectionMade(self)
-            log.debug('Made initial connection to message broker')
+            log.debug("Made initial connection to message broker")
             self._connected = False
             # Authenticate
             try:
-                yield self.start({'LOGIN':connectionInfo.user, 'PASSWORD':connectionInfo.password})
+                yield self.start(
+                    {
+                        "LOGIN": connectionInfo.user,
+                        "PASSWORD": connectionInfo.password,
+                    }
+                )
                 self.factory.onAuthenticated(True)
-                log.debug('Successfully authenticated as %s' % connectionInfo.user)
+                log.debug(
+                    "Successfully authenticated as %s" % connectionInfo.user
+                )
             except Exception as e:
-                log.warn("Error authenticating to %s as %s" % (connectionInfo.host, connectionInfo.user))
+                log.warn(
+                    "Error authenticating to %s as %s"
+                    % (connectionInfo.host, connectionInfo.user)
+                )
                 self.factory.onAuthenticated(e.args[0])
                 return
             # Get a channel
             self.chan = yield self.get_channel()
             self._connected = True
-            
-            # Set prefetch limit if necessary 
-            if getattr(self, "prefetch", None)  and not getattr(self.chan, '_flag_qos', False):
+
+            # Set prefetch limit if necessary
+            if getattr(self, "prefetch", None) and not getattr(
+                self.chan, "_flag_qos", False
+            ):
                 self.chan.basic_qos(prefetch_count=self.prefetch)
                 self.chan._flag_qos = True
 
@@ -106,7 +132,7 @@ class AMQProtocol(AMQClient):
         chan = yield self.channel(self._counter)
         self._counter += 1
         yield chan.channel_open()
-        log.debug('Channel opened')
+        log.debug("Channel opened")
         returnValue(chan)
 
     @inlineCallbacks
@@ -117,9 +143,10 @@ class AMQProtocol(AMQClient):
         """
         if self.is_connected():
             twisted_queue = yield self.get_queue(queue, exclusive)
-            log.debug('Listening to queue %s' % queue.name)
-            # Start the recursive call to listen for messages. Not yielding on this because
-            # we don't want to block while waiting for the first message.
+            log.debug("Listening to queue %s" % queue.name)
+            # Start the recursive call to listen for messages. Not yielding
+            # on this because we don't want to block while waiting for the
+            # first message.
             self.processMessages(twisted_queue, callback)
 
     @inlineCallbacks
@@ -128,7 +155,7 @@ class AMQProtocol(AMQClient):
         Iterate over all queues registered in the factory and start listening
         to them.
         """
-        log.debug('Binding to %s queues' % len(self.factory.queues))
+        log.debug("Binding to %s queues" % len(self.factory.queues))
         for queue, cb, exclusive in self.factory.queues:
             yield self.listen_to_queue(queue, cb, exclusive)
 
@@ -140,10 +167,14 @@ class AMQProtocol(AMQClient):
         yield self.create_queue(queue)
 
         # Start consuming from the queue (this actually creates it)
-        result = yield self.chan.basic_consume(queue=queue.name, exclusive=exclusive)
+        result = yield self.chan.basic_consume(
+            queue=queue.name, exclusive=exclusive
+        )
 
         # Go get the queue and return it
-        queue = yield self.queue(result[0]) # result[0] contains the consumer tag
+        queue = yield self.queue(
+            result[0]
+        )  # result[0] contains the consumer tag
         returnValue(queue)
 
     @inlineCallbacks
@@ -151,19 +182,27 @@ class AMQProtocol(AMQClient):
         # Check to see if the queue exists.
         try:
             self._checking = True
-            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, True)
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(
+                queue, True
+            )
             return
         except ChannelClosedError as e:
-            log.debug(("Channel {0} doesn't exist, attempting to create it.").format(queue.name))
+            log.debug(
+                ("Channel {0} doesn't exist, attempting to create it.").format(
+                    queue.name
+                )
+            )
             self.chan = yield self.get_channel()
         finally:
             self._checking = False
 
         # Declare the queue
         try:
-            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(queue, False)
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareQueue(
+                queue, False
+            )
         except ChannelClosedError as e:
-            # Here we handle the case where we redeclare a queue 
+            # Here we handle the case where we redeclare a queue
             # with different properties. When this happens, Rabbit
             # both returns an error and closes the channel. We
             # need to detect this and reopen the channel, since
@@ -172,52 +211,70 @@ class AMQProtocol(AMQClient):
             if e.replyCode == 406:
                 # PRECONDITION_FAILED -- properties changed
                 # Remove the channel and allow it to be reopened
-                log.warn(("Attempted to redeclare queue {0} with "
+                log.warn(
+                    (
+                        "Attempted to redeclare queue {0} with "
                         "different arguments. You will need to "
                         "delete the queue to pick up the new "
-                        "configuration.").format(queue.name))
+                        "configuration."
+                    ).format(queue.name)
+                )
                 log.debug(e)
                 self.chan = yield self.get_channel()
             else:
                 raise
 
     @inlineCallbacks
-    def send_message(self, exchange, routing_key, msg, mandatory=False, headers=None,
-                     declareExchange=True):
+    def send_message(
+        self,
+        exchange,
+        routing_key,
+        msg,
+        mandatory=False,
+        headers=None,
+        declareExchange=True,
+    ):
         body = msg
         headers = headers if headers else {}
 
         # it is a protobuf
         if not isinstance(msg, basestring):
             body = msg.SerializeToString()
-            headers['X-Protobuf-FullName'] = msg.DESCRIPTOR.full_name
+            headers["X-Protobuf-FullName"] = msg.DESCRIPTOR.full_name
 
         queueSchema = self.factory.queueSchema
         exchangeConfig = queueSchema.getExchange(exchange)
 
         if declareExchange:
             # Declare the exchange to which the message is being sent
-            yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(exchangeConfig)
+            yield getAdapter(self.chan, IAMQPChannelAdapter).declareExchange(
+                exchangeConfig
+            )
 
-        if exchangeConfig.compression == 'deflate':
+        if exchangeConfig.compression == "deflate":
             body = zlib.compress(body)
 
         content = Content(body)
-        content.properties['delivery-mode'] = exchangeConfig.delivery_mode
-        content.properties['headers'] = headers
-        content.properties['content-type'] = 'application/x-protobuf'
+        content.properties["delivery-mode"] = exchangeConfig.delivery_mode
+        content.properties["headers"] = headers
+        content.properties["content-type"] = "application/x-protobuf"
 
-        if exchangeConfig.compression == 'deflate':
-            content.properties['content-encoding'] = 'deflate'
+        if exchangeConfig.compression == "deflate":
+            content.properties["content-encoding"] = "deflate"
 
         # Publish away
         try:
-            yield self.chan.basic_publish(exchange=exchangeConfig.name,
-                                          routing_key=routing_key,
-                                          content=content,
-                                          mandatory=mandatory)
+            yield self.chan.basic_publish(
+                exchange=exchangeConfig.name,
+                routing_key=routing_key,
+                content=content,
+                mandatory=mandatory,
+            )
         except ClientClosed as e:
-            log.warn("Caught txamqp.client.Closed Exception. Trying to recover the channel.")
+            log.warn(
+                "Caught txamqp.client.Closed Exception. "
+                "Trying to recover the channel."
+            )
             self.channelFailed(self.chan, e.message)
 
         returnValue("SUCCESS")
@@ -240,13 +297,17 @@ class AMQProtocol(AMQClient):
         """
         Acknowledges a message
         """
-        return self.chan.basic_ack(delivery_tag=message.delivery_tag, multiple=multiple)
+        return self.chan.basic_ack(
+            delivery_tag=message.delivery_tag, multiple=multiple
+        )
 
     def reject(self, message, requeue=False):
         """
         Rejects a message and optionally requeues it.
         """
-        return self.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
+        return self.chan.basic_reject(
+            delivery_tag=message.delivery_tag, requeue=requeue
+        )
 
     @inlineCallbacks
     def processMessages(self, queue, callback):
@@ -257,7 +318,7 @@ class AMQProtocol(AMQClient):
         try:
             message = yield queue.get()
         except Closed:
-            log.info('Connection to queue closed')
+            log.info("Connection to queue closed")
             self.factory.disconnect()
         except Exception:
             log.exception("Exception while getting message from queue.")
@@ -268,10 +329,13 @@ class AMQProtocol(AMQClient):
 
     @inlineCallbacks
     def _doCallback(self, queue, callback, message):
-        if message.content.properties.get('content-encoding', None) == 'deflate':
+        if (
+            message.content.properties.get("content-encoding", None)
+            == "deflate"
+        ):
             try:
                 message.content.body = zlib.decompress(message.content.body)
-            except zlib.error as e:
+            except zlib.error:
                 log.exception("Unable to decode event.")
 
         yield defer.maybeDeferred(callback, message)
@@ -289,12 +353,13 @@ class AMQPFactory(ReconnectingClientFactory):
     send messages; these are buffered on the factory, then referenced by the
     protocol each time a connection is made.
     """
+
     protocol = AMQProtocol
 
     def __init__(self, amqpConnectionInfo, queueSchema):
-        with open(pathjoin(dirname(__file__), 'amqp0-9-1.xml')) as f:
+        with open(pathjoin(dirname(__file__), "amqp0-9-1.xml")) as f:
             self.spec = spec.load(f)
-            log.debug('Loaded AMQP spec')
+            log.debug("Loaded AMQP spec")
         self.connectionInfo = amqpConnectionInfo
         self.queueSchema = queueSchema
         self.vhost = self.connectionInfo.vhost
@@ -315,37 +380,51 @@ class AMQPFactory(ReconnectingClientFactory):
         self.prefetch = None
 
     def _defaultErrback(self, reason):
-        log.debug('Error: %s', reason)
+        log.debug("Error: %s", reason)
 
     def _createDeferred(self):
         d = Deferred()
         return d.addErrback(self._defaultErrback)
 
     def onAuthenticated(self, value):
-        d,self._onAuthenticated = self._onAuthenticated, self._createDeferred()
+        d, self._onAuthenticated = (
+            self._onAuthenticated,
+            self._createDeferred(),
+        )
         d.callback(value)
 
     def onConnectionMade(self, value):
         set_keepalive(self.connector.transport.socket, self.heartbeat)
-        d,self._onConnectionMade = self._onConnectionMade, self._createDeferred()
+        d, self._onConnectionMade = (
+            self._onConnectionMade,
+            self._createDeferred(),
+        )
         d.callback(value)
 
     def onConnectionLost(self, value):
-        log.debug('onConnectionLost %s' % value)
-        d,self._onConnectionLost = self._onConnectionLost, self._createDeferred()
+        log.debug("onConnectionLost %s" % value)
+        d, self._onConnectionLost = (
+            self._onConnectionLost,
+            self._createDeferred(),
+        )
         d.callback(value)
 
     def onConnectionFailed(self, value):
-        log.debug('onConnectionFailed %s' % value)
-        d,self._onConnectionFailed = self._onConnectionFailed, self._createDeferred()
+        log.debug("onConnectionFailed %s" % value)
+        d, self._onConnectionFailed = (
+            self._onConnectionFailed,
+            self._createDeferred(),
+        )
         d.callback(value)
 
     def onInitialSend(self, value):
-        d,self._onInitialSend = self._onInitialSend, self._createDeferred()
+        d, self._onInitialSend = self._onInitialSend, self._createDeferred()
         d.callback(value)
 
     def buildProtocol(self, addr):
-        self.p = self.protocol(self.delegate, self.vhost, self.spec, self.heartbeat)
+        self.p = self.protocol(
+            self.delegate, self.vhost, self.spec, self.heartbeat
+        )
         self.p.factory = self
         self.p.prefetch = self.prefetch
         self.resetDelay()
@@ -369,8 +448,15 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             self.p.listen_to_queue(*args)
 
-    def send(self, exchangeIdentifier, routing_key, message, mandatory=False, headers=None,
-             declareExchange=True):
+    def send(
+        self,
+        exchangeIdentifier,
+        routing_key,
+        message,
+        mandatory=False,
+        headers=None,
+        declareExchange=True,
+    ):
         """
         Send a C{message} to exchange C{exchange}.
 
@@ -388,7 +474,16 @@ class AMQPFactory(ReconnectingClientFactory):
         @param headers: The message headers used when publishing the message.
         @type headers: dict
         """
-        self.messages.append((exchangeIdentifier, routing_key, message, mandatory, headers, declareExchange))
+        self.messages.append(
+            (
+                exchangeIdentifier,
+                routing_key,
+                message,
+                mandatory,
+                headers,
+                declareExchange,
+            )
+        )
         if self.p is not None:
             return self.p.send()
         else:
@@ -417,16 +512,18 @@ class AMQPFactory(ReconnectingClientFactory):
         """
         Disconnect completely and call back our connectionLost Deferred.
         """
-        isConnected = (self.connector.state == 'connected')
+        isConnected = self.connector.state == "connected"
         self.connector.disconnect()
         self.stopTrying()
 
         # If we are connected, then wait for connection to be closed.
         if isConnected:
             shutdownDeferred = Deferred()
+
             def connectionShut(result):
                 log.debug("Connection Shut: %s", result)
                 shutdownDeferred.callback("connection shut down")
+
             self._onConnectionLost.addBoth(connectionShut)
             return shutdownDeferred
 
@@ -442,16 +539,20 @@ class AMQPFactory(ReconnectingClientFactory):
         if self.p is not None:
             return self.p.create_queue(queue)
         else:
+
             def doCreateQueue(value):
                 return self.p.create_queue(queue)
+
             self._onConnectionMade.addCallback(doCreateQueue)
             return self._onConnectionMade
 
     def clientConnectionFailed(self, connector, reason):
-        log.debug('Client connection failed: %s', reason)
+        log.debug("Client connection failed: %s", reason)
         self.onConnectionFailed(reason)
-        ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
+        ReconnectingClientFactory.clientConnectionFailed(
+            self, connector, reason
+        )
 
     def clientConnectionLost(self, connector, reason):
-        log.debug('Client connection lost: %s', reason)
+        log.debug("Client connection lost: %s", reason)
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)

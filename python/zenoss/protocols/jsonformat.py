@@ -1,20 +1,25 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2010, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 
+from __future__ import absolute_import
 
 from base64 import b64encode, b64decode
 from json import dumps, loads
+
 from google.protobuf.descriptor import FieldDescriptor
+
 from .protobufutil import listify
 
+
 class ParseError(Exception):
-  """Thrown in case of parsing error."""
+    """Thrown in case of parsing error."""
+
 
 _COMMON_FIELD_TYPE_MAP = {
     FieldDescriptor.TYPE_DOUBLE: float,
@@ -31,13 +36,15 @@ _COMMON_FIELD_TYPE_MAP = {
     FieldDescriptor.TYPE_SFIXED32: float,
     FieldDescriptor.TYPE_SFIXED64: float,
     FieldDescriptor.TYPE_SINT32: int,
-    FieldDescriptor.TYPE_SINT64: long
+    FieldDescriptor.TYPE_SINT64: long,
 }
+
 
 class Serializer(object):
     """
     Convert a protobuf instance into a json encoded protobuf.
     """
+
     _FIELD_TYPE_MAP = dict(_COMMON_FIELD_TYPE_MAP)
     _FIELD_TYPE_MAP[FieldDescriptor.TYPE_BYTES] = b64encode
 
@@ -51,7 +58,10 @@ class Serializer(object):
             try:
                 formatter = self._FIELD_TYPE_MAP[field.type]
             except KeyError:
-                raise ParseError('Protobuf field "%s.%s" of type "%d" not supported.' % (message.__class__.__name__, field.name, field.type))
+                raise ParseError(
+                    'Protobuf field "%s.%s" of type "%d" not supported.'
+                    % (message.__class__.__name__, field.name, field.type)
+                )
 
             field_name = field.full_name if field.is_extension else field.name
             if field.label == FieldDescriptor.LABEL_REPEATED:
@@ -61,15 +71,19 @@ class Serializer(object):
 
         return json
 
+
 to_dict = Serializer()
+
 
 def to_json(message, indent=None):
     return dumps(to_dict(message), indent=indent)
+
 
 class Deserializer(object):
     """
     Convert a json encoded protobuf to a protobuf instance.
     """
+
     _FIELD_TYPE_MAP = dict(_COMMON_FIELD_TYPE_MAP)
     _FIELD_TYPE_MAP[FieldDescriptor.TYPE_BYTES] = b64decode
 
@@ -86,7 +100,10 @@ class Deserializer(object):
             try:
                 formatter = self._FIELD_TYPE_MAP[field.type]
             except KeyError:
-                raise ParseError('Protobuf field "%s.%s" of type "%d" not supported.' % (protobuf.__class__.__name__, field.name, field.type))
+                raise ParseError(
+                    'Protobuf field "%s.%s" of type "%d" not supported.'
+                    % (protobuf.__class__.__name__, field.name, field.type)
+                )
 
             if field.label == FieldDescriptor.LABEL_REPEATED:
                 for v in listify(value):
@@ -104,11 +121,14 @@ class Deserializer(object):
                     self._convert(protobuf, field, dictvar.get(field.name))
                 except AttributeError:
                     raise AttributeError(
-                            "Unable to get %s from %s %r" % (field.name,
-                                                             type(dictvar), dictvar))
+                        "Unable to get %s from %s %r"
+                        % (field.name, type(dictvar), dictvar)
+                    )
         return protobuf
 
+
 from_dict = Deserializer()
+
 
 def from_json(protobuf, message):
     return from_dict(protobuf, loads(message))

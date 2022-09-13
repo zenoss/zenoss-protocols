@@ -6,19 +6,26 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 ##############################################################################
-import zlib
+
+from __future__ import absolute_import
+
 import errno
 import logging
 import socket
-from amqplib.client_0_8.connection import Connection as amqpConnection
+import zlib
+
 from amqplib.client_0_8.basic_message import Message
-from zenoss.protocols.interfaces import IAMQPChannelAdapter
-from zenoss.protocols.exceptions import (
-        PublishException, NoRouteException, NoConsumersException,
-        ConnectionError
-    )
+from amqplib.client_0_8.connection import Connection as amqpConnection
 from zope.component import getAdapter
-from .exceptions import ChannelClosedError
+
+from .interfaces import IAMQPChannelAdapter
+from .exceptions import (
+    PublishException,
+    NoRouteException,
+    NoConsumersException,
+    ConnectionError,
+    ChannelClosedError,
+)
 
 
 DELIVERY_NONPERSISTENT = 1
@@ -27,14 +34,14 @@ DELIVERY_PERSISTENT = 2
 REPLY_CODE_NO_ROUTE = 312
 REPLY_CODE_NO_CONSUMERS = 313
 
-log = logging.getLogger('zen.%s' % __name__)
+log = logging.getLogger("zen.%s" % __name__)
 
 
 def set_keepalive(sock, timeout):
     if timeout > 0:
         # set keepalive on this connection
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        if hasattr(socket, 'TCP_KEEPIDLE'):
+        if hasattr(socket, "TCP_KEEPIDLE"):
             sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, timeout)
 
             interval = max(timeout / 4, 10)
@@ -45,9 +52,9 @@ def set_keepalive(sock, timeout):
 class Connection(amqpConnection):
     def __init__(self, *args, **kwargs):
         super(Connection, self).__init__(*args, **kwargs)
-        if 'keepalive' in kwargs:
+        if "keepalive" in kwargs:
             sock = self.connection.transport.sock
-            set_keepalive(sock, kwargs['keepalive'])
+            set_keepalive(sock, kwargs["keepalive"])
 
 
 class Publisher(object):
@@ -82,12 +89,15 @@ class Publisher(object):
         """
         try:
             if not self._connection:
-                self._connection = Connection(host='%s:%d' % (self._connectionInfo.host, self._connectionInfo.port),
-                                              userid=self._connectionInfo.user,
-                                              password=self._connectionInfo.password,
-                                              virtual_host=self._connectionInfo.vhost,
-                                              keepalive=self._connectionInfo.amqpconnectionheartbeat,
-                                              ssl=self._connectionInfo.usessl)
+                self._connection = Connection(
+                    host="%s:%d"
+                    % (self._connectionInfo.host, self._connectionInfo.port),
+                    userid=self._connectionInfo.user,
+                    password=self._connectionInfo.password,
+                    virtual_host=self._connectionInfo.vhost,
+                    keepalive=self._connectionInfo.amqpconnectionheartbeat,
+                    ssl=self._connectionInfo.usessl,
+                )
                 log.debug("Connecting to RabbitMQ...")
             if not self._channel:
                 self._channel = self._connection.connection.channel()
@@ -109,7 +119,9 @@ class Publisher(object):
             self._exchanges[exchange] = exchangeConfig
             try:
                 channel = self.getChannel()
-                getAdapter(channel, IAMQPChannelAdapter).declareExchange(exchangeConfig)
+                getAdapter(channel, IAMQPChannelAdapter).declareExchange(
+                    exchangeConfig
+                )
             except Exception as e:
                 log.critical("Could not use exchange %s: %s", exchange, e)
                 raise
@@ -132,8 +144,15 @@ class Publisher(object):
         self._exchanges = {}
         self._queues = set()
 
-    def publish(self, exchange, routing_key, obj, headers=None, mandatory=False,
-                 declareExchange=True):
+    def publish(
+        self,
+        exchange,
+        routing_key,
+        obj,
+        headers=None,
+        mandatory=False,
+        declareExchange=True,
+    ):
         """
         Blocking method for publishing items to the queue
 
@@ -149,37 +168,62 @@ class Publisher(object):
         # mechanism to prevent declaring an exchange with each call.
         exchangeConfig = self.useExchange(exchange)
 
-        msg = self.buildMessage(obj, headers, delivery_mode=exchangeConfig.delivery_mode,
-                               compression=exchangeConfig.compression)
+        msg = self.buildMessage(
+            obj,
+            headers,
+            delivery_mode=exchangeConfig.delivery_mode,
+            compression=exchangeConfig.compression,
+        )
 
         lastexc = None
         for i in range(2):
             try:
                 channel = self.getChannel()
-                log.debug('Publishing with routing key %s to exchange %s', routing_key, exchangeConfig.name)
-                channel.basic_publish(msg, exchangeConfig.name, routing_key, mandatory=mandatory)
+                log.debug(
+                    "Publishing with routing key %s to exchange %s",
+                    routing_key,
+                    exchangeConfig.name,
+                )
+                channel.basic_publish(
+                    msg, exchangeConfig.name, routing_key, mandatory=mandatory
+                )
                 if mandatory:
                     self._channel.close()
                     self._channel = None
                     if not channel.returned_messages.empty():
-                        reply_code, reply_text, exchange, routing_key, unused = channel.returned_messages.get()
+                        (
+                            reply_code,
+                            reply_text,
+                            exchange,
+                            routing_key,
+                            unused,
+                        ) = channel.returned_messages.get()
                         if reply_code == REPLY_CODE_NO_ROUTE:
-                            raise NoRouteException(reply_code, reply_text, exchange, routing_key)
+                            raise NoRouteException(
+                                reply_code, reply_text, exchange, routing_key
+                            )
                         if reply_code == REPLY_CODE_NO_CONSUMERS:
-                            raise NoConsumersException(reply_code, reply_text, exchange, routing_key)
-                        raise PublishException(reply_code, reply_text, exchange, routing_key)
+                            raise NoConsumersException(
+                                reply_code, reply_text, exchange, routing_key
+                            )
+                        raise PublishException(
+                            reply_code, reply_text, exchange, routing_key
+                        )
                 break
             except socket.error as exc:
                 log.info("RabbitMQ connection was closed: %s", exc)
                 lastexc = exc
                 self._reset()
         else:
-            raise Exception("Could not publish message to RabbitMQ: %s" % lastexc)
+            raise Exception(
+                "Could not publish message to RabbitMQ: %s" % lastexc
+            )
 
     def queueExists(self, queueIdentifier, replacements=None):
         """
-        Returns whether a queue already exists.  If any exception is encountered
-        we return False and the publisher will try to create it.
+        Returns whether a queue already exists.
+        If any exception is encountered we return False and the publisher
+        will try to create it.
         """
         if queueIdentifier in self._queues:
             return True
@@ -188,12 +232,13 @@ class Publisher(object):
         try:
             channel = self.getChannel()
             getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue, True)
-        except:
-            # In this case, with passive=True, this exception indicates that the
-            # queue doesn't exist.  The channel is closed from RabbitMQ when this
-            # function call fails.
+        except Exception:
+            # In this case, with passive=True, this exception indicates that
+            # the queue doesn't exist.  The channel is closed from RabbitMQ
+            # when this function call fails.
             return False
-        # If there was no exception, the queue exists.  Add it to our list and return.
+        # If there was no exception, the queue exists.
+        # Add it to our list and return.
         self._queues.add(queueIdentifier)
         return True
 
@@ -205,7 +250,9 @@ class Publisher(object):
                 try:
                     channel = self.getChannel()
                     try:
-                        getAdapter(channel, IAMQPChannelAdapter).declareQueue(queue, False)
+                        getAdapter(channel, IAMQPChannelAdapter).declareQueue(
+                            queue, False
+                        )
                     except ChannelClosedError as e:
                         # Here we handle the case where we redeclare a queue
                         # with different properties. When this happens, Rabbit
@@ -216,10 +263,14 @@ class Publisher(object):
                         if e.replyCode == 406:
                             # PRECONDITION_FAILED -- properties changed
                             # Remove the channel and allow it to be reopened
-                            log.warn(("Attempted to redeclare queue {0} with "
+                            log.warn(
+                                (
+                                    "Attempted to redeclare queue {0} with "
                                     "different arguments. You will need to "
                                     "delete the queue to pick up the new "
-                                    "configuration.").format(queue.name))
+                                    "configuration."
+                                ).format(queue.name)
+                            )
                             log.debug(e)
                             self._channel = None
                         else:
@@ -233,29 +284,35 @@ class Publisher(object):
                     log.exception(e)
                     raise
             else:
-                raise Exception("Could not create queue on RabbitMQ: %s" % lastexc)
+                raise Exception(
+                    "Could not create queue on RabbitMQ: %s" % lastexc
+                )
 
-    def buildMessage(self, obj, headers=None, delivery_mode=DELIVERY_PERSISTENT,
-                     compression='none'):
+    def buildMessage(
+        self,
+        obj,
+        headers=None,
+        delivery_mode=DELIVERY_PERSISTENT,
+        compression="none",
+    ):
 
         body = obj.SerializeToString()
 
-        msg_headers = {
-            'X-Protobuf-FullName' : obj.DESCRIPTOR.full_name
-        }
+        msg_headers = {"X-Protobuf-FullName": obj.DESCRIPTOR.full_name}
 
         msg_properties = {}
 
-        if compression == 'deflate':
+        if compression == "deflate":
             body = zlib.compress(body)
-            msg_properties['content_encoding'] = 'deflate'
+            msg_properties["content_encoding"] = "deflate"
 
         if headers:
             msg_headers.update(headers)
 
         return Message(
             body=body,
-            content_type='application/x-protobuf',
+            content_type="application/x-protobuf",
             application_headers=msg_headers,
             delivery_mode=delivery_mode,
-            **msg_properties)
+            **msg_properties
+        )
