@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="zenoss.protocols",
     version="2.1.9-dev",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     long_description=open("README.txt").read(),
     install_requires=[
         "amqplib",

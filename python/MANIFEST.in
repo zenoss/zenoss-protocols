@@ -1,4 +1,2 @@
 graft zenoss/protocols/twisted
 include zenoss/protocols/twisted/amqp0-9-1.xml
-
-
