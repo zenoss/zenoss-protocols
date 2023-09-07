@@ -12,12 +12,12 @@ package org.zenoss.amqp;
 
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.MappingJsonFactory;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.MappingJsonFactory;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zenoss.amqp.Exchange.Compression;
@@ -203,11 +203,11 @@ public class QueueConfig {
             throw new IOException("Content types not a JSON object");
         }
         ObjectNode contentTypes = (ObjectNode) contentTypesNode;
-        for (Iterator<Map.Entry<String, JsonNode>> it = contentTypes.getFields(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = contentTypes.fields(); it.hasNext(); ) {
             Map.Entry<String, JsonNode> entry = it.next();
             String contentTypeId = entry.getKey();
             JsonNode contentType = entry.getValue();
-            String javaClass = contentType.get("java_class").getTextValue();
+            String javaClass = contentType.get("java_class").textValue();
             this.contentTypeIdToJavaClass.put(contentTypeId, javaClass);
         }
     }
@@ -242,7 +242,7 @@ public class QueueConfig {
             throw new IOException("Exchanges not a JSON object");
         }
         ObjectNode exchangesObject = (ObjectNode) node;
-        for (Iterator<Map.Entry<String, JsonNode>> it = exchangesObject.getFields(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = exchangesObject.fields(); it.hasNext(); ) {
             final Map.Entry<String, JsonNode> entry = it.next();
 
             final ExchangeNode exchangeNode = new ExchangeNode();
@@ -252,14 +252,14 @@ public class QueueConfig {
                 throw new IOException("Exchange value is not a JSON object");
             }
 
-            exchangeNode.name = exchangeObject.get("name").getTextValue();
+            exchangeNode.name = exchangeObject.get("name").textValue();
 
             final JsonNode typeNode = exchangeObject.get("type");
             Type type = Exchange.Type.FANOUT;
             if (typeNode != null) {
-                type = Exchange.Type.fromName(typeNode.getTextValue());
+                type = Exchange.Type.fromName(typeNode.textValue());
                 if (type == null) {
-                    throw new IOException("Unknown exchange type: " + typeNode.getTextValue());
+                    throw new IOException("Unknown exchange type: " + typeNode.textValue());
                 }
             }
             exchangeNode.type = type;
@@ -271,7 +271,7 @@ public class QueueConfig {
             final JsonNode contentTypesNode = exchangeObject.get("content_types");
             if (contentTypesNode != null) {
                 for (JsonNode contentType : contentTypesNode) {
-                    exchangeNode.contentTypeIds.add(contentType.getTextValue());
+                    exchangeNode.contentTypeIds.add(contentType.textValue());
                 }
             }
 
@@ -284,7 +284,7 @@ public class QueueConfig {
             throw new IOException("Queues not a JSON object");
         }
         ObjectNode queuesObject = (ObjectNode) node;
-        for (Iterator<Map.Entry<String, JsonNode>> it = queuesObject.getFields(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = queuesObject.fields(); it.hasNext(); ) {
             Map.Entry<String, JsonNode> entry = it.next();
             QueueNode queue = new QueueNode();
             queue.identifier = entry.getKey();
@@ -293,7 +293,7 @@ public class QueueConfig {
                 throw new IOException("Queue value is not a JSON object");
             }
 
-            queue.name = queueNode.get("name").getTextValue();
+            queue.name = queueNode.get("name").textValue();
             queue.durable = getJsonBoolean(queueNode, "durable", false);
             queue.exclusive = getJsonBoolean(queueNode, "exclusive", false);
             queue.autoDelete = getJsonBoolean(queueNode, "auto_delete", false);
@@ -304,8 +304,8 @@ public class QueueConfig {
             if (bindingsNode != null) {
                 for (JsonNode bindingNode : bindingsNode) {
                     BindingNode binding = new BindingNode();
-                    binding.exchangeIdentifier = bindingNode.get("exchange").getTextValue();
-                    binding.routingKey = bindingNode.get("routing_key").getTextValue();
+                    binding.exchangeIdentifier = bindingNode.get("exchange").textValue();
+                    binding.routingKey = bindingNode.get("routing_key").textValue();
                     binding.arguments = convertObjectNodeToMap(bindingNode.get("arguments"));
                     queue.bindingNodes.add(binding);
                 }
@@ -431,7 +431,7 @@ public class QueueConfig {
         boolean value = defaultValue;
         JsonNode node = parent.get(key);
         if (node != null) {
-            value = node.getBooleanValue();
+            value = node.booleanValue();
         }
         return value;
     }
@@ -440,7 +440,7 @@ public class QueueConfig {
         String value = defaultValue;
         JsonNode node = parent.get(key);
         if (node != null) {
-            value = node.getTextValue();
+            value = node.textValue();
         }
         return value;
     }
@@ -460,7 +460,7 @@ public class QueueConfig {
         }
         final ObjectNode objectNode = (ObjectNode) node;
         final Map<String, Object> map = new HashMap<String, Object>();
-        final Iterator<Map.Entry<String, JsonNode>> it = objectNode.getFields();
+        final Iterator<Map.Entry<String, JsonNode>> it = objectNode.fields();
         while (it.hasNext()) {
             final Map.Entry<String, JsonNode> entry = it.next();
             final String key = entry.getKey();
@@ -485,7 +485,7 @@ public class QueueConfig {
      */
     private static List<Object> convertArrayNodeToList(ArrayNode arrayNode) throws IOException {
         final List<Object> list = new ArrayList<Object>(arrayNode.size());
-        for (Iterator<JsonNode> it = arrayNode.getElements(); it.hasNext(); ) {
+        for (Iterator<JsonNode> it = arrayNode.elements(); it.hasNext(); ) {
             final JsonNode node = it.next();
             if (!node.isObject()) {
                 throw new IllegalArgumentException("Invalid node: " + node);
@@ -541,35 +541,35 @@ public class QueueConfig {
         }
 
         Object converted;
-        final String type = (typeNode != null) ? typeNode.getTextValue() : null;
+        final String type = (typeNode != null) ? typeNode.textValue() : null;
         if ("boolean".equals(type)) {
-            converted = valueNode.getBooleanValue();
+            converted = valueNode.booleanValue();
         } else if ("byte".equals(type)) {
-            converted = (byte) valueNode.getIntValue();
+            converted = (byte) valueNode.intValue();
         } else if ("byte[]".equals(type)) {
-            converted = valueNode.getBinaryValue();
+            converted = valueNode.binaryValue();
         } else if ("short".equals(type)) {
-            converted = (short) valueNode.getIntValue();
+            converted = (short) valueNode.intValue();
         } else if ("int".equals(type)) {
-            converted = valueNode.getIntValue();
+            converted = valueNode.intValue();
         } else if ("long".equals(type)) {
-            converted = valueNode.getLongValue();
+            converted = valueNode.longValue();
         } else if ("float".equals(type)) {
-            converted = (float) valueNode.getDoubleValue();
+            converted = (float) valueNode.doubleValue();
         } else if ("double".equals(type)) {
-            converted = valueNode.getDoubleValue();
+            converted = valueNode.doubleValue();
         } else if ("decimal".equals(type)) {
             if (valueNode.isTextual()) {
-                converted = new BigDecimal(valueNode.getTextValue());
+                converted = new BigDecimal(valueNode.textValue());
             } else {
-                converted = valueNode.getDecimalValue();
+                converted = valueNode.decimalValue();
             }
         } else if ("string".equals(type)) {
-            converted = valueNode.getTextValue();
+            converted = valueNode.textValue();
         } else if ("array".equals(type)) {
             converted = convertArrayNodeToList((ArrayNode) valueNode);
         } else if ("timestamp".equals(type)) {
-            converted = new Date(valueNode.getLongValue());
+            converted = new Date(valueNode.longValue());
         } else if ("table".equals(type)) {
             converted = convertObjectNodeToMap(valueNode);
         } else if (type == null) {
@@ -577,28 +577,28 @@ public class QueueConfig {
             if (valueNode.isNull()) {
                 converted = null;
             } else if (valueNode.isBoolean()) {
-                converted = valueNode.getBooleanValue();
+                converted = valueNode.booleanValue();
             } else if (valueNode.isInt()) {
-                converted = valueNode.getIntValue();
+                converted = valueNode.intValue();
             } else if (valueNode.isLong()) {
-                converted = valueNode.getLongValue();
+                converted = valueNode.longValue();
             } else if (valueNode.isDouble()) {
-                double dVal = valueNode.getDoubleValue();
+                double dVal = valueNode.doubleValue();
                 if (dVal >= Float.MIN_VALUE && dVal <= Float.MAX_VALUE) {
                     converted = (float) dVal;
                 } else {
                     converted = dVal;
                 }
             } else if (valueNode.isBinary()) {
-                converted = valueNode.getBinaryValue();
+                converted = valueNode.binaryValue();
             } else if (valueNode.isArray()) {
                 converted = convertArrayNodeToList((ArrayNode) valueNode);
             } else if (valueNode.isObject()) {
                 converted = convertObjectNodeToMap(valueNode);
             } else if (valueNode.isBigDecimal()) {
-                converted = valueNode.getDecimalValue();
+                converted = valueNode.decimalValue();
             } else if (valueNode.isTextual()) {
-                converted = valueNode.getTextValue();
+                converted = valueNode.textValue();
             } else {
                 throw new IllegalArgumentException("Unable to coerce type: " + node);
             }

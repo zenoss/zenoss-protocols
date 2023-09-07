@@ -15,8 +15,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protoc.path>protoc</protoc.path>
-        <version.jackson>1.9.2</version.jackson>
-        <zenoss-utils.version>2.1.0</zenoss-utils.version>
+        <version.jackson>2.15.2</version.jackson>
+        <zenoss-utils.version>2.1.1-SNAPSHOT</zenoss-utils.version>
     </properties>
     <scm>
         <connection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</connection>
@@ -29,7 +29,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>findbugs-maven-plugin</artifactId>
-                    <version>2.5.2</version>
+                    <version>3.0.5</version>
                     <configuration>
                         <xmlOutput>true</xmlOutput>
                     </configuration>
@@ -37,7 +37,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <version>1.7</version>
+                    <version>3.1.0</version>
                     <executions>
                         <!-- Run `svnversion -n` and store output in svn.revision property. -->
                         <!-- Run `svn info` and store URL in output in svn.url property. -->
@@ -76,7 +76,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
+                    <version>3.3.0</version>
                     <configuration>
                         <archive>
                             <manifestEntries>
@@ -92,21 +92,21 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
+                <version>3.11.0</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
             <plugin>
             	<groupId>org.codehaus.mojo</groupId>
             	<artifactId>versions-maven-plugin</artifactId>
-            	<version>1.2</version>
+            	<version>2.16.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.2</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
