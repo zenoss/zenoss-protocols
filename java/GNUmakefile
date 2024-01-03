@@ -14,7 +14,7 @@ build:
 		-v ${PWD}/..:/mnt/build \
 		-v ${HOME}/.m2:/home/build/.m2 \
 		-w /mnt/build \
-		zenoss/maven:java17-2 \
+		zenoss/maven:java21-1 \
 		-f java/pom.xml -Dprotoc.path=/usr/local/bin/protoc clean install
 
 deploy:
@@ -22,7 +22,7 @@ deploy:
 			-v ${PWD}/..:/mnt/build \
 			-v ${HOME}/.m2:/home/build/.m2 \
 			-w /mnt/build \
-			zenoss/maven:java17-2 \
+			zenoss/maven:java21-1 \
 			-f java/pom.xml -Dprotoc.path=/usr/local/bin/protoc -Drepo.login=${NEXUS_USER} -Drepo.pwd=${NEXUS_PASSWORD} clean deploy
 
 clean:

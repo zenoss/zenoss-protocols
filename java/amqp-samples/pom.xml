@@ -30,7 +30,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.24.2</version>
+            <version>${protobuf-java.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
