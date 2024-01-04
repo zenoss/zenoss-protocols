@@ -14,16 +14,16 @@ build:
 		-v ${PWD}/..:/mnt/build \
 		-v ${HOME}/.m2:/home/build/.m2 \
 		-w /mnt/build \
-		zenoss/maven:java21-1 \
-		-f java/pom.xml -Dprotoc.path=/usr/local/bin/protoc clean install
+		zenoss/maven:java21-2 \
+		-f java/pom.xml -Dprotoc.path=/usr/bin/protoc clean install
 
 deploy:
 	@docker run --rm \
 			-v ${PWD}/..:/mnt/build \
 			-v ${HOME}/.m2:/home/build/.m2 \
 			-w /mnt/build \
-			zenoss/maven:java21-1 \
-			-f java/pom.xml -Dprotoc.path=/usr/local/bin/protoc -Drepo.login=${NEXUS_USER} -Drepo.pwd=${NEXUS_PASSWORD} clean deploy
+			zenoss/maven:java21-2 \
+			-f java/pom.xml -Dprotoc.path=/usr/bin/protoc -Drepo.login=${NEXUS_USER} -Drepo.pwd=${NEXUS_PASSWORD} clean deploy
 
 clean:
 	@rm -rf amqp-api/target \
