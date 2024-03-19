@@ -20,11 +20,11 @@ import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistry.ExtensionInfo;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonToken;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 
 import java.io.Closeable;
 import java.io.IOException;

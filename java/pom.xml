@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
     <artifactId>protocols</artifactId>
-    <version>2.1.8</version>
+    <version>2.1.9</version>
     <packaging>pom</packaging>
     <name>Zenoss Protocols</name>
     <modules>
@@ -13,23 +13,36 @@
         <module>amqp-samples</module>
     </modules>
     <properties>
+        <java.version>21</java.version>
+        <zenoss-utils.version>2.1.1</zenoss-utils.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protoc.path>protoc</protoc.path>
-        <version.jackson>1.9.2</version.jackson>
-        <zenoss-utils.version>2.1.0</zenoss-utils.version>
+        <version.jackson>2.16.1</version.jackson>
+        <protobuf-java.version>2.5.0</protobuf-java.version>
+        <junit.version>4.13.2</junit.version>
+        <slf4j.version>2.0.10</slf4j.version>
+        <easymock.version>5.2.0</easymock.version>
+        <amqp-client.version>2.5.0</amqp-client.version>
+        <jakarta.ws.rs-api.version>3.1.0</jakarta.ws.rs-api.version>
+        <findbugs-maven-plugin.version>3.0.5</findbugs-maven-plugin.version>
+        <maven-deploy-plugin.version>3.1.1</maven-deploy-plugin.version>
+        <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+        <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
+        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+        <sonar-maven-plugin.version>3.10.0.2594</sonar-maven-plugin.version>
+        <build-helper-maven-plugin.version>3.5.0</build-helper-maven-plugin.version>
+        <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
+        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
     </properties>
-    <scm>
-        <connection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</connection>
-        <developerConnection>scm:svn:http://dev.zenoss.org/svn/org.zenoss.protocols/trunk</developerConnection>
-        <url>http://dev.zenoss.org/trac/browser/org.zenoss.protocols</url>
-    </scm>
     <build>
         <pluginManagement>
             <plugins>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>findbugs-maven-plugin</artifactId>
-                    <version>2.5.2</version>
+                    <version>${findbugs-maven-plugin.version}</version>
                     <configuration>
                         <xmlOutput>true</xmlOutput>
                     </configuration>
@@ -37,54 +50,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <version>1.7</version>
-                    <executions>
-                        <!-- Run `svnversion -n` and store output in svn.revision property. -->
-                        <!-- Run `svn info` and store URL in output in svn.url property. -->
-                        <execution>
-                            <id>get-svn-version</id>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                            <configuration>
-                                <exportAntProperties>true</exportAntProperties>
-                                <target>
-                                    <exec executable="svnversion" outputproperty="svn.revision" logError="true"
-                                          failonerror="false" failifexecutionfails="false">
-                                        <arg value="-n" />
-                                    </exec>
-                                    <exec executable="svn" failonerror="false" failifexecutionfails="false" logError="true">
-                                        <arg value="info" />
-                                        <redirector outputproperty="svn.url">
-                                            <outputfilterchain>
-                                                <linecontainsregexp>
-                                                    <regexp pattern="^URL:" />
-                                                </linecontainsregexp>
-                                                <tokenfilter>
-                                                    <replaceregex pattern="^URL:\s*(.*)"
-                                                                  replace="\1" />
-                                                </tokenfilter>
-                                                <striplinebreaks/>
-                                            </outputfilterchain>
-                                        </redirector>
-                                    </exec>
-                                </target>
-                            </configuration>
-                        </execution>
-                    </executions>
+                    <version>${maven-antrun-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
-                    <configuration>
-                        <archive>
-                            <manifestEntries>
-                                <SVN-Url>${svn.url}</SVN-Url>
-                                <SVN-Revision>${svn.revision}</SVN-Revision>
-                            </manifestEntries>
-                        </archive>
-                    </configuration>
+                    <version>${maven-jar-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>${maven-deploy-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -92,21 +68,21 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                 </configuration>
             </plugin>
             <plugin>
             	<groupId>org.codehaus.mojo</groupId>
             	<artifactId>versions-maven-plugin</artifactId>
-            	<version>1.2</version>
+            	<version>${versions-maven-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.2</version>
+                <version>${maven-source-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -116,16 +92,50 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-maven-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>${maven-deploy-plugin.version}</version>
+            </plugin>
         </plugins>
     </build>
+    <repositories>
+        <repository>
+            <id>zenoss-nexus-snapshot</id>
+            <url>http://nexus.zenoss.eng:8081/nexus/content/repositories/snapshots</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>zenoss-nexus-release</id>
+            <url>http://nexus.zenoss.eng:8081/nexus/content/repositories/releases</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <distributionManagement>
         <repository>
-            <id>releases</id>
-            <url>http://cmrepo.zenoss.loc/nexus/content/repositories/releases</url>
+            <id>zenoss-nexus</id>
+            <name>Internal Release Repository</name>
+            <url>http://nexus.zenoss.eng:8081/nexus/content/repositories/releases</url>
         </repository>
         <snapshotRepository>
-            <id>snapshots</id>
-            <url>http://cmrepo.zenoss.loc/nexus/content/repositories/snapshots</url>
+            <id>zenoss-nexus</id>
+            <name>Internal Snapshot Repository</name>
+            <url>http://nexus.zenoss.eng:8081/nexus/content/repositories/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
 </project>

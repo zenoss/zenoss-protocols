@@ -1,14 +1,16 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2011, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 
-from txamqp.client import Closed
+from __future__ import absolute_import
+
 from amqplib.client_0_8.exceptions import AMQPChannelException
+from txamqp.client import Closed
 
 
 class ConnectionError(IOError):
@@ -30,11 +32,11 @@ class ConnectionError(IOError):
         return "%s: [%s] %s" % (self.message, self.errno, self.strerror)
 
 
-
 class ChannelClosedError(IOError):
     """
     Wraps txamqp/amqplib exceptions
     """
+
     _replyCode = None
 
     def __init__(self, exc):
@@ -49,13 +51,13 @@ class ChannelClosedError(IOError):
         return self._replyCode
 
 
-
 class PublishException(Exception):
     """
     Generic exception sent when a message is published to a queue with
     either the mandatory or immediate flags set to true and the message
     fails to publish.
     """
+
     def __init__(self, reply_code, reply_text, exchange, routing_key):
         super(PublishException, self).__init__()
         self._reply_code = reply_code
@@ -80,9 +82,16 @@ class PublishException(Exception):
         return self._routing_key
 
     def __str__(self):
-        return "Reply code: %d, Reply text: %s, Exchange: %s, Routing key: %s" % (
-            self.reply_code, self.reply_text, self.exchange, self.routing_key
+        return (
+            "Reply code: %d, Reply text: %s, Exchange: %s, Routing key: %s"
+            % (
+                self.reply_code,
+                self.reply_text,
+                self.exchange,
+                self.routing_key,
+            )
         )
+
 
 class NoRouteException(PublishException):
     """
@@ -91,7 +100,9 @@ class NoRouteException(PublishException):
     the message has been lost and will never be delivered to the
     queue.
     """
+
     pass
+
 
 class NoConsumersException(PublishException):
     """
@@ -99,4 +110,5 @@ class NoConsumersException(PublishException):
     are no active consumers for the message. This means that the
     consumer which processes the queue is not currently active.
     """
+
     pass

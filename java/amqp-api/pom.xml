@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.zenoss</groupId>
         <artifactId>protocols</artifactId>
-        <version>2.1.8</version>
+        <version>2.1.9</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -18,21 +18,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.7</version>
+                <version>${maven-javadoc-plugin.version}</version>
                 <configuration>
                     <detectJavaApiLink>true</detectJavaApiLink>
                     <excludePackageNames>*.impl.*</excludePackageNames>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>get-svn-version</id>
-                        <phase>validate</phase>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
@@ -45,21 +35,21 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.8.2</version>
+            <version>${junit.version}</version>
             <type>jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.easymock</groupId>
             <artifactId>easymock</artifactId>
-            <version>3.0</version>
+            <version>${easymock.version}</version>
             <type>jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
-            <version>2.5.0</version>
+            <version>${amqp-client.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -71,20 +61,20 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>2.5.0</version>
+            <version>${protobuf-java.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
         <dependency>
-        	<groupId>org.codehaus.jackson</groupId>
-        	<artifactId>jackson-core-asl</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
         	<version>${version.jackson}</version>
         	<type>jar</type>
         	<scope>compile</scope>
         </dependency>
         <dependency>
-        	<groupId>org.codehaus.jackson</groupId>
-        	<artifactId>jackson-mapper-asl</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         	<version>${version.jackson}</version>
         	<type>jar</type>
         	<scope>compile</scope>
@@ -92,14 +82,14 @@
         <dependency>
         	<groupId>org.slf4j</groupId>
         	<artifactId>slf4j-api</artifactId>
-        	<version>1.6.1</version>
+        	<version>${slf4j.version}</version>
         	<type>jar</type>
         	<scope>compile</scope>
         </dependency>
         <dependency>
         	<groupId>org.slf4j</groupId>
         	<artifactId>slf4j-jdk14</artifactId>
-        	<version>1.6.1</version>
+        	<version>${slf4j.version}</version>
         	<type>jar</type>
         	<scope>test</scope>
         </dependency>

@@ -11,7 +11,7 @@
 PROTODIR = zenoss/protocols/protobufs
 DATADIR = zenoss/protocols/data
 PROTOC = protoc
-PYTHON = python
+PYTHON = python2
 default: build
 
 define QJS_BUILD

@@ -1,31 +1,33 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2011, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 
-
 from __future__ import absolute_import
-import pkg_resources
+
 import logging
-from twisted.internet.defer import returnValue, inlineCallbacks
+
 from amqplib.client_0_8.channel import Channel as AMQPLibChannel
 from amqplib.client_0_8.connection import Connection as AMQPConnection
 from amqplib.client_0_8.exceptions import AMQPChannelException
-from txamqp.protocol import AMQChannel as TwistedAMQChannel
+from twisted.internet.defer import returnValue, inlineCallbacks
 from txamqp.client import Closed
-from zenoss.protocols.interfaces import IAMQPChannelAdapter
-from zope.interface import implements
+from txamqp.protocol import AMQChannel as TwistedAMQChannel
 from zope.component import adapts
-from .exceptions import ChannelClosedError
+from zope.interface import implements
 
-log = logging.getLogger('zen.protocols')
+from .exceptions import ChannelClosedError
+from .interfaces import IAMQPChannelAdapter
+
+log = logging.getLogger("zen.protocols")
+
 
 class AMQPLibChannelAdapter(object):
-    
+
     implements(IAMQPChannelAdapter)
     adapts(AMQPLibChannel)
 
@@ -39,47 +41,58 @@ class AMQPLibChannelAdapter(object):
             log.debug("Creating queue: %s", queue.name)
         log.debug("Using arguments: %r", queue.arguments)
         try:
-            result = self.channel.queue_declare(queue=queue.name,
-                                                durable=queue.durable,
-                                                exclusive=queue.exclusive,
-                                                auto_delete=queue.auto_delete,
-                                                arguments=queue.arguments,
-                                                passive=passive)
+            result = self.channel.queue_declare(
+                queue=queue.name,
+                durable=queue.durable,
+                exclusive=queue.exclusive,
+                auto_delete=queue.auto_delete,
+                arguments=queue.arguments,
+                passive=passive,
+            )
         except AMQPChannelException as e:
             raise ChannelClosedError(e)
 
         for identifier, binding in queue.bindings.iteritems():
             self.declareExchange(binding.exchange)
 
-            log.debug("Binding queue %s to exchange %s with routing_key %s",
-                queue.name, binding.exchange.name, binding.routing_key)
-            self.channel.queue_bind(queue=queue.name,
-                                    exchange=binding.exchange.name,
-                                    routing_key=binding.routing_key,
-                                    arguments=binding.arguments)
+            log.debug(
+                "Binding queue %s to exchange %s with routing_key %s",
+                queue.name,
+                binding.exchange.name,
+                binding.routing_key,
+            )
+            self.channel.queue_bind(
+                queue=queue.name,
+                exchange=binding.exchange.name,
+                routing_key=binding.routing_key,
+                arguments=binding.arguments,
+            )
         return result
-
 
     def declareExchange(self, exchange):
         log.debug("Creating exchange: %s", exchange.name)
-        return self.channel.exchange_declare(exchange.name, exchange.type,
-                                             durable=exchange.durable,
-                                             auto_delete=exchange.auto_delete,
-                                             arguments=exchange.arguments)
+        return self.channel.exchange_declare(
+            exchange.name,
+            exchange.type,
+            durable=exchange.durable,
+            auto_delete=exchange.auto_delete,
+            arguments=exchange.arguments,
+        )
 
     def deleteQueue(self, queue):
         try:
             log.debug("Deleting queue: %s", queue.name)
             self.channel.queue_purge(queue.name)
 
-            log.debug('Deleting queue: %s', queue.name)
+            log.debug("Deleting queue: %s", queue.name)
             self.channel.queue_delete(queue.name)
-        except AMQPChannelException, e:
+        except AMQPChannelException as e:
             # if the queue doesn't exist, don't worry about it.
             if e.amqp_reply_code == 404:
-                log.debug('Queue %s did not exist', queue.name)
+                log.debug("Queue %s did not exist", queue.name)
             else:
                 raise
+
 
 class TwistedChannelAdapter(object):
 
@@ -97,47 +110,60 @@ class TwistedChannelAdapter(object):
             log.debug("Creating queue: %s", queue.name)
         log.debug("Using arguments: %r", queue.arguments)
         try:
-            result = yield self.channel.queue_declare(queue=queue.name,
-                                                      durable=queue.durable,
-                                                      exclusive=queue.exclusive,
-                                                      auto_delete=queue.auto_delete,
-                                                      arguments=queue.arguments,
-                                                      passive=passive)
+            result = yield self.channel.queue_declare(
+                queue=queue.name,
+                durable=queue.durable,
+                exclusive=queue.exclusive,
+                auto_delete=queue.auto_delete,
+                arguments=queue.arguments,
+                passive=passive,
+            )
         except Closed as e:
             raise ChannelClosedError(e)
 
         for identifier, binding in queue.bindings.iteritems():
             yield self.declareExchange(binding.exchange)
 
-            log.debug("Binding queue %s to exchange %s with routing_key %s", queue.name, binding.exchange.name,
-                      binding.routing_key)
-            yield self.channel.queue_bind(queue=queue.name,
-                                      exchange=binding.exchange.name,
-                                      routing_key=binding.routing_key,
-                                      arguments=binding.arguments)
+            log.debug(
+                "Binding queue %s to exchange %s with routing_key %s",
+                queue.name,
+                binding.exchange.name,
+                binding.routing_key,
+            )
+            yield self.channel.queue_bind(
+                queue=queue.name,
+                exchange=binding.exchange.name,
+                routing_key=binding.routing_key,
+                arguments=binding.arguments,
+            )
         returnValue(result)
 
     @inlineCallbacks
     def declareExchange(self, exchange):
         log.debug("Creating exchange: %s", exchange.name)
-        # AMQP 0.9.1 (which txAMQP uses) has deprecated auto-delete on exchanges
-        result = yield self.channel.exchange_declare(exchange=exchange.name,
-                                                     type=exchange.type,
-                                                     durable=exchange.durable,
-                                                     arguments=exchange.arguments)
+        # AMQP 0.9.1 (which txAMQP uses) has deprecated auto-delete
+        # on exchanges.
+        result = yield self.channel.exchange_declare(
+            exchange=exchange.name,
+            type=exchange.type,
+            durable=exchange.durable,
+            arguments=exchange.arguments,
+        )
         returnValue(result)
 
     def deleteQueue(self, queue):
         raise NotImplementedError("deleteQueue not implemented")
 
-class AMQPUtil(object):
 
+class AMQPUtil(object):
     def getConnection(self, amqpConnectionInfo):
-        conn = AMQPConnection(host="%s:%s" % (amqpConnectionInfo.host, amqpConnectionInfo.port),
-                              userid=amqpConnectionInfo.user,
-                              password=amqpConnectionInfo.password,
-                              virtual_host=amqpConnectionInfo.vhost,
-                              ssl=amqpConnectionInfo.usessl)
+        conn = AMQPConnection(
+            host="%s:%s" % (amqpConnectionInfo.host, amqpConnectionInfo.port),
+            userid=amqpConnectionInfo.user,
+            password=amqpConnectionInfo.password,
+            virtual_host=amqpConnectionInfo.vhost,
+            ssl=amqpConnectionInfo.usessl,
+        )
         return conn
 
     def getChannel(self, connectionInfo=None, connection=None):
@@ -153,8 +179,9 @@ class AMQPUtil(object):
         channel = amqpConnection.channel()
         return (channel, amqpConnection)
 
-#TODO create a util for creating txamqp factories and channels
-#class TXAMQPUtil(object):
+
+# TODO create a util for creating txamqp factories and channels
+# class TXAMQPUtil(object):
 #
 #    @inlineCallbacks
 #    def createFactory(self, connectionInfo, queueSchema):
@@ -169,8 +196,8 @@ class AMQPUtil(object):
 #        returnValue(channel)
 
 
-
 def registerAdapters():
     from zope.component import provideAdapter
+
     provideAdapter(AMQPLibChannelAdapter)
     provideAdapter(TwistedChannelAdapter)

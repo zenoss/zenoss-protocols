@@ -2,6 +2,8 @@
 //# Copyright (C) 2010-2011, Zenoss Inc.  All Rights Reserved.
 //##########################################################################
 
+syntax = "proto2";
+
 package org.zenoss.test;
 
 enum TestEnum {

@@ -1,18 +1,19 @@
 ##############################################################################
-# 
+#
 # Copyright (C) Zenoss, Inc. 2011, all rights reserved.
-# 
+#
 # This content is made available according to terms specified in
 # License.zenoss under the directory where your Zenoss product is installed.
-# 
+#
 ##############################################################################
 
 
 class EventSummaryAdapter(object):
     """A readonly view of event and eventSummary information, to be
-       used in passing to various event evaluators and adapters that
-       need access to current event information.
+    used in passing to various event evaluators and adapters that
+    need access to current event information.
     """
+
     def __init__(self, evtsummary):
         self._es = evtsummary
         self._ev = evtsummary.occurrence[0]
@@ -22,7 +23,7 @@ class EventSummaryAdapter(object):
                 name = str(det.name)
                 value = det.value
                 if len(value) == 0:
-                    value = ''
+                    value = ""
                 elif len(value) == 1:
                     value = value[0]
                 else:
@@ -153,5 +154,9 @@ class EventSummaryAdapter(object):
     def details(self):
         return self._details
 
-EventSummaryAdapter.FIELDS = [name for name in dir(EventSummaryAdapter)
-                                if isinstance(getattr(EventSummaryAdapter, name), property)]
+
+EventSummaryAdapter.FIELDS = [
+    name
+    for name in dir(EventSummaryAdapter)
+    if isinstance(getattr(EventSummaryAdapter, name), property)
+]
